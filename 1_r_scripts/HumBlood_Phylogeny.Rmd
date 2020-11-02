@@ -1,0 +1,1318 @@
+---
+title: "Comparative Hummingbird Blood - Phylogeny"
+author: "Jessie Williamson"
+date: "7/19/2020"
+output: html_document
+---
+
+#### 
+
+Script to process phylogeny for 'Hummingbird blood data from an interspecific comparative standpoint'
+
+####
+
+
+**General workflow:** 
+Read in McGuire et al. 2014 hummingbird phylogeny, prune tree to just species of interest (77 total)
+Add in missing species (two: Oreotrochilus leucopleurus and Phaethornis stuarti)
+Adjust branch lengths, review tree
+Save final tree file and read this out as .tre
+This will get read into main analysis script allhummingbird_blood_comparison.Rmd for modeling.
+
+
+```{R, echo=FALSE}
+# I set some GLOBAL R chunk options here.
+#   (to hide this message add "echo=FALSE" to the code chunk options)
+
+knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
+knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
+
+#knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
+knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
+```
+
+
+# Load packages
+```{R}
+library(reshape)
+library(reshape2)
+library(plyr)
+library(dplyr)
+library(car)
+library(GGally)
+library(Hmisc)
+library(gridExtra)
+library(stats)
+library(gplots)
+library(ggplot2)
+library(stats4) # Forces knitr to work when it's being wonky
+library(effects)
+library(gridExtra)
+library(lattice)
+
+# Mapping 
+library(raster)
+library(sp)
+library(rgdal)
+library(RStoolbox)
+library(prettymapr)
+library(viridis)
+library(rasterVis)
+
+# Modeling packages 
+library(nlme)
+library(lme4)
+library(AICcmodavg)
+library(MuMIn)
+library(glmulti)
+library(lsmeans)
+library(rsq) # get r-squared values from GLM
+library(r2glmm) # for R^2 values from lmer() and glmer()
+library(multcompView) # related to multiple comparisons?
+library(jtools) # interaction plots 
+library(interactions) # interaction plots 
+library(broom)
+library(stargazer) # model output tables
+library(ggeffects) # for estimating model predictions from mixed effects models
+library(brms)
+library(MCMCglmm)
+library(rstan)
+library(bayesplot)
+
+# Phylo packages 
+library(phytools)
+library(ape)
+
+# Coded this out because seems to reinstall a bunch of packages, which I don't want to do every time 
+# ggtree also isn't working well for what I want, so I don't need it 
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#      install.packages("BiocManager")
+#  
+# BiocManager::install("ggtree")
+library(ggtree)
+```
+
+
+---
+
+# Clear workspace and set WD
+```{R}
+rm(list=ls(all=TRUE)) # clear workspace 
+setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+```
+
+
+# load in data 
+```{R}
+# Load functions 
+# source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
+
+# Read in data files: 
+# Remember you want "species" to be a character for tree subsetting below 
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_07-18-20.csv", stringsAsFactors = FALSE)
+final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
+
+final.hb <- read.csv("HumBlood_final.hb.csv", stringsAsFactors = FALSE)
+final.hb <- final.hb[ , !(colnames(final.hb) %in% c("X"))] # drop weird X column 
+
+final.hct <- read.csv("HumBlood_final.hct.csv", stringsAsFactors = FALSE)
+final.hct <- final.hct[ , !(colnames(final.hct) %in% c("X"))] # drop weird X column 
+
+final.trbc <- read.csv("HumBlood_final.trbc.csv", stringsAsFactors = FALSE)
+final.trbc <- final.trbc[ , !(colnames(final.trbc) %in% c("X"))] # drop weird X column 
+
+final.mcv <- read.csv("HumBlood_final.mcv.csv", stringsAsFactors = FALSE)
+final.mcv <- final.mcv[ , !(colnames(final.mcv) %in% c("X"))] # drop weird X column 
+
+final.mch <- read.csv("HumBlood_final.mch.csv", stringsAsFactors = FALSE)
+final.mch <- final.mch[ , !(colnames(final.mch) %in% c("X"))] # drop weird X column 
+
+final.mchc <- read.csv("HumBlood_final.mchc.csv", stringsAsFactors = FALSE)
+final.mchc <- final.mchc[ , !(colnames(final.mchc) %in% c("X"))] # drop weird X column 
+
+# Read in tree file 
+tree <- read.nexus("McGuireEtAl2014_HummingbirdTree.tre") # file is a list 
+is.rooted(tree) # verify that tree is rooted; TRUE = tree is rooted (we want this)
+#plot(tree)
+#class(tree)
+# str(tree[4]) # tip labels 
+tree$tip.label
+# tree1 <- tree[[1]]  # select only first tree
+
+## -------
+
+# Read out tip labels to get organized to formulate list of tips to drop 
+# The easiest way to do this is keep.tip(tree, final$species) and then subset by the species list you want
+# BUT: because McGuire tree has messy tips w/ voucher names, etc, I can't use this for initial prune
+# Instead, take the clunkier pathway of removing tips you DON'T want: 
+mcguire_tip_labels <- tree$tip.label
+mcguire_tip_labels <- as.data.frame(mcguire_tip_labels)
+#write.csv(mcguire_tip_labels, "mcguire_tip_labels.csv")
+# In a nutshell: I took my species list, coded those as "keep", then coded all others as "drop"
+# I sorted by "drop" in Excel, contatenated to include parenthesis and proper commas, then pasted values here 
+```
+
+
+# Prune master McGuire tree to desired species subset (77 tips)
+```{r}
+# Manually select all tip labels you want to drop
+# We'll prune this full McGuire tree to one with only 77 tips for our Hummingbird Blood Comparative models 
+
+# NOTE: McGuire tree doesn't include Oreotrochilus leucopleurus and Phaethornis stuarti: I deal with that below. 
+
+to_drop <- c("Amazilia.viridicauda.8158",
+"Abeillia.abeillei.22002",
+"Adelomyia.sp.nov.Valqui.656",
+"Adelomyia.sp.nov.Valqui.681",
+"Aegotheles.insignis.KU5081",
+"Aerodram.salangana",
+"Aerodram.vanikor.usnmb04039",
+"Aeronautes.saxatalis.GM42600",
+"Aglaeact.castel.nk159780",
+"Aglaeactis.aliciae.b49711",
+"Aglaeactis.pamela.106743",
+"Aglaiocercus.coelestis.7813",
+"Amazilia.amabilis.28483",
+"Amazilia.berryllina.fmnh394217",
+"Amazilia.brevirost.nmnhb11307",
+"Amazilia.candida.ku.mbr4474",
+"Amazilia.candida.unam.pue102",
+"Amazilia.castaneiventris.oc",
+"Amazilia.chionopectus.35896",
+"Amazilia.cyanocephala.19260",
+"Amazilia.cyanura.Burke.DAB1441",
+"Amazilia.decora.B100024",
+"Amazilia.edward.2303",
+"Amazilia.fimbriata.5956",
+"Amazilia.leucogaster.ansp8392",
+"Amazilia.rosenbergi.zmc114807",
+"Amazilia.rutila.burkedab1054",
+"Amazilia.saucer.hof.fmnh393025",
+"Amazilia.saucerottei.jlpv60",
+"Amazilia.saucerottia.JVLP34",
+"Amazilia.tobaci.35895",
+"Amazilia.tobacii.amnh.2796",
+"Amazilia.tzac.handleyi.NMNHb1010",
+"Amazilia.tzacatl.16538",
+"Amazilia.versicolor.15313",
+"Amazilia.versicolor.fmnh395409",
+"Amazilia.vfrons.UNAM.OMVP684",
+"Amazilia.vfrons.wagneri.unamomvp730",
+"Amazilia.violiceps.unam.828",
+"Amazilia.viridigaster.7490",
+"Amazilia.viridigaster.7587",
+"Amazilia.yucatanensis.4090",
+"Androdon.aequatorialis.1402",
+"Anthoc.floriceps.Juan.i1253",
+"Anthoc.floriceps.Juan.i1269",
+"Anthrac.dominicus.11318",
+"Anthrac.mango.cjc26",
+"Anthrac.mango.cjc27",
+"Anthrac.mango.strijaama1",
+"Anthrac.mango.strijaama2",
+"Anthrac.prevostii.nmnhb360",
+"Anthrac.veraguensis.nmnhB1347",
+"Anthrac.viridigula.fmnh391258",
+"Anthrac.viridis.11519",
+"Aphantochr.cirrochl.fmnh399167",
+"Arch.alexandri.21848",
+"Archilochus.colubris.5270",
+"Atthis.heloisa.UNAMOVMP.1041",
+"Atthis.heloisa.fmnh343218",
+"Avocettula.recurv.fmnh334368",
+"Boissonn.flavescens.12099",
+"Boissonn.jardini.ANSP15805",
+"CHLORESTES.NOT.NOT.fmnh392347",
+"CHLORESTES.NOTATUS.35953",
+"CHLORESTES.NOTATUS.4558",
+"Calliphlox.bryantae.28180",
+"Calliphlox.evelynae.b58890",
+"Calliphlox.evelynae.b59204",
+"Calliphlox.mitchellii.12194",
+"Calliphlox.mitchellii.2310",
+"Calothorax.lucifer.43113",
+"Calypte.anna.24864",
+"Calypte.costae.21595",
+"Calypte.costae.CJC210",
+"Campylopt.duidae.7443",
+"Campylopt.excellens.fmnh343205",
+"Campylopt.falcatus.IAVHP.77",
+"Campylopt.falcatus.Juan.i4641",
+"Campylopt.hemileucurus.26474",
+"Campylopt.hyperythrus.fmnh339628",
+"Campylopt.rufus.FMNH434025",
+"Campylopt.rufus.FMNH434026",
+"Campylopterus.ensipennis.ce115",
+"Campylopterus.ensipennis.ce117",
+"Caprimulgus.longirostris.B32361",
+"Chaetocercus.bombus.5225",
+"Chaetura.pelagica.3346",
+"Chalco.olivaceum.103800",
+"Chalybura.buffonii.26911",
+"Chalybura.urochrysia.28467",
+"Chlores.not.cyan.fmnh392810",
+"Chlores.not.cyan.fmnh396025",
+"Chlorostil.canivetii.burkdab1591",
+"Chlorostil.ricordii.ansp5570",
+"Chlorostilb.assim.b46483",
+"Chlorostilb.assim.b46655",
+"Chlorostilb.aureoventris.18899",
+"Chlorostilb.aureoventris.31514",
+"Chlorostilb.maugaeus.11520",
+"Chlorostilb.melanorhynch.6327",
+"Chlorostilb.poortmani.Juan.i4198",
+"Chlorostilbon.mellisugus.9450",
+"Chlorostilbon.salvini.JK00_048",
+"Chlrstlb.melanorynchus.Juan36",
+"Chrysolamp.mosquit.NMNH12236",
+"Chrysolamp.mosquitus.35902",
+"Clytolaema.rubr.fmnh395404",
+"Coel.torquata.inca.AMNHDOT2598",
+"Coel.torquata.inca.AMNHDOT2599",
+"Coelig.bonapartei.Juan.i2271",
+"Coelig.helianthea.Juan.2504",
+"Coelig.orina.Juan.i5169",
+"Coelig.phalerata.Juan.i485",
+"Coelig.prunellei.Juan42",
+"Coeligena.bonapartei.IAVHB.4188",
+"Coeligena.coeligena.IAVH1216",
+"Coeligena.coeligena.IAVH1950",
+"Coeligena.coeligena.IAVH5334",
+"Coeligena.lutetiae.iavhb1915",
+"Coeligena.orina.PCPR1",
+"Coeligena.orina.PCPR3",
+"Coeligena.torquata.6230",
+"Coeligena.torquata.avhb.i4633",
+"Coeligena.wilsoni.7858",
+"Colibri.delphinae.5403",
+"Colibri.serrirostris.14576",
+"Corvus.frugilegus",
+"Coturnix.chinensis",
+"Cyanophaia.bicol.stri.docb17",
+"Cyanophaia.bicolor.stri.macb11",
+"Cynanthus.doubledayi.JK04_339",
+"Cynanthus.latirostris.33304",
+"Cynanthus.sordidus.22004",
+"Cynanthus.sordidus.22005",
+"Damophila.julie.16556",
+"Damophila.julie.28497",
+"Discosura.conversii.16064",
+"Discosura.langsdorfii.9633",
+"Discosura.longic.nmnh5265",
+"Discosura.popelairii.5950",
+"Doricha.eliza.ku4435",
+"Doricha.eliza.unam.b590",
+"Doryfera.johannae.1728",
+"Doryfera.ludovicae.8000",
+"Elvira.chionura.26446",
+"Elvira.cupreiceps.16066",
+"Eriocn.cupreiventris.Juan.i2558",
+"Eriocn.glaucopoides.uwbm77170",
+"Eriocnem.cupreioventris.JPLV30",
+"Eriocnem.nigrivestis.zmc114629",
+"Eriocnemis.derbyi.ANSP15698",
+"Eriocnemis.mosquera.6335",
+"Eugenes.fulgens.9964",
+"Eugenes.fulgens.b28291",
+"Eulampus.holosericeus.nmnh2121",
+"Eulampus.jugularis.stridoej413",
+"Eulampus.jugularis.strimaej412",
+"Eulampus.jugularis.strisvej46",
+"Eulidia.yarrellii_Wouter",
+"Eupetomena.macroura.15299",
+"Eupherusa.cyanophrys.21997",
+"Eupherusa.eximia.21998",
+"Eupherusa.nigriventris.16055",
+"Eupherusa.poliocerca.21999",
+"Florisuga.fusca.16936",
+"Gallus.gallus",
+"Glaucis.aeneus.nmnhb368",
+"Goethalsia.bella.2111",
+"Goldmania.violiceps.28405",
+"Haplophaedia.lugens.30032",
+"Heliactin.bilopha.14845ak1.c1",
+"Heliangelus.amethysticol.6246",
+"Heliangelus.exortis.ANSP16990",
+"Heliangelus.exortis.ANSP26261",
+"Heliangelus.exortis.JVLP40",
+"Heliangelus.micraster.34698",
+"Heliangelus.micraster.ansp5013",
+"Heliangelus.regalis.5532",
+"Heliangelus.strophianus.6296",
+"Heliangelus.zusii",
+"Heliodoxa.branickii.1996",
+"Heliodoxa.gularis.5428",
+"Heliodoxa.imperatrix.12088",
+"Heliodoxa.jacula.11940",
+"Heliodoxa.jacula.16037",
+"Heliodoxa.xanthogonys.7415",
+"Heliomaster.constan.burdab1903",
+"Heliomaster.furcifer.6709",
+"Heliomaster.squamos.fmnh392806",
+"Heliothryx.aurita.6913",
+"Heliothryx.barroti.12039",
+"Hemiprocne.mystacea.uwbm68087",
+"Hylocharis.chrysura.1503",
+"Hylocharis.cyanus.rostrata.9547",
+"Hylocharis.eliciae.16074",
+"Hylocharis.grayi.ansp.5064",
+"Hylocharis.leucotis.22003",
+"Hylocharis.sapphirina.12912",
+"Hylocharis.xantusii.3794",
+"Lafresnaya.lafresnayi.32771",
+"Lamporn.ameth.fmnh.343217",
+"Lamporn.castaneovent.28257",
+"Lamporn.sybillae.burkedab1362",
+"Lampornis.calolaemus.28169",
+"Lampornis.cinereicauda.19791",
+"Lampornis.clemenciae.10119",
+"Lampornis.hemileucus.16006",
+"Lampornis.hemileucus.26428",
+"Lampornis.viridipallens.19268",
+"Lamprolaima.rhami.22001",
+"Lepido.coerul.b46528",
+"Lepidopyga.coeruleo.29053",
+"Lepidopyga.goudoti.jcc",
+"Leucippus.baeri.5232",
+"Leucippus.chlorocercus.7264",
+"Leucippus.fallax.stri.velfa2",
+"Leucippus.fallax.striLFA6",
+"Leucochloris.albic.fmnh395730",
+"Lodiggesia.mirabilis.44698",
+"Lophornis.chalybeus.9399",
+"Lophornis.delattrei.22644",
+"Lophornis.pavoninus.ku6045",
+"Mellisuga.minima.cjc33",
+"Mellisuga.minima.cjc38",
+"Mellisuga.minima.strijamm11",
+"Metallura.aeneocauda.1236",
+"Metallura.baroni.zmc113658",
+"Metallura.eupogon.Jaime",
+"Metallura.odomae.353",
+"Metallura.theresiae.3534",
+"Metallura.williami.5939",
+"Microchera.albocor.35764",
+"Microstilbon.burmeist.zmc.114832",
+"Myrmotherula.brachyura.NMNH.B12607",
+"Nyctibius.bracteatus.B4509",
+"Ocreatus.underwoodii.jplv39",
+"Opisthopr.euryptera.zmc115166",
+"Oreotroch.stolzmani.ANSP19518",
+"Oreotroch.stolzmani.ANSP19519",
+"Orthorhyncus.cristatus.11526",
+"Oxypogon.guerini.zmc115370",
+"Patagona.gigas.b7903",
+"Phaeochroa.cuvierii.26913",
+"Phaeth.griseo.b44650",
+"Phaeth.longirostris.28503",
+"Phaeth.longirostris.nmnhb310",
+"Phaeth.longuemareus.35952a",
+"Phaeth.ruber.FMNH433178",
+"Phaeth.ruber.FMNH433179",
+"Phaeth.supercil.AMNHDOT2979",
+"Phaeth.supercil.AMNHDOT4284",
+"Phaeth.supercil.FMNH456522",
+"Phaeth.supercil.FMNH456523",
+"Phaeth.supercil.b48308",
+"Phaeth.supercil.b48364",
+"Phaeth.superciliaris.ANSP20882",
+"Phaeth.superciliaris.ANSP21161",
+"Phaeth.syrmat.Jaime",
+"Phaethorn.eurynome.fmnh395410",
+"Phaethorn.koepckeae.5398",
+"Phaethorn.rupurumii.20240",
+"Phaethorn.syrmat.12138",
+"Phaethornis.anthophilus.umt594",
+"Phaethornis.augusti.um.t604",
+"Phaethornis.bourcieri.11017",
+"Phaethornis.bourcieri.B11104",
+"Phaethornis.griseo.5571",
+"Phaethornis.griseo.amnhpep1971",
+"Phaethornis.guy.35966",
+"Phaethornis.guy.JLPV.35",
+"Phaethornis.hispidus.B10502",
+"Phaethornis.hispidus.B18142",
+"Phaethornis.hispidus.B18351",
+"Phaethornis.koepckeae.5479",
+"Phaethornis.mexicanus.JK07_108",
+"Phaethornis.mexicanus.JK07_110",
+"Phaethornis.nattereri.12859",
+"Phaethornis.philippii.B9020",
+"Phaethornis.philippii.B9280",
+"Phaethornis.pretrei.14702",
+"Phaethornis.squalidus.iavhb4463",
+"Phaethornis.striigularis.b28411",
+"Phaethornis.striigularis.b28518",
+"Phaethornis.striigularis.b28790",
+"Phaethornis.subochraceus.6544",
+"Phaethornis.syrmatophorus.B33737",
+"Phaethornis.yaruqui.7812",
+"Phlogophilus.harteri.KU18505",
+"Phlogophilus.hemileucurus.5999",
+"Podargus.strigoides.B6435",
+"Polyonymus.caroli.Valqui680",
+"Polytmus.guainumbi.6691",
+"Polytmus.milleri.amnh.prs476",
+"Polytmus.theresiae.nmnh10307",
+"Ramphodon.naevius.zmc.115250",
+"Ramphomicron.microrhyn.8376",
+"Rhodopis.vesper.jose2",
+"Sappho.sparganura.1195",
+"Selas.sasin.Catal.cjc60",
+"Selasphorus.ardens.B52913",
+"Selasphorus.ardens.B52914",
+"Selasphorus.ardens.B52915",
+"Selasphorus.ardens.JK07_522",
+"Selasphorus.flammula.28269",
+"Selasphorus.flammula.CR.B16222",
+"Selasphorus.flammula.CR.B19794",
+"Selasphorus.flammula.CR.B19847",
+"Selasphorus.flammula.CR.B19883",
+"Selasphorus.flammula.CR.B9952",
+"Selasphorus.flammula.Pan.B28246",
+"Selasphorus.flammula.Pan.B28253",
+"Selasphorus.flammula.Pan.B28260",
+"Selasphorus.flammula.Pan.B28313",
+"Selasphorus.platycercus.23428",
+"Selasphorus.rufus.MVZ180196",
+"Selasphorus.sasin.33988",
+"Selasphorus.sasin.B43116",
+"Selasphorus.sasin.B43117",
+"Selasphorus.sasin.MVZ180045",
+"Selasphorus.sasin.MVZ180632",
+"Selasphorus.sasin.MVZ182025",
+"Selasphorus.sasin.MVZ182072",
+"Selasphorus.sasin.MVZ182183",
+"Selasphorus.scintilla.16266",
+"Sephanoides.fernandensis.mr620",
+"Sephanoides.fernandensis.mr622",
+"Sephanoides.sephaniodes.amnh1126",
+"Sephanoides.sephaniodes.mr626",
+"Sephanoides.sephaniodes.mr629",
+"Sephanoides.sephanoides.mr613",
+"Steatornis.caripensis.B32579",
+"Stellula.calliope.26272",
+"Stellula.calliope.B16854",
+"Stellula.calliope.B23775",
+"Stellula.calliope.MVZ170138",
+"Stellula.calliope.MVZ175821",
+"Stellula.calliope.MVZ182182",
+"Stephanoxis.lalandi.25958",
+"Streptoproc.zonaris.NMNH.b13064",
+"Taphrolesbia.griseivent.10388",
+"Thal.fannyi.hypochlora.7867",
+"Thalur.glaucopus.fmnh395402",
+"Thalurania.colombica.1142",
+"Thalurania.colombica.11793",
+"Thalurania.fannyi.11728",
+"Thalurania.furcata.2807",
+"Thalurania.furcata.3518",
+"Thalurania.furcata.b4756",
+"Thalurania.ridgwayi.FMNH_b225",
+"Thalurania.ridgwayi.FMNH_b305",
+"Thalurania.ridgwayi.FMNH_b312",
+"Thalurania.watertoni.fmnh392348",
+"Threnetes.ruckeri.28170",
+"Tilmatura.dupontii.KU8188",
+"Topaza.pella.35362",
+"Topaza.pella.nmnhb5205",
+"Topaza.pyra.b42167",
+"Topaza.pyra.b42323",
+"Topaza.pyra.b42387",
+"Topaza.pyra.b42522",
+"Troch.poly.jatp08stri",
+"Troch.scitulus.fmnh331062",
+"Trochilus.poly.jatp07stri",
+"Trochilus.polytmus.cjc25",
+"Trochilus.polytmus.cjc31",
+"Trochilus.polytmus.cjc36",
+"Urochroa.bougueri.zmc114654",
+"Urosticte.benjamani.5546",
+"Urosticte.ruficrissa.Juan.i2325",
+"campylopt.excellens.unam554",
+"chalco.olivaceum.103924",
+"chlorostil.swains.amnhnkk1017",
+"heliodoxa.schreibersii.5440",
+"oreotroch.chimborazo.zmc114549",
+"oreotroch.estella.103835",
+"panterpe.insignis.16264"
+)
+# Formatting here is weird; be cognizant of copying and pasting from Excel or text editor, check all spaces & line breaks
+
+# Prune tree to just branches of interest
+tree.prune1 <- drop.tip(tree, to_drop) 
+tree.prune1$tip.label # This should currently be 75 because I haven't yet added in O. leucopleurus or P. stuarti
+plotTree(tree.prune1, ftype="i") 
+```
+
+
+# Phaethornis tree for estimating distances for adding in P. stuarti
+```{r}
+# Manually select all tip labels you want to drop for this quick Phaethornis tree 
+# Aka drop everything from McGuire tree except for Phaethornis sp. 
+# This is clunky and nightmarish. 
+
+phaethornis_drop <- c("Amazilia.viridicauda.8158",
+"Abeillia.abeillei.22002",
+"Adelomyia.sp.nov.Valqui.656",
+"Adelomyia.sp.nov.Valqui.681",
+"Aegotheles.insignis.KU5081",
+"Aerodram.salangana",
+"Aerodram.vanikor.usnmb04039",
+"Aeronautes.saxatalis.GM42600",
+"Aglaeact.castel.nk159780",
+"Aglaeactis.aliciae.b49711",
+"Aglaeactis.pamela.106743",
+"Aglaiocercus.coelestis.7813",
+"Amazilia.amabilis.28483",
+"Amazilia.berryllina.fmnh394217",
+"Amazilia.brevirost.nmnhb11307",
+"Amazilia.candida.ku.mbr4474",
+"Amazilia.candida.unam.pue102",
+"Amazilia.castaneiventris.oc",
+"Amazilia.chionopectus.35896",
+"Amazilia.cyanocephala.19260",
+"Amazilia.cyanura.Burke.DAB1441",
+"Amazilia.decora.B100024",
+"Amazilia.edward.2303",
+"Amazilia.fimbriata.5956",
+"Amazilia.leucogaster.ansp8392",
+"Amazilia.rosenbergi.zmc114807",
+"Amazilia.rutila.burkedab1054",
+"Amazilia.saucer.hof.fmnh393025",
+"Amazilia.saucerottei.jlpv60",
+"Amazilia.saucerottia.JVLP34",
+"Amazilia.tobaci.35895",
+"Amazilia.tobacii.amnh.2796",
+"Amazilia.tzac.handleyi.NMNHb1010",
+"Amazilia.tzacatl.16538",
+"Amazilia.versicolor.15313",
+"Amazilia.versicolor.fmnh395409",
+"Amazilia.vfrons.UNAM.OMVP684",
+"Amazilia.vfrons.wagneri.unamomvp730",
+"Amazilia.violiceps.unam.828",
+"Amazilia.viridigaster.7490",
+"Amazilia.viridigaster.7587",
+"Amazilia.yucatanensis.4090",
+"Androdon.aequatorialis.1402",
+"Anthoc.floriceps.Juan.i1253",
+"Anthoc.floriceps.Juan.i1269",
+"Anthrac.dominicus.11318",
+"Anthrac.mango.cjc26",
+"Anthrac.mango.cjc27",
+"Anthrac.mango.strijaama1",
+"Anthrac.mango.strijaama2",
+"Anthrac.prevostii.nmnhb360",
+"Anthrac.veraguensis.nmnhB1347",
+"Anthrac.viridigula.fmnh391258",
+"Anthrac.viridis.11519",
+"Aphantochr.cirrochl.fmnh399167",
+"Arch.alexandri.21848",
+"Archilochus.colubris.5270",
+"Atthis.heloisa.UNAMOVMP.1041",
+"Atthis.heloisa.fmnh343218",
+"Avocettula.recurv.fmnh334368",
+"Boissonn.flavescens.12099",
+"Boissonn.jardini.ANSP15805",
+"CHLORESTES.NOT.NOT.fmnh392347",
+"CHLORESTES.NOTATUS.35953",
+"CHLORESTES.NOTATUS.4558",
+"Calliphlox.bryantae.28180",
+"Calliphlox.evelynae.b58890",
+"Calliphlox.evelynae.b59204",
+"Calliphlox.mitchellii.12194",
+"Calliphlox.mitchellii.2310",
+"Calothorax.lucifer.43113",
+"Calypte.anna.24864",
+"Calypte.costae.21595",
+"Calypte.costae.CJC210",
+"Campylopt.duidae.7443",
+"Campylopt.excellens.fmnh343205",
+"Campylopt.falcatus.IAVHP.77",
+"Campylopt.falcatus.Juan.i4641",
+"Campylopt.hemileucurus.26474",
+"Campylopt.hyperythrus.fmnh339628",
+"Campylopt.rufus.FMNH434025",
+"Campylopt.rufus.FMNH434026",
+"Campylopterus.ensipennis.ce115",
+"Campylopterus.ensipennis.ce117",
+"Caprimulgus.longirostris.B32361",
+"Chaetocercus.bombus.5225",
+"Chaetura.pelagica.3346",
+"Chalco.olivaceum.103800",
+"Chalybura.buffonii.26911",
+"Chalybura.urochrysia.28467",
+"Chlores.not.cyan.fmnh392810",
+"Chlores.not.cyan.fmnh396025",
+"Chlorostil.canivetii.burkdab1591",
+"Chlorostil.ricordii.ansp5570",
+"Chlorostilb.assim.b46483",
+"Chlorostilb.assim.b46655",
+"Chlorostilb.aureoventris.18899",
+"Chlorostilb.aureoventris.31514",
+"Chlorostilb.maugaeus.11520",
+"Chlorostilb.melanorhynch.6327",
+"Chlorostilb.poortmani.Juan.i4198",
+"Chlorostilbon.mellisugus.9450",
+"Chlorostilbon.salvini.JK00_048",
+"Chlrstlb.melanorynchus.Juan36",
+"Chrysolamp.mosquit.NMNH12236",
+"Chrysolamp.mosquitus.35902",
+"Clytolaema.rubr.fmnh395404",
+"Coel.torquata.inca.AMNHDOT2598",
+"Coel.torquata.inca.AMNHDOT2599",
+"Coelig.bonapartei.Juan.i2271",
+"Coelig.helianthea.Juan.2504",
+"Coelig.orina.Juan.i5169",
+"Coelig.phalerata.Juan.i485",
+"Coelig.prunellei.Juan42",
+"Coeligena.bonapartei.IAVHB.4188",
+"Coeligena.coeligena.IAVH1216",
+"Coeligena.coeligena.IAVH1950",
+"Coeligena.coeligena.IAVH5334",
+"Coeligena.lutetiae.iavhb1915",
+"Coeligena.orina.PCPR1",
+"Coeligena.orina.PCPR3",
+"Coeligena.torquata.6230",
+"Coeligena.torquata.avhb.i4633",
+"Coeligena.wilsoni.7858",
+"Colibri.delphinae.5403",
+"Colibri.serrirostris.14576",
+"Corvus.frugilegus",
+"Coturnix.chinensis",
+"Cyanophaia.bicol.stri.docb17",
+"Cyanophaia.bicolor.stri.macb11",
+"Cynanthus.doubledayi.JK04_339",
+"Cynanthus.latirostris.33304",
+"Cynanthus.sordidus.22004",
+"Cynanthus.sordidus.22005",
+"Damophila.julie.16556",
+"Damophila.julie.28497",
+"Discosura.conversii.16064",
+"Discosura.langsdorfii.9633",
+"Discosura.longic.nmnh5265",
+"Discosura.popelairii.5950",
+"Doricha.eliza.ku4435",
+"Doricha.eliza.unam.b590",
+"Doryfera.johannae.1728",
+"Doryfera.ludovicae.8000",
+"Elvira.chionura.26446",
+"Elvira.cupreiceps.16066",
+"Eriocn.cupreiventris.Juan.i2558",
+"Eriocn.glaucopoides.uwbm77170",
+"Eriocnem.cupreioventris.JPLV30",
+"Eriocnem.nigrivestis.zmc114629",
+"Eriocnemis.derbyi.ANSP15698",
+"Eriocnemis.mosquera.6335",
+"Eugenes.fulgens.9964",
+"Eugenes.fulgens.b28291",
+"Eulampus.holosericeus.nmnh2121",
+"Eulampus.jugularis.stridoej413",
+"Eulampus.jugularis.strimaej412",
+"Eulampus.jugularis.strisvej46",
+"Eulidia.yarrellii_Wouter",
+"Eupetomena.macroura.15299",
+"Eupherusa.cyanophrys.21997",
+"Eupherusa.eximia.21998",
+"Eupherusa.nigriventris.16055",
+"Eupherusa.poliocerca.21999",
+"Florisuga.fusca.16936",
+"Gallus.gallus",
+"Glaucis.aeneus.nmnhb368",
+"Goethalsia.bella.2111",
+"Goldmania.violiceps.28405",
+"Haplophaedia.lugens.30032",
+"Heliactin.bilopha.14845ak1.c1",
+"Heliangelus.amethysticol.6246",
+"Heliangelus.exortis.ANSP16990",
+"Heliangelus.exortis.ANSP26261",
+"Heliangelus.exortis.JVLP40",
+"Heliangelus.micraster.34698",
+"Heliangelus.micraster.ansp5013",
+"Heliangelus.regalis.5532",
+"Heliangelus.strophianus.6296",
+"Heliangelus.zusii",
+"Heliodoxa.branickii.1996",
+"Heliodoxa.gularis.5428",
+"Heliodoxa.imperatrix.12088",
+"Heliodoxa.jacula.11940",
+"Heliodoxa.jacula.16037",
+"Heliodoxa.xanthogonys.7415",
+"Heliomaster.constan.burdab1903",
+"Heliomaster.furcifer.6709",
+"Heliomaster.squamos.fmnh392806",
+"Heliothryx.aurita.6913",
+"Heliothryx.barroti.12039",
+"Hemiprocne.mystacea.uwbm68087",
+"Hylocharis.chrysura.1503",
+"Hylocharis.cyanus.rostrata.9547",
+"Hylocharis.eliciae.16074",
+"Hylocharis.grayi.ansp.5064",
+"Hylocharis.leucotis.22003",
+"Hylocharis.sapphirina.12912",
+"Hylocharis.xantusii.3794",
+"Lafresnaya.lafresnayi.32771",
+"Lamporn.ameth.fmnh.343217",
+"Lamporn.castaneovent.28257",
+"Lamporn.sybillae.burkedab1362",
+"Lampornis.calolaemus.28169",
+"Lampornis.cinereicauda.19791",
+"Lampornis.clemenciae.10119",
+"Lampornis.hemileucus.16006",
+"Lampornis.hemileucus.26428",
+"Lampornis.viridipallens.19268",
+"Lamprolaima.rhami.22001",
+"Lepido.coerul.b46528",
+"Lepidopyga.coeruleo.29053",
+"Lepidopyga.goudoti.jcc",
+"Leucippus.baeri.5232",
+"Leucippus.chlorocercus.7264",
+"Leucippus.fallax.stri.velfa2",
+"Leucippus.fallax.striLFA6",
+"Leucochloris.albic.fmnh395730",
+"Lodiggesia.mirabilis.44698",
+"Lophornis.chalybeus.9399",
+"Lophornis.delattrei.22644",
+"Lophornis.pavoninus.ku6045",
+"Mellisuga.minima.cjc33",
+"Mellisuga.minima.cjc38",
+"Mellisuga.minima.strijamm11",
+"Metallura.aeneocauda.1236",
+"Metallura.baroni.zmc113658",
+"Metallura.eupogon.Jaime",
+"Metallura.odomae.353",
+"Metallura.theresiae.3534",
+"Metallura.williami.5939",
+"Microchera.albocor.35764",
+"Microstilbon.burmeist.zmc.114832",
+"Myrmotherula.brachyura.NMNH.B12607",
+"Nyctibius.bracteatus.B4509",
+"Ocreatus.underwoodii.jplv39",
+"Opisthopr.euryptera.zmc115166",
+"Oreotroch.stolzmani.ANSP19518",
+"Oreotroch.stolzmani.ANSP19519",
+"Orthorhyncus.cristatus.11526",
+"Oxypogon.guerini.zmc115370",
+"Patagona.gigas.b7903",
+"Phaeochroa.cuvierii.26913",
+"Phlogophilus.harteri.KU18505",
+"Phlogophilus.hemileucurus.5999",
+"Podargus.strigoides.B6435",
+"Polyonymus.caroli.Valqui680",
+"Polytmus.guainumbi.6691",
+"Polytmus.milleri.amnh.prs476",
+"Polytmus.theresiae.nmnh10307",
+"Ramphodon.naevius.zmc.115250",
+"Ramphomicron.microrhyn.8376",
+"Rhodopis.vesper.jose2",
+"Sappho.sparganura.1195",
+"Selas.sasin.Catal.cjc60",
+"Selasphorus.ardens.B52913",
+"Selasphorus.ardens.B52914",
+"Selasphorus.ardens.B52915",
+"Selasphorus.ardens.JK07_522",
+"Selasphorus.flammula.28269",
+"Selasphorus.flammula.CR.B16222",
+"Selasphorus.flammula.CR.B19794",
+"Selasphorus.flammula.CR.B19847",
+"Selasphorus.flammula.CR.B19883",
+"Selasphorus.flammula.CR.B9952",
+"Selasphorus.flammula.Pan.B28246",
+"Selasphorus.flammula.Pan.B28253",
+"Selasphorus.flammula.Pan.B28260",
+"Selasphorus.flammula.Pan.B28313",
+"Selasphorus.platycercus.23428",
+"Selasphorus.rufus.MVZ180196",
+"Selasphorus.sasin.33988",
+"Selasphorus.sasin.B43116",
+"Selasphorus.sasin.B43117",
+"Selasphorus.sasin.MVZ180045",
+"Selasphorus.sasin.MVZ180632",
+"Selasphorus.sasin.MVZ182025",
+"Selasphorus.sasin.MVZ182072",
+"Selasphorus.sasin.MVZ182183",
+"Selasphorus.scintilla.16266",
+"Sephanoides.fernandensis.mr620",
+"Sephanoides.fernandensis.mr622",
+"Sephanoides.sephaniodes.amnh1126",
+"Sephanoides.sephaniodes.mr626",
+"Sephanoides.sephaniodes.mr629",
+"Sephanoides.sephanoides.mr613",
+"Steatornis.caripensis.B32579",
+"Stellula.calliope.26272",
+"Stellula.calliope.B16854",
+"Stellula.calliope.B23775",
+"Stellula.calliope.MVZ170138",
+"Stellula.calliope.MVZ175821",
+"Stellula.calliope.MVZ182182",
+"Stephanoxis.lalandi.25958",
+"Streptoproc.zonaris.NMNH.b13064",
+"Taphrolesbia.griseivent.10388",
+"Thal.fannyi.hypochlora.7867",
+"Thalur.glaucopus.fmnh395402",
+"Thalurania.colombica.1142",
+"Thalurania.colombica.11793",
+"Thalurania.fannyi.11728",
+"Thalurania.furcata.2807",
+"Thalurania.furcata.3518",
+"Thalurania.furcata.b4756",
+"Thalurania.ridgwayi.FMNH_b225",
+"Thalurania.ridgwayi.FMNH_b305",
+"Thalurania.ridgwayi.FMNH_b312",
+"Thalurania.watertoni.fmnh392348",
+"Threnetes.ruckeri.28170",
+"Tilmatura.dupontii.KU8188",
+"Topaza.pella.35362",
+"Topaza.pella.nmnhb5205",
+"Topaza.pyra.b42167",
+"Topaza.pyra.b42323",
+"Topaza.pyra.b42387",
+"Topaza.pyra.b42522",
+"Troch.poly.jatp08stri",
+"Troch.scitulus.fmnh331062",
+"Trochilus.poly.jatp07stri",
+"Trochilus.polytmus.cjc25",
+"Trochilus.polytmus.cjc31",
+"Trochilus.polytmus.cjc36",
+"Urochroa.bougueri.zmc114654",
+"Urosticte.benjamani.5546",
+"Urosticte.ruficrissa.Juan.i2325",
+"campylopt.excellens.unam554",
+"chalco.olivaceum.103924",
+"chlorostil.swains.amnhnkk1017",
+"heliodoxa.schreibersii.5440",
+"oreotroch.chimborazo.zmc114549",
+"oreotroch.estella.103835",
+"panterpe.insignis.16264",
+"Adelomyia.melanogenys.8025", "Aglaeactis.castelnaudii.8215", "Aglaeactis.cupripennis.6304", 
+                   "Agliocercus.kingi.8017", 
+                   "Amazilia.amazilia.14263", 
+                   "Amazilia.chionogaster.17165", 
+                   "Amazilia.franciae.12063", 
+                   "Amazilia.lactea.9484", 
+                   "Amazilia.viridicauda.8136", 
+                   "Anthrac.nigricollis.9552", 
+                   "Boisson.mathewsii.8130", 
+                   "Calliphlox.amet.nmnhb10703", 
+                   "Campylopt.largipennis.4474", 
+                   "Campylopt.villaviscen.5588", 
+                   "Chaetocercus.mulsant.6301", 
+                   "Chalco.stanleyi.nk195810", 
+                   "Chrysuronia.oenone.5381", 
+                   "Coeligena.coeligena.8015", 
+                   "Coeligena.iris.31770", 
+                   "Coeligena.lutetia.340", 
+                   "Coeligena.torquata.jplv.58", 
+                   "Coeligena.violifer.8200", 
+                   "Colibri.coruscans.6310", 
+                   "Colibri.thalassinus.28263", 
+                   "Doryfera.ludovicae.1802", 
+                   "Ensifera.ensifera.8224", 
+                   "Eriocnemis.alinae.1805", 
+                   "Eriocnemis.luciani.6337", 
+                   "Eriocnemis.vestitus.324", 
+                   "Eutoxeres.aquila.2110", 
+                   "Eutoxeres.condamini.8094", 
+                   "Florisuga.mellivora.9646", 
+                   "Glaucis.hirsuta.28468", 
+                   "Haplophaedia.aureliae.32971", 
+                   "Heliangelus.amethysticol.33890", 
+                   "Heliangelus.micraster.31990", 
+                   "Heliangelus.viola.32370", 
+                   "Heliodoxa.aurescens.6789", 
+                   "Heliodoxa.leadbeateri.6036", 
+                   "Heliodoxa.rubinoides.1651", 
+                   "Heliomaster.longirostris.18268", 
+                   "Klais.guimeti.6168", 
+                   "Lafresnaya.lafresnayi.32576", 
+                   "Lesbia.nuna.3615", 
+                   "Lesbia.victoriae.zmc.113657", 
+                   "Leucippus.taczanowski.33447", 
+                   "Metallura.eupogon.8293", 
+                   "Metallura.phoebe.103876", 
+                   "Metallura.tyrianthina.6272", 
+                   "Myrtis.fanny.3592", 
+                   "Ocreatus.underwoodii.22594", 
+                   "Oreonympha.nobilis.fmnh324115", 
+                   "Oreotrochilus.estella.MR649", 
+                   "Patagona.gigas.6303", 
+                   "Phlogophilus.harteri.KU18424", 
+                   "Polyonymus.caroli.15503", 
+                   "Pterophanes.cyanopterus.1296", 
+                   "Rhodopis.vesper.14277", 
+                   "Schistes.geoffroyi.6300", 
+                   "Sephanoides.sephaniodes.jose1", 
+                   "Taphrospilus.hypostictus.5465", 
+                   "Thalurania.furcata.22683", 
+                   "Thaumastura.cora.14278", 
+                   "Threnetes.leucurus.2673", 
+                   "chalcostigma.herrani.6277", 
+                   "chalcostigma.ruficeps.1293", 
+                   "myrmia.micrura.5233", 
+                   "oreotroch.melanogaster.2077"
+                    )
+# Formatting here is weird; be cognizant of copying and pasting from Excel or text editor, check all spaces & line breaks
+
+# Prune tree to just branches of interest
+phaethornis.tree <- drop.tip(tree, phaethornis_drop) 
+phaethornis.tree$tip.label # Just Phaethornis
+
+plotTree(phaethornis.tree, ftype="i") 
+edgelabels(round(phaethornis.tree$edge.length,3), cex=0.4)
+```
+
+
+
+# Rename all-hummingbird tree tips
+```{r}
+# Create list of McGuire tip names and updated names that you'll replace them with 
+
+# All names taken directly from pruned tree (tree.red), McGuire et al. 2014 tip labels 
+mcguire.names <- c("Adelomyia.melanogenys.8025",
+                   "Aglaeactis.castelnaudii.8215", 
+                   "Aglaeactis.cupripennis.6304", 
+                   "Agliocercus.kingi.8017", 
+                   "Amazilia.amazilia.14263", 
+                   "Amazilia.chionogaster.17165", 
+                   "Amazilia.franciae.12063", 
+                   "Amazilia.lactea.9484", 
+                   "Amazilia.viridicauda.8136", 
+                   "Anthrac.nigricollis.9552", 
+                   "Boisson.mathewsii.8130", 
+                   "Calliphlox.amet.nmnhb10703", 
+                   "Campylopt.largipennis.4474", 
+                   "Campylopt.villaviscen.5588", 
+                   "Chaetocercus.mulsant.6301", 
+                   "Chalco.stanleyi.nk195810", 
+                   "Chrysuronia.oenone.5381", 
+                   "Coeligena.coeligena.8015", 
+                   "Coeligena.iris.31770", 
+                   "Coeligena.lutetia.340", 
+                   "Coeligena.torquata.jplv.58", 
+                   "Coeligena.violifer.8200", 
+                   "Colibri.coruscans.6310", 
+                   "Colibri.thalassinus.28263", 
+                   "Doryfera.ludovicae.1802", 
+                   "Ensifera.ensifera.8224", 
+                   "Eriocnemis.alinae.1805", 
+                   "Eriocnemis.luciani.6337", 
+                   "Eriocnemis.vestitus.324", 
+                   "Eutoxeres.aquila.2110", 
+                   "Eutoxeres.condamini.8094", 
+                   "Florisuga.mellivora.9646", 
+                   "Glaucis.hirsuta.28468", 
+                   "Haplophaedia.aureliae.32971", 
+                   "Heliangelus.amethysticol.33890", 
+                   "Heliangelus.micraster.31990", 
+                   "Heliangelus.viola.32370", 
+                   "Heliodoxa.aurescens.6789", 
+                   "Heliodoxa.leadbeateri.6036", 
+                   "Heliodoxa.rubinoides.1651", 
+                   "Heliomaster.longirostris.18268", 
+                   "Klais.guimeti.6168", 
+                   "Lafresnaya.lafresnayi.32576", 
+                   "Lesbia.nuna.3615", 
+                   "Lesbia.victoriae.zmc.113657", 
+                   "Leucippus.taczanowski.33447", 
+                   "Metallura.eupogon.8293", 
+                   "Metallura.phoebe.103876", 
+                   "Metallura.tyrianthina.6272", 
+                   "Myrtis.fanny.3592", 
+                   "Ocreatus.underwoodii.22594", 
+                   "Oreonympha.nobilis.fmnh324115", 
+                   "Oreotrochilus.estella.MR649", 
+                   "Patagona.gigas.6303", 
+                   "Phaethornis.atrimentalis.1969", 
+                   "Phaethornis.guy.28342", 
+                   "Phaethornis.hispidus.10629", 
+                   "Phaethornis.malaris.27511", 
+                   "Phaethornis.philippii.8868", 
+                   "Phaethornis.ruber.9481", 
+                   "Phaethornis.syrmatophorus.B33578", 
+                   "Phlogophilus.harteri.KU18424", 
+                   "Polyonymus.caroli.15503", 
+                   "Pterophanes.cyanopterus.1296", 
+                   "Rhodopis.vesper.14277", 
+                   "Schistes.geoffroyi.6300", 
+                   "Sephanoides.sephaniodes.jose1", 
+                   "Taphrospilus.hypostictus.5465", 
+                   "Thalurania.furcata.22683", 
+                   "Thaumastura.cora.14278", 
+                   "Threnetes.leucurus.2673", 
+                   "chalcostigma.herrani.6277", 
+                   "chalcostigma.ruficeps.1293", 
+                   "myrmia.micrura.5233", 
+                   "oreotroch.melanogaster.2077"
+                    )
+  
+# Create list of plain text species names that you'll replace mcguire.names with:
+updated.names <- c("Adelomyia melanogenys",
+                   "Aglaeactis castelnaudii", 
+                   "Aglaeactis cupripennis", 
+                   "Aglaiocercus kingii", 
+                   "Amazilia amazilia", 
+                   "Amazilia chionogaster", 
+                   "Amazilia franciae", 
+                   "Amazilia lactea", 
+                   "Amazilia viridicauda", 
+                   "Anthracothorax nigricollis", 
+                   "Boissonneaua matthewsii", 
+                   "Calliphlox amethystina", 
+                   "Campylopterus largipennis", 
+                   "Campylopterus villaviscensio", 
+                   "Chaetocercus mulsant", 
+                   "Chalcostigma stanleyi", 
+                   "Chrysuronia oenone", 
+                   "Coeligena coeligena", 
+                   "Coeligena iris", 
+                   "Coeligena lutetiae", 
+                   "Coeligena torquata", 
+                   "Coeligena violifer", 
+                   "Colibri coruscans", 
+                   "Colibri cyanotus", # Remember this is changed from thalassinus 
+                   "Doryfera ludovicae", 
+                   "Ensifera ensifera", 
+                   "Eriocnemis aline", 
+                   "Eriocnemis luciani", 
+                   "Eriocnemis vestita", 
+                   "Eutoxeres aquila", 
+                   "Eutoxeres condamini", 
+                   "Florisuga mellivora", 
+                   "Glaucis hirsutus", 
+                   "Haplophaedia aureliae", 
+                   "Heliangelus amethysticollis", 
+                   "Heliangelus micraster", 
+                   "Heliangelus viola", 
+                   "Heliodoxa aurescens", 
+                   "Heliodoxa leadbeateri", 
+                   "Heliodoxa rubinoides", 
+                   "Heliomaster longirostris", 
+                   "Klais guimeti", 
+                   "Lafresnaya lafresnayi", 
+                   "Lesbia nuna", 
+                   "Lesbia victoriae", 
+                   "Leucippus taczanowskii", 
+                   "Metallura eupogon", 
+                   "Metallura phoebe", 
+                   "Metallura tyrianthina", 
+                   "Myrtis fanny", 
+                   "Ocreatus underwoodii", 
+                   "Oreonympha nobilis", 
+                   "Oreotrochilus estella", 
+                   "Patagona gigas", 
+                   "Phaethornis atrimentalis", 
+                   "Phaethornis guy", 
+                   "Phaethornis hispidus", 
+                   "Phaethornis malaris", 
+                   "Phaethornis philippii", 
+                   "Phaethornis ruber", 
+                   "Phaethornis syrmatophorus", 
+                   "Phlogophilus harterti", 
+                   "Polyonymus caroli", 
+                   "Pterophanes cyanopterus", 
+                   "Rhodopis vesper", 
+                   "Schistes geoffroyi", 
+                   "Sephanoides sephaniodes", 
+                   "Taphrospilus hypostictus", 
+                   "Thalurania furcata", 
+                   "Thaumastura cora", 
+                   "Threnetes leucurus", 
+                   "Chalcostigma herrani", 
+                   "Chalcostigma ruficeps", 
+                   "Myrmia micrura", 
+                   "Oreotrochilus melanogaster"
+                    )
+
+ # Forloop to update tip names (thanks, Selina!)
+  for (i in 1:length(tree.prune1$tip.label)) {
+    for (j in 1:75){
+      if (tree.prune1$tip.label[i] == mcguire.names[j]){
+        tree.prune1$tip.label[i] = updated.names[j]
+      }
+    }
+  }
+
+ape::write.tree(tree.prune1, file="McGuire_Pruned_AllHummingbirdData_07-19-20.tre") # write out file 
+
+# Get branch lengths, which you'll manually adjust after adding in O. leucopleurus and P. stuarti
+plotTree(tree.prune1)
+edgelabels(round(tree.prune1$edge.length,3), cex=0.4)
+tree.prune1[[2]]
+# Oreotrochilus estella = 0.748
+# Phaethornis ruber = 1.545
+```
+
+
+# Add in missing species and adjust branch lengths
+```{R}
+tree.prune2 <- tree.prune1 # Make a new copy to avoid running all code again above in case of error 
+is.rooted(tree.prune2) # verify that tree is rooted
+plotTree(tree.prune2, ftype="i") # tip names updated, things look good 
+tree.prune2$tip.label # Double check to make sure these updated 
+
+
+# ADD IN TWO MISSING SPECIES: OREOTROCHILUS LEUCOPLEURUS AND PHAETHORNIS STUARTI
+
+# Oreotrochilus leucopleurus is sister to Oreotrochilus estella (per Sornoza-Molina et al. 2018, The Auk)
+tree.prune3 <- bind.tip(tree.prune2, "Oreotrochilus leucopleurus",
+                        where=which(tree.prune2$tip.label=="Oreotrochilus estella")) # edge.length argument not working
+plotTree(tree.prune3, ftype="i") # Oreotrochilus looks good 
+ 
+# Add Phaethornis stuarti sister to ruber 
+# This isn't perfect and I'm not 100% certain of where stuarti goes; BirdTree shows stuarti and atrimentalis sister 
+# w/ stuarti having diverged earlier
+tree.prune3 <- bind.tip(tree.prune3, "Phaethornis_stuarti",
+                         where=which(tree.prune3$tip.label=="Phaethornis_ruber"))
+plotTree(tree.prune3, ftype="i") # stuarti now sister to ruber  
+
+# Note: bind.tip() somehow inserted underscores under all tip names when I added spaces
+```
+
+Notes on the above code chunk: 
+- Oreotrochilus is all good and reflects current taxonomy of Sornoza-Molina et al. 2018, The Auk 
+- My way of doing this for Phaethornis stuarti is *extremely* clunky. McGuire doesn't have stuarti, and the only other published Phaethornis phylogeny I could find was from 1997 (and looks outdated). BirdTree puts ruber sister to atrimentalis with stuarti on an earlier and longer branch. 
+- Since we don't have any other phylogeny to go on and know that stuarti is in the tiny ruber-atrimentalis hermit clade, I want to use BirdTree's estimated position. But since McGuire's tree is best, I want to use McGuire's rates, when possible. 
+- Phytools wasn't cooperating with me adding P. stuarti to the node or edge before ruber-atrimentalis. Instead, I added stuarti sister to ruber. Then, below, I flip-flop stuarti and atrimentalis names to reflect where BirdTree estimates the order of the three. 
+- THEN, I adjust branch lengths to retain McGuire estimates for the ruber-atrimentalis split and aligning tip labels. 
+- Finally, I eyeball the BirdTree estimate and lengthen the stuarti branch to more closely match the estimated divergence times. This is imperfect, and it requires some finagling of interior branches to align tips. My estimate is NOT spot-on, but it's the best I know how to do given limited information, no genetic distances, and uncertainty about where stuarti falls. 
+
+
+# Adjust branch lengths 
+Calculate branch lengths with t = D/2r
+t = time
+D = # base pair differences
+2 = number of diverging lineages
+r = rate (~2% per million years, or 0.029)
+```{r}
+ # CALCULATE RATES 
+# Branch length for Oreotrochilus estella and Oreotrochilus leucopleurus
+# Genetic distance of D=0.0084 taken from Table 1 of Sornoza-Molina et al. 2018 (ND2 sequenced)
+# r=0.029 for ND2 taken from Lerner et al. 2011 rates
+t.oreo <- round(0.0084/(2*0.029), 6); t.oreo 
+
+# Adjust branch lengths 
+typeof(tree.prune3) # Verify that tree is a list  
+tree.prune3$tip.label
+tree.prune3$edge.length # Need to eyeball these edge lengths for 0.000 values caused by insertions of O. and P. above
+# Then manually update edge values in the list to adjust branch lengths
+# I'm sure there's a better way to do this, but this is the best I've come up with so far
+
+# Now switch atrimentalis and stuarti to be more consistent with BirdTree estimation of relationships
+tree.prune3[[4]][[2]] <- "Phaethornis_atrimentalis" # Flip flop stuarti and atrimentalis 
+tree.prune3[[4]][[3]] <- "Phaethornis_stuarti"
+
+# Update Oreotrochilus branch lengths 
+tree.prune3[[2]][150] <- 0.144828 # O. estella tip (estimate calculated above from Sornoza-Molina et al. 2018)
+tree.prune3[[2]][151] <- 0.144828 # O. leucopleurus tip (estimate calculated above from Sornoza-Molina et al. 2018)
+tree.prune3[[2]][149] <- 0.5965517 # Branch leading to O. estella and melanogaster (estimate tweaked from S-M et al. 2018)
+# Notes on this last one: adjust this to get tips aligned. 
+# This was Originally 0.7480506 in McGuire; I calculated melanogaster-estella/leucopleurus rate (t=0.0288/(2*0.029)) from 
+# Sornoza-Molina, which gave me 0.4965517 and then I bumped this up to 0.5965517 to make tips flush.
+
+# Update Phaethornis branch lengths 
+tree.prune3[[2]][8] <- 1.5450608 # P. ruber tip (estimate from McGuire et al. 2014) 
+tree.prune3[[2]][9] <- 1.5450608 # P. atrimentalis  tip (estimate from McGuire et al. 2014)
+tree.prune3[[2]][7] <- 0.987 # Branch leading to P. atrimentalis and P. ruber; originally 1.5450608
+# I subbed this value in from the branch length leading to the two 0.558 rubers from McGuire. 
+# So, this branch length is an estimate based on similar relationships in this clade presented in McGuire (ruber to ruber)
+tree.prune3[[2]][10] <- 2.517591 # P. stuarti tip (Lengthened to more closely match BirdTree) 
+tree.prune3[[2]][6] <- 4.9906429 # Base branch leading to this P. clade (Shortened to make tips flush) 
+tree.prune3[[2]] # Check all branch lengths 
+
+# Abandoned idea: I did originally have P. ruber sister to P. stuarti and I made those tips equal to 0.558
+# That was a rate I grabbed based on divergence of two different P. ruber from McGuire 
+# But in addition to ruber being sister to atrimentalis, NOT stuarti, that seemed a little ad-hoc. 
+
+# Check this pre-final tree w/ adjusted branch lengths 
+plotTree(tree.prune3, ftype="i")  
+
+# Check all edge labels to verify they updated 
+plotTree(tree.prune3)
+edgelabels(round(tree.prune3$edge.length,3), cex=0.4)
+
+```
+
+Recap for methods: 
+McGuire tree was pruned to match species list. Oreotrochilus leucopleurus and Phaethornis stuarti were added in. Branch lengths and position of O. leucopleurus were calculated from genetic distances and sister relationships described in Sornoza-Molina et al. 2018. P. stuarti position and approximate branch length was inferred from BirdTree (cite Jetz). Branch lengths in the Phaethornis clade were updated to reflect McGuire, and adjustments were made to align tips as was necessary for estimates. 
+
+
+# Save final tree 
+This will be read in for modeling, etc. 
+```{r}
+tree.final <- tree.prune3
+tree.final$tip.label # Should have 77 tips now
+
+# Check this pre-final tree w/ adjusted branch lengths 
+plotTree(tree.prune3, ftype="i") 
+
+class(tree.final)
+
+ape::write.tree(tree.final, file="McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # write out file 
+```
+
+
+# Make response-variable tree subsets and save subset tree files
+```{r}
+
+# Add underscores to species names to match tip labels 
+final$species <- sub(" ", "_", final$species)
+final.hb$species <- sub(" ", "_", final.hb$species) 
+final.hct$species <- sub(" ", "_", final.hct$species)
+final.mcv$species <- sub(" ", "_", final.mcv$species)
+final.trbc$species <- sub(" ", "_", final.trbc$species)
+final.mch$species <- sub(" ", "_", final.mch$species)
+final.mchc$species <- sub(" ", "_", final.mchc$species)
+
+# Prune sub-trees
+# For this to work, variable "species" must be a character, not a factor! 
+tree.hb <- keep.tip(tree.final, final.hb$species)
+tree.hct <- keep.tip(tree.final, final.hct$species)
+tree.trbc <- keep.tip(tree.final, final.trbc$species)
+tree.mcv <- keep.tip(tree.final, final.mcv$species)
+tree.mch <- keep.tip(tree.final, final.mch$species)
+tree.mchc <- keep.tip(tree.final, final.mchc$species)
+
+# Save subtrees 
+ape::write.tree(tree.hb, file="McGuirePruned_AllHummingbirdComparative_Tree.hb_FINAL.tre")  
+ape::write.tree(tree.hct, file="McGuirePruned_AllHummingbirdComparativeTree.hct_FINAL.tre")  
+ape::write.tree(tree.trbc, file="McGuirePruned_AllHummingbirdComparativeTree.trbc_FINAL.tre") 
+ape::write.tree(tree.mcv, file="McGuirePruned_AllHummingbirdComparativeTree.mcv_FINAL.tre") 
+ape::write.tree(tree.mch, file="McGuirePruned_AllHummingbirdComparativeTree.mch_FINAL.tre") 
+ape::write.tree(tree.mchc, file="McGuirePruned_AllHummingbirdComparativeTree.mchc_FINAL.tre") 
+
+tree.hb$tip.label # 74 tips 
+tree.hct$tip.label # 76 tips 
+tree.trbc$tip.label # 72 tips 
+tree.mcv$tip.label # 72 tips 
+tree.mch$tip.label # 69 tips 
+tree.mchc$tip.label # 73 tips 
+```
+
+
+
+
+
+
+------
+
+# TUTORIALS, ETC. 
+
+
+
+This tutorial had the best info for binding new species to trees, etc.: 
+http://www.mpcm-evolution.com/practice/online-practical-material-chapter-2/chapter-2-1-exercises-building-manipulating-phylogenetic-trees
+
+See this phytools tutorial for adding species:
+http://blog.phytools.org/2013/11/new-function-to-add-species-to-genus-in.html
+
+I used this tutorial to visualize tree and drop tip labels: 
+https://yulab-smu.github.io/treedata-book/chapter2.html
+
+
+
+CUT NOTES: 
+# For P. stuarti: I took the estimated divergence times of P. ruber from the pruned McGuire Phaethornis tree (above)
+# which were 0.558. The branch length leading to those was 0.987, so I subbed that value in. 
+
+# For Oreotrochilus, I calculated divergence times from Sornoza-Molina et al. 2018, estimated at 0.145. 
+# Then I adjusted the branch length leading to O. estella and O. melanogaster until tips aligned. 
