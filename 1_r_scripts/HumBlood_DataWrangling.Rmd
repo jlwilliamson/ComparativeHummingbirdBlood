@@ -1,84 +1,17 @@
 ---
 title: "Hummingbird blood data from an interspecific comparative standpoint"
 author: "Jessie Williamson"
-date: "7/2/2020"
+date: "11/29/2020"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 #### 
 
-This script includes: processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, etc.
+**This script includes**: processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, etc.
 
 ####
-
-# QUESTIONS 
-
-**1) How do blood parameters vary with abiotic aspects of the environment?** 
-Predictors: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index (PC1 of 19 BioClim variables)
-4) aridity index (PC1 of 19 BioClim variables)
-5) latitude
-
-**2) How to blood parameters vary with aspects of species biology?** 
-Predictors: 
-5) body mass
-6) hemoglobin genotype (beta13-beta83 genotype) 
-
-**3) Are patterns in blood phylogenetically constrained?**
-
-**4) What relationships exist among blood parameters?**
-6 total: [Hb], Hct, TRBC, MCV, MCH, MCHC
-
-
-# DATASET 
-Dataset includes blood data for 77 species of hummingbirds from Chile and Peru. Sampling was conducted from 2006-2020 by students, affiliates, researchers, and professors at the Museum of Southwestern Biology at the University of New Mexico. All data are linked to vouchered specimens*.
-*Note: Because some tissues and specimens haven't been exported from Peru, and because Chile collection isn't yet catalogued, not all are archived in Arctos. 
-
-# APPROACH 
-We will build 6 sets of phylogenetic mixed models in brms (x 10 models per set)
-
-Response variables: 
-1) Hb
-2) Hct
-3) TRBC
-4) MCV
-5) MCH
-6) MCHC
-
-Predictor set for each set of models: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index
-4) precip index
-5) latitude 
-6) mass
-7) Hb genotype    
-8) intraspecific variation: elevation
-9) intraspecific variation: elevation position
-10) intraspecific variation: latitude
-11) intraspecific variation: mass
-12) intraspecific vatiation: precip
-13) intraspecific variation: temp 
-+ (1|species)
-+ (1|phylogeny)
-
-For each response, we will include: 
-1) Null model (intercept-only)
-2) Random effects-only model (intercept + phylogenetic random effect + species random effect)
-3) Full model with no random effects (just predictors) 
-4) Full model with just phylo random effect
-5) Full model with just species random effect 
-6) Full model with phylo and species random effects 
-7) Reduced model with no random effects (just predictors whose CIs do NOT overlap zero)
-8) Reduced model with just phylo random effect 
-9) Reduced model with just sepcies random effect 
-10) Reduced model with phylogenetic and species random effects 
-
-We'll use LOOIC and WAIC to compare model sets.
 
 
 ```{R, echo=FALSE}
@@ -115,6 +48,8 @@ library(survival)
 library(fmsb)
 library(faraway)
 library(ape)
+library(tidyr)
+library(rcompanion)
 
 # Mapping 
 library(raster)
@@ -166,36 +101,30 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 # Load functions 
 source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
 
-# All Patagona blood data
-# now combined into one working master blood file 
-# patagona <- read.csv("Patagona_Blood_Morpho_Tissue_MASTER_working_June2020.csv", na.strings = c("", "NA"))
-
+# All hummingbird blood data
+blood <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv")
 # Note: all variables read in with "X0_" (just "0_" in Excel) are variables that will be dropped once you run code for 
 # blood calculations below. This prefix indicates DROP ME, NOT PART OF FINAL ANYTHING.
 
-# All hummingbird blood data
-blood <- read.csv("All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv")
-
 # Assign row IDs 
-#patagona$rowID <- 1:nrow(patagona)
 blood$rowID <- 1:nrow(blood)
 blood$species <- as.factor(blood$species)
 
 # Cleaned Patagona data (written in Patagona_blood_analysis_2020.Rmd file for Patagona analysis)
-pdat <- read.csv("Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_10-27-20.csv")  
+pdat <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_10-27-20.csv")  
 # Make sure this is most updated version; 10-27-20 version updated from 07-08-20 w/ museum cat num added 
 pdat <- pdat[ , !(colnames(pdat) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Stotz elev data 
-stotz <- read.csv("StotzEtAl_ElevRangeData.csv")
+stotz <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/StotzEtAl_ElevRangeData.csv")
 
 # Wing loading data from MSB records (59 spp only)
-wload <- read.csv("Hummingbird_WingLoading_Summary_59spp_FromChris.csv") 
+wload <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Hummingbird_WingLoading_Summary_59spp_FromChris.csv") 
 
-# Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
-tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
-tree$tip.label # Check 77 tips
-plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
+# # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd) # Don't need to read in tree for this script
+# tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
+# tree$tip.label # Check 77 tips
+# plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
 ```
 
 
@@ -253,7 +182,7 @@ blood <- subset(blood, select = -c(pe6_no,
 
 
 
-# Calculate blood metrics and make variables needed for analysis 
+# Calculate blood variables needed for analysis 
 ```{r}
 library(dplyr)
 
@@ -365,7 +294,7 @@ blood <- blood %>% filter(!is.na(lon)) # keep only records with lon
 #write.csv(blood, "blood.latlontest.csv")
 ```
 
-Note about lat/lons: A bunch of lat/lons were missing from July 2007 Tres Lagunas, Lambayeque birds at 3,200 m. Chris said there was an error in processing all of these birds, which are all problematic cases, so we don't have coords for them. However, one bird, NK162815 (C. iris) from 12 July 2007 does have coords for this locality, elev, and date range. With Chris' permission, I used NK162815's lat/lon to fill in coordinates for all missing-coord NKS.  
+Note about lat/lons: A bunch of lat/lons were missing from July 2007 Tres Lagunas, Lambayeque birds at 3,200 m. Chris said there was an error in processing all of these birds, which are all problematic cases, so we don't have coords for them. However, one bird, NK162815 (C. iris) from 12 July 2007 does have coords for this locality, elev, and date range. Chris and I decided to use the lat/lon for NK162815's to fill in coordinates for all missing-coord NKS.  
 
 I added coords from NK162815 to the following NKs: 162691, 162758, 162720, 162705, 162757, 162690, 162725, 162592, 162759, 162776, 162782, 162689, 162591, 162783, 162704
 
@@ -426,7 +355,7 @@ names(bsub)[names(bsub) == "MCH_final"] <- "mch"
 #                        "MCHC_final"="mchc", 
 #                        "MCH_final"="mch")) 
 
-# Instantiate column for wing chord length (mm); necessary for combining with Patagona and Skandalis data 
+# Instantiate column for wing chord length (mm); necessary for combining with Patagona and MSB wing loading data 
 bsub$wing <- as.numeric(paste(""))
 ```
 
@@ -522,27 +451,15 @@ length(unique(full$species)) # number of unique species
 
 # Transform some variables
 ```{r}
-# Run the above predictor scatterplot matrix, transform the data as needed, re-run scatterplot matrix
-full$mass.log <- log10(full$mass) # Helped a bit, but still pretty off at tails, definitely not normal
-hist(full$mass.log) 
-qqPlot(full$mass.log) 
-
-full$wing.log <- log10(full$wing) # Did almost nothing, though we aren't *very* interested in wing measurements
-hist(full$wing.log)   
-qqPlot(full$wing.log)  
-
-# Mass looks like it might need to be transformed because Patagona throws things off...
-# distributions of Hb, hct, trbc, and mchc look fantastic
-# MCV and MCH might need transformation 
-# This looks a LOT better after dropping unrealistic values (see code chunk below)
+# I now do this in modeling file! Made a lot more sense to combine all transformations prior to modeling. 
 ```
 
 
-# Predictor scatterplot matrix
+# Predictor scatterplot matrix for outlier assessment 
 Predictors/possible predictors for models for models
 ```{R, fig.height = 6, fig.width = 6}
 # full dataset
-p <- ggpairs(subset(full, select = c(elev, mass, mass.log, hb, hct, trbc, mcv, mch, mchc))) 
+p <- ggpairs(subset(full, select = c(elev, mass, hb, hct, trbc, mcv, mch, mchc))) 
 print(p)
 
 # Initial outlier/distribution assessment 
@@ -587,9 +504,9 @@ full[which(full$mch > 50),] # 5 outliers
 
 
 # Generally, these look really good. I don't think any need to be transformed, but that could change. 
-qqPlot(full$mass) # looks like shit (but would look ok w/out Patagona...)
+qqPlot(full$mass) # looks bad (but would look ok w/out Patagona...)
 qqPlot(full$elev) # not great but maybe hard to fix because of uneven sampling?
-qqPlot(full$hb) # sexy AF 
+qqPlot(full$hb) # fine AF 
 qqPlot(full$hct) # damn near perfect
 qqPlot(full$trbc) # some *slight* curvature tails, but within normal range 
 qqPlot(full$mcv) # Upper limit of 150 MCV brings curvature at tails within liveable/normal-ish range = good 
@@ -625,7 +542,7 @@ full <- full[-which(full$hb < 14 | full$hb > 25),] # drop Hb <14 # -3 observatio
 full <- full[-which(full$hct < 35 | full$hct > 75),] # 5 observations 
 # Campbell and Ellis report "normal" range for birds 35-55
 # <35% suggests anemia; >55% suggests dehyrdation or erythrocytocis (polycythemia; increase in RBCs)
-# They note that PCV > 70% is usually indicative of chronic plumonary disease 
+# They note that PCV > 70% is usually indicative of chronic pulmonary disease 
 
 # For TRBC: drop any value <2 or >10
 # I read somewhere online that bird 'normal' range is 2.5-4.5, with lower indicating anemia
@@ -653,49 +570,27 @@ full <- full[-which(full$mchc < 20 | full$mchc > 42),] # -3 observations
 # Elarabany 2018 values for two duck species range from 24.6-31.1 PG; normal range for humans is 32-36 gm/dl 
 full <- full[-which(full$mch < 18 | full$mch > 50),] # 4 observations 
 
-# Total outlier points dropped: 68 of 1,317
-# 1,249 total data points for analysis
+# Take a look at the unique number of species in the dataset and observations per species:
+sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
+# Should be 77 total species 
+write.csv(sp.count.full, "HumBlood_species_list.csv")
 
 # The plots/distributions above certainly look a LOT better after removing outliers
+# Total outlier points dropped: 68 of 1,317
+# 1,249 total data points for analysis
 ```
 
 Note about outlier removal: Since dropping extreme values for e.g. MCV leads to a LOT of lost data, another thing I could do is JUST remove outliers for individual model datasets. I could then check the distributions of individual model data sets before working with them, and this would allow me to ditch 8 weird MCV values but keep the associated perfectly regular hemoglobin values, for example. 
 
 
-# Now drop the levels of species for which you have < 3 observations 
-NOTE: This is a relict code chunk - we decided that we don't want to drop any species. On 7/8/20 Chris said: 
-"I say use all individuals, don’t have a threshold -- any such sample size threshold can be applied post hoc for specific purpose or question, but in general, individual-based analyses using all the data are the way to go (however, prudent elimination of errant/outlier datapoints is also essential)"
---> If you do decide to stick this back in, make sure to drop these AFTER removing outliers above. If not, you'll drop poorly sampled species, possibly remove outliers in the process, and then possibly have to drop additional species on the basis of sparse sampling (revealed after outlier analysis).
-```{r}
-# Get a sense for what species will need to be dropped 
-# table(full$species)
-# 
-# # Identify species with fewer than 3 records 
-# weakly.sampled <- c()
-# for(i in full$species){
-#    thresh <- full[full$species==i,]
-#    if(nrow(thresh)>3){weakly.sampled[i] <- as.character(thresh$species[1])}
-#  }
-#  weakly.sampled <- as.vector(weakly.sampled)
- 
-# Now subset the data by species with fewer than 3 records 
-# full <- full[full$species %in% weakly.sampled, ]
-
-# Take a look at the unique number of species in the dataset and observations per species:
-sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
-# Should be 77 total species 
-write.csv(sp.count.full, "HumBlood_species_list.csv")
-```
-
-
 # Assess age-based outliers
-Blood data is anomalous in in nestlings and fledglings and normalizes quickly within a few months of fledging. 
-Bursa lasts longer than weird juvenile blood characteristics, so presence/absence of bursa isn't 100% correlative with ages that would be important for blood analyses. Me, Chris, and Ethan decided that looking at a combination of characteristics is the best approach: 
-- First, eliminate anomalous blood values 
-- Then, analyze distribution of blood values. If these look normal and fit in with others, don't remove on the basis of having a bursa. But, if blood values look weird AND a bird has a "large" bursa, then remove value. 
-- "Large" bursa is ~2x2 mm or greater for hummingbirds - CCW says this is a bird recently out of the nest.  
+Blood data values are anomalous in in nestlings and fledglings and normalize quickly within a few months of fledging. 
+Bursa lasts longer than anomalous juvenile blood characteristics, so presence/absence of bursa isn't 100% correlative with ages that would be important for blood analyses. Jessie, Chris, and Ethan decided that looking at a *combination* of characteristics is the best approach: 
+- First, eliminate anomalous blood values (see code chunks above)
+- Then, analyze distribution of blood values. If these look normal and fit in with others, don't remove on the basis of having a bursa. But, if blood values look weird *AND* a bird has a "large" bursa, then remove value. 
+- "Large" bursa is ~2x2 mm or greater for hummingbirds, indicative of a bird recently out of the nest.  
 - This approach allows us to identify and possibly drop any errant values caused by age and retain all values of juveniles that fall within the "normal" adult range. 
-- Also NOTE: Any non-vouchered (tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
+- Also NOTE: Any non-vouchered (i.e. tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
 ```{r}
 # GGpairs comparison plot colored by age 
 p <- ggpairs(full[ ,c("elev", "mass", "hb", "hct", "trbc", "mcv", "mch", "mchc", "age")], 
@@ -705,9 +600,9 @@ print(p)
 
 # pink = adult
 # green = juvenile
-# blue = unknown (because bursa was undetermined, not found, not recorded, etc.)
+# blue = unknown (because bursa was undetermined, not found, not recorded, Patagona not collected for tracking, etc.)
 
-# Honestly, this looks pretty good. If age-based outliers remained, we'd expect lots of errant green points
+# This looks pretty good. If age-based outliers remained, we'd expect lots of errant green points
 # Instead, these fall in line with pink clusters and show similar spread in boxplots. 
 ```
 
@@ -723,27 +618,26 @@ library(tidyr)
 # and copy down species mean values for all the species records 
 
 # Now change column names 
-names(wload)[names(wload) == "mass_g"] <- "wing.mass" # units = grams 
-names(wload)[names(wload) == "wing_area_mm2"] <- "wing.area" # units = mm2
-names(wload)[names(wload) == "wing_loading"] <- "wing.loading" 
+names(wload)[names(wload) == "mass_g"] <- "wm" # wing mass: units = grams 
+names(wload)[names(wload) == "wing_area_mm2"] <- "wa" # wing area: units = mm2
+names(wload)[names(wload) == "wing_loading"] <- "wl" # wing loading
+# the 'n' clolumn corresponds to # samples used to calculate wing loading (data that went into Skandalis et al. 2017)
 
 # Merge full data w/ MSB wing loading data 
-full.and.wload <- merge(full, wload, by.x="species", by.y="species", all.x=TRUE) 
+full <- merge(full, wload, by.x="species", by.y="species", all.x=TRUE) 
 # by.x corresponds to column to merge from full; by.y corresponds to column to merge from wload
 # Because both data frames have same col name, by.x and by.y are the same; in Stotz example below, col names differ 
 # all.x=TRUE argument means don't drop data if there isn't an exact match w/ wload 
 # What I want: number of rows should be 1,249 (same as full), wing loading data should exist for wload species = SUCCESS! 
 # GOOD NEWS: Merging in this way copies each species mean value down for all representatives of that species = GOOD. 
 
-# Now look for correlations between wing loading and the 6 blood parameters of interest 
-
-hist(full.and.wload$wing.loading.log) # Neither log nor sqrt transforming helps; best w/out transformation? 
-qqPlot(full.and.wload$wing.loading.log)
-#full.and.wload$wing.loading.log <- sqrt(full.and.wload$wing.loading)
-p <- ggpairs(subset(full.and.wload, select = c(elev, mass.log, wing.loading, hb, hct, trbc, mcv, mch, mchc))) 
+# Look at possible correlations between wing loading and the 6 blood parameters of interest 
+p <- ggpairs(subset(full, select = c(elev, mass, wl, hb, hct, trbc, mcv, mch, mchc))) 
 print(p)
-# Remember that not all species have wing loading data, so this won't print for all 
+# Remember that not all species have wing loading data, so this won't print for all (i.e. you'll get 'warning' message)
+# Transformations of wing data now happen in humblood_modeling.Rmd
 ```
+
 
 
 # Wrangle Stotz
@@ -755,7 +649,7 @@ colnames(stotz.sub) <- c("genus", "species", "elev_min", "elev_max", "elev_midpt
 stotz.sub$binomial <- paste0(stotz.sub$genus, " ", stotz.sub$species) # Combine genus and species cols into one  
 full1 <- merge(full, stotz.sub, by.x = "species", by.y = "binomial", all.x=TRUE) # Merge full data w/ Stotz 
 # by.x corresponds to column to merge from full; by.y corresponds to column to merge from stotz.sub
-# The data frames have different col name, so by.x and by.y are the same; in Skandalis example above, col names are the same
+# The data frames have different col name, so by.x and by.y are the same
 # all.x=TRUE argument means don't drop data if there isn't an exact match w/ Stotz 
 head(full1)
 
@@ -774,53 +668,54 @@ missing <- full1[is.na(full1$elev_min),]$species %>% unique(); missing
 
 # Eyeball Stotz data, fill in gaps tediously
 # AKA: take names of 'missing' df, use these to manually fill in gaps by inputting Stotz Excel sheet values
-# elev_min = col 28
-# elev_max = col 29
-# elev_midpt = col 30
+# Note, I had previously called index column names (elev_min=[28], elev_max=[29], elev_midpt=[30]), BUT, I didn't like this: 
+# Every time I updated data frame above I had to tediously update column numbers and things shuffled; better to call names.
+# But FYI, old line of code looked like: 
+# full1[full1$species==missing[1],][28]  <- 1300 # [28] for elev_min, etc etc
 
-full1[full1$species==missing[1],][28] <- 1300 #Aglaiocercus kingii # kingi in Stotz
-full1[full1$species==missing[1],][29] <- 2600 #Aglaiocercus kingii
-full1[full1$species==missing[1],][30] <- 1300 #Aglaiocercus kingii
+full1[full1$species==missing[1],][, "elev_min"] <- 1300 # Aglaiocercus kingii # kingi in Stotz
+full1[full1$species==missing[1],][, "elev_max"] <- 2600 # Aglaiocercus kingii
+full1[full1$species==missing[1],][, "elev_midpt"] <- 1300 # Aglaiocercus kingii
 
-full1[full1$species==missing[2],][28] <- 900 # Chaetocercus mulsant # Acestrura mulsant in Stotz
-full1[full1$species==missing[2],][29] <- 2800 # Chaetocercus mulsant
-full1[full1$species==missing[2],][30] <- 1900 # Chaetocercus mulsant
+full1[full1$species==missing[2],][, "elev_min"] <- 900 # Chaetocercus mulsant # Acestrura mulsant in Stotz
+full1[full1$species==missing[2],][, "elev_max"] <- 2800 # Chaetocercus mulsant
+full1[full1$species==missing[2],][, "elev_midpt"] <- 1900 # Chaetocercus mulsant
 
-full1[full1$species==missing[3],][28] <- 1200 # Doryfera ludovicae # ludoviciae in Stotz
-full1[full1$species==missing[3],][29] <- 2800 # Doryfera ludovicae
-full1[full1$species==missing[3],][30] <- 1600 # Doryfera ludovicae
+full1[full1$species==missing[3],][, "elev_min"] <- 1200 # Doryfera ludovicae # ludoviciae in Stotz
+full1[full1$species==missing[3],][, "elev_max"] <- 2800 # Doryfera ludovicae
+full1[full1$species==missing[3],][, "elev_midpt"] <- 1600 # Doryfera ludovicae
 
-full1[full1$species==missing[4],][28] <- 2000 # Eriocnemis aline # alinae in Stotz
-full1[full1$species==missing[4],][29] <- 2800 # Eriocnemis aline
-full1[full1$species==missing[4],][30] <- 800  # Eriocnemis aline
+full1[full1$species==missing[4],][, "elev_min"] <- 2000 # Eriocnemis aline # alinae in Stotz
+full1[full1$species==missing[4],][, "elev_max"] <- 2800 # Eriocnemis aline
+full1[full1$species==missing[4],][, "elev_midpt"] <- 800  # Eriocnemis aline
 
-full1[full1$species==missing[5],][28] <- 2250 # Eriocnemis vestita # vestitus in Stotz; but only 3 so dropped 
-full1[full1$species==missing[5],][29] <- 3850 # Eriocnemis vestita
-full1[full1$species==missing[5],][30] <- 1600 # Eriocnemis vestita
+full1[full1$species==missing[5],][, "elev_min"] <- 2250 # Eriocnemis vestita # vestitus in Stotz; but only 3 so dropped 
+full1[full1$species==missing[5],][, "elev_max"] <- 3850 # Eriocnemis vestita
+full1[full1$species==missing[5],][, "elev_midpt"] <- 1600 # Eriocnemis vestita
 
-full1[full1$species==missing[6],][28] <- 0    # Glaucis hirsutus # hirsutas in Stotz
-full1[full1$species==missing[6],][29] <- 1100 # Glaucis hirsutus
-full1[full1$species==missing[6],][30] <- 1100 # Glaucis hirsutus
+full1[full1$species==missing[6],][, "elev_min"] <- 0    # Glaucis hirsutus # hirsutas in Stotz
+full1[full1$species==missing[6],][, "elev_max"] <- 1100 # Glaucis hirsutus
+full1[full1$species==missing[6],][, "elev_midpt"] <- 1100 # Glaucis hirsutus
 
-full1[full1$species==missing[7],][28] <- 2400 # Heliangelus micraster # spelling issue in Stotz
-full1[full1$species==missing[7],][29] <- 2900 # Heliangelus micraster
-full1[full1$species==missing[7],][30] <- 500  # Heliangelus micraster
+full1[full1$species==missing[7],][, "elev_min"] <- 2400 # Heliangelus micraster # spelling issue in Stotz
+full1[full1$species==missing[7],][, "elev_max"] <- 2900 # Heliangelus micraster
+full1[full1$species==missing[7],][, "elev_midpt"] <- 500  # Heliangelus micraster
 
-full1[full1$species==missing[8],][28] <- 0    # Heliodoxa aurescens # Polyplancta aurescens in Stotz; only 3 so dropped
-full1[full1$species==missing[8],][29] <- 1050 # Heliodoxa aurescens
-full1[full1$species==missing[8],][30] <- 1050 # Heliodoxa aurescens
+full1[full1$species==missing[8],][, "elev_min"] <- 0    # Heliodoxa aurescens # Polyplancta aurescens in Stotz
+full1[full1$species==missing[8],][, "elev_max"] <- 1050 # Heliodoxa aurescens
+full1[full1$species==missing[8],][, "elev_midpt"] <- 1050 # Heliodoxa aurescens
 
-full1[full1$species==missing[9],][28] <- 3500 # Oreotrochilus estella # (estella) estella & (estella) chimborazo in Stotz
-full1[full1$species==missing[9],][29] <- 4600 # Oreotrochilus estella
-full1[full1$species==missing[9],][30] <- 1100 # Oreotrochilus estella
+full1[full1$species==missing[9],][, "elev_min"] <- 3500 # O. estella # (estella) estella & (estella) chimborazo in Stotz 
+full1[full1$species==missing[9],][, "elev_max"] <- 4600 # Oreotrochilus estella
+full1[full1$species==missing[9],][, "elev_midpt"] <- 1100 # Oreotrochilus estella
 
-full1[full1$species==missing[10],][28] <- 0 # Phaethornis atrimentalis # Not in Stotz; adding Schulenberg 2007 ranges
-full1[full1$species==missing[10],][29] <- 1100 # Phaethornis atrimentalis
-full1[full1$species==missing[10],][30] <- 1100 # Phaethornis atrimentalis
+full1[full1$species==missing[10],][, "elev_min"] <- 0 # Phaethornis atrimentalis # Not in Stotz; adding Schulenberg 2007 ranges
+full1[full1$species==missing[10],][, "elev_max"] <- 1100 # Phaethornis atrimentalis
+full1[full1$species==missing[10],][, "elev_midpt"] <- 1100 # Phaethornis atrimentalis
 
-full1[full1$species==missing[11],][28] <- 0 # Sephanoides sephaniodes # Sephanoides sephanOIdes in Stotz...of course.
-full1[full1$species==missing[11],][29] <- 2000 # Sephanoides sephaniodes
-full1[full1$species==missing[11],][30] <- 2000 # Sephanoides sephaniodes
+full1[full1$species==missing[11],][, "elev_min"] <- 0 # Sephanoides sephaniodes # Sephanoides sephanOIdes in Stotz...of course.
+full1[full1$species==missing[11],][, "elev_max"] <- 2000 # Sephanoides sephaniodes
+full1[full1$species==missing[11],][, "elev_midpt"] <- 2000 # Sephanoides sephaniodes
 
 # Now missing should be 0
 ```
@@ -842,262 +737,258 @@ min_exceed <- full1[full1$elev < full1$elev_min,]$species %>% unique(); min_exce
 # Before adjusting, 4: Amazilia chionogaster, Haplophaedia aureliae, Lesbia victoriae, Oreotrochilus estella 
 # After adjusting, 0
 
-# [28] = elev_min
-# [29] = elev_max
-# [30] = elev_midpt
-
 # Patagona gigas 
-# Cite Williamson and Witt 2020, ENSM paper 
-full1[full1$species=="Patagona gigas",][28] <- 0    # Min elev, determined from ENSM paper 
-full1[full1$species=="Patagona gigas",][29] <- 4830 # Max elev, determined from ENSM paper
+# Cite Williamson and Witt 2020, ENSM  
+full1[full1$species=="Patagona gigas",][, "elev_min"] <- 0    # Min elev, determined from ENSM paper 
+full1[full1$species=="Patagona gigas",][, "elev_max"] <- 4830 # Max elev, determined from ENSM paper
 
 # Rhodopis vesper 
-full1[full1$species=="Rhodopis vesper",][29] <- 3800 # Max elev, determined Schulenberg et al. 2007
+full1[full1$species=="Rhodopis vesper",][, "elev_max"] <- 3800 # Max elev, determined Schulenberg et al. 2007
 
 # Haplophaedia aureliae
 # Schulenberg et al. 2007 doesn't list an elev range (just found in under- and midstory of humid montane forest)
 # Stotz min 1,400, MSB collection min is 1051; rounding down to 1050
-full1[full1$species=="Haplophaedia aureliae",][28] <- 1050    # Min elev
+full1[full1$species=="Haplophaedia aureliae",][, "elev_min"] <- 1050    # Min elev
 
 # Polyonymus caroli
 # Schulenberg et al. 2007 lists 2100-3400 m; we know they're common at 3,700-3,800 m in Lima 
 # We've collected up to 4,062 m in Potaga, so I'll bump the max elev to 4,100
-full1[full1$species=="Polyonymus caroli",][29] <- 4100 # Max elev
+full1[full1$species=="Polyonymus caroli",][, "elev_max"] <- 4100 # Max elev
 # Should lower limit be adjusted from 1,500 m (Stotz) to 2,100 m (Schulenberg)?
 
 # Florisuga mellivora
 # Schulenberg et al. 2007 says up to 1,200 m
-full1[full1$species=="Florisuga mellivora",][29] <- 1200 # Max elev
+full1[full1$species=="Florisuga mellivora",][, "elev_max"] <- 1200 # Max elev
 
 # Threnetes leucurus
 # Schulenberg et al. 2007 says up to 1200 m but locally to 1800 m; we've collected to ~1,700 m, so I'll go with 1,800 m
-full1[full1$species=="Threnetes leucurus",][29] <- 1800 # Max elev
+full1[full1$species=="Threnetes leucurus",][, "elev_max"] <- 1800 # Max elev
 
 # Phaethornis malaris
 # Schulenberg et al. 2007 says max 1,300 m
 # MSB voucher shows collected elev of 1673 at Plataforma; adjusting accordingly
-full1[full1$species=="Phaethornis malaris",][29] <- 1700 # Max elev
+full1[full1$species=="Phaethornis malaris",][, "elev_max"] <- 1700 # Max elev
 
 # Phaethornis hispidus
 # Schulenberg et al. 2007 says max 850 m, locally to 1400 m
-full1[full1$species=="Phaethornis hispidus",][29] <- 850 # Max elev
+full1[full1$species=="Phaethornis hispidus",][, "elev_max"] <- 850 # Max elev
 
 # Phaethornis philippii
 # Schulenberg et al. 2007 says below 500 m
-full1[full1$species=="Phaethornis philippii",][29] <- 500 # Max elev
+full1[full1$species=="Phaethornis philippii",][, "elev_max"] <- 500 # Max elev
 
 # Doryfera ludovicae
 # Schulenberg et al. 2007 1,000-2,500; down to 800 m and up to 2,850 in south 
-full1[full1$species=="Doryfera ludovicae",][28] <- 1000 # Min elev
-full1[full1$species=="Doryfera ludovicae",][29] <- 2900 # Max elev # bumping up to match Schulenberg & specimen records
+full1[full1$species=="Doryfera ludovicae",][, "elev_min"] <- 1000 # Min elev
+full1[full1$species=="Doryfera ludovicae",][, "elev_max"] <- 2900 # Max elev # bumping up to match Schulenberg & specimen records
 
 # Colibri coruscans
 # Stotz seems way off for this well-known generalist; Schulenberg says 400-4,500 m
-full1[full1$species=="Colibri coruscans",][28] <- 400 # Min elev
-full1[full1$species=="Colibri coruscans",][29] <- 4500 # Max elev 
+full1[full1$species=="Colibri coruscans",][, "elev_min"] <- 400 # Min elev
+full1[full1$species=="Colibri coruscans",][, "elev_max"] <- 4500 # Max elev 
 
 # Colibri thalassinus (gets changed to Colibri cyanotus below)
 # Stotz: Mostly 1300-2800 m, locally 1000-3300 m; also on west slop in NW at 1500-2400 m
 # MSB record up to 3,153 m, rounding to 3,200
-full1[full1$species=="Colibri thalassinus",][29] <- 3200 # Max elev 
+full1[full1$species=="Colibri thalassinus",][, "elev_max"] <- 3200 # Max elev 
 
 # Heliangelus micraster
 # Schulenberg lists range as 2200-3000 
 # MSB specimen records reach nearly 3,372
-full1[full1$species=="Heliangelus micraster",][29] <- 3400 # Max elev 
+full1[full1$species=="Heliangelus micraster",][, "elev_max"] <- 3400 # Max elev 
 
 # Heliangelus viola
 # Schulenberg et al. 2007: 1800-3200 m; note that our specimen records reach 3,279 m
-full1[full1$species=="Heliangelus viola",][28] <- 1800 # Min elev
-full1[full1$species=="Heliangelus viola",][29] <- 3300 # Max elev
+full1[full1$species=="Heliangelus viola",][, "elev_min"] <- 1800 # Min elev
+full1[full1$species=="Heliangelus viola",][, "elev_max"] <- 3300 # Max elev
 
 # Adelomyia melanogenys
 # Schulenberg et al. 2007: 1000-2900 m; note that our specimen records reach ~2,600 m
-full1[full1$species=="Adelomyia melanogenys",][28] <- 1000 # Min elev
-full1[full1$species=="Adelomyia melanogenys",][29] <- 2900 # Max elev
+full1[full1$species=="Adelomyia melanogenys",][, "elev_min"] <- 1000 # Min elev
+full1[full1$species=="Adelomyia melanogenys",][, "elev_max"] <- 2900 # Max elev
 
 # Aglaiocercus kingii
 # Schulenberg et al. 2007: 1200-2500 m, locally to 2800 m; our specimen records reach 2,858 m.
-full1[full1$species=="Aglaiocercus kingii",][28] <- 1200 # Min elev
-full1[full1$species=="Aglaiocercus kingii",][29] <- 2900 # Max elev # Bumping to 2,900 to take into account MSB records
+full1[full1$species=="Aglaiocercus kingii",][, "elev_min"] <- 1200 # Min elev
+full1[full1$species=="Aglaiocercus kingii",][, "elev_max"] <- 2900 # Max elev # Bumping to 2,900 to take into account MSB records
 
 # Lesbia victoriae
 # Schulenberg et al. 2007: 2700-4100
 # MSB specimen records reach low of 2,338m; rounding down to 2,300 m
-full1[full1$species=="Lesbia victoriae",][28] <- 2300 # Min elev
-full1[full1$species=="Lesbia victoriae",][29] <- 4100 # Max elev 
+full1[full1$species=="Lesbia victoriae",][, "elev_min"] <- 2300 # Min elev
+full1[full1$species=="Lesbia victoriae",][, "elev_max"] <- 4100 # Max elev 
 
 # Lesbia nuna
 # Schulenberg et al. 2007: 1700-3800 m
 # MSB specimen records reach ~4,036 m from Cordillera Vilcanota
-full1[full1$species=="Lesbia nuna",][28] <- 1700 # Min elev
-full1[full1$species=="Lesbia nuna",][29] <- 4050 # Max elev
+full1[full1$species=="Lesbia nuna",][, "elev_min"] <- 1700 # Min elev
+full1[full1$species=="Lesbia nuna",][, "elev_max"] <- 4050 # Max elev
 
 # Oreonympha nobilis
 # Schulenberg et al. 2007: 2700-3900 m
-full1[full1$species=="Oreonympha nobilis",][28] <- 2700 # Min elev
-full1[full1$species=="Oreonympha nobilis",][29] <- 3900 # Max elev
+full1[full1$species=="Oreonympha nobilis",][, "elev_min"] <- 2700 # Min elev
+full1[full1$species=="Oreonympha nobilis",][, "elev_max"] <- 3900 # Max elev
 
 # Metallura phoebe
 # Schulenberg et al. 2007: 2700-4300
-full1[full1$species=="Metallura phoebe",][28] <- 2700 # Min elev
-full1[full1$species=="Metallura phoebe",][29] <- 4300 # Max elev
+full1[full1$species=="Metallura phoebe",][, "elev_min"] <- 2700 # Min elev
+full1[full1$species=="Metallura phoebe",][, "elev_max"] <- 4300 # Max elev
 
 # Metallura tyrianthina
 # Schulenberg et al. 2007: 2400-4200 m; ocasionally down to 1900 m
-full1[full1$species=="Metallura tyrianthina",][29] <- 4200 # Max elev
+full1[full1$species=="Metallura tyrianthina",][, "elev_max"] <- 4200 # Max elev
 
 # Metallura eupogon
 # Schulenberg et al. 2007: 3100-3800
-full1[full1$species=="Metallura eupogon",][28] <- 3100 # Min elev
-full1[full1$species=="Metallura eupogon",][29] <- 3800 # Max elev
+full1[full1$species=="Metallura eupogon",][, "elev_min"] <- 3100 # Min elev
+full1[full1$species=="Metallura eupogon",][, "elev_max"] <- 3800 # Max elev
 
 # Eriocnemis vestita
 # Schulenberg et al. 2007: 2450-3200 m
 # MSB records to 3,293 m, so rounding upper limit to 3,300
-full1[full1$species=="Eriocnemis vestita",][28] <- 2450 # Min elev
-full1[full1$species=="Eriocnemis vestita",][29] <- 3300 # Max elev # Stotz was set to 3,800; seems high
+full1[full1$species=="Eriocnemis vestita",][, "elev_min"] <- 2450 # Min elev
+full1[full1$species=="Eriocnemis vestita",][, "elev_max"] <- 3300 # Max elev # Stotz was set to 3,800; seems high
 # Check upper range limit w/ Chris 
 
 # Eriocnemis luciani
 # Schulenberg et al. 2007: 2450-3200 m
 # MSB records to 3,779 m, so rounding upper limit to 3,800
-full1[full1$species=="Eriocnemis luciani",][28] <- 2450 # Min elev
-full1[full1$species=="Eriocnemis luciani",][29] <- 3800 # Max elev 
+full1[full1$species=="Eriocnemis luciani",][, "elev_min"] <- 2450 # Min elev
+full1[full1$species=="Eriocnemis luciani",][, "elev_max"] <- 3800 # Max elev 
 
 # Aglaeactis cupripennis
 # Schulenberg et al. 2007: 2500-4600 m
-full1[full1$species=="Aglaeactis cupripennis",][28] <- 2500 # Min elev
-full1[full1$species=="Aglaeactis cupripennis",][29] <- 4600 # Max elev 
+full1[full1$species=="Aglaeactis cupripennis",][, "elev_min"] <- 2500 # Min elev
+full1[full1$species=="Aglaeactis cupripennis",][, "elev_max"] <- 4600 # Max elev 
 
 # Aglaeactis castelnaudii
 # Schulenberg et al. 2007: 2500-4100 m
-full1[full1$species=="Aglaeactis castelnaudii",][28] <- 2600 # Min elev
-full1[full1$species=="Aglaeactis castelnaudii",][29] <- 4600 # Max elev # Bumping up based on specimen records
+full1[full1$species=="Aglaeactis castelnaudii",][, "elev_min"] <- 2600 # Min elev
+full1[full1$species=="Aglaeactis castelnaudii",][, "elev_max"] <- 4600 # Max elev # Bumping up based on specimen records
 # Talk w/ Chris about this one - seems to be found a lot higher than recorded 
 
 # Coeligena coeligena
 # Schulenberg et al. 2007: 1000-2200; locally to 2600 m
-full1[full1$species=="Coeligena coeligena",][28] <- 1000 # Min elev
-full1[full1$species=="Coeligena coeligena",][29] <- 2600 # Max elev 
+full1[full1$species=="Coeligena coeligena",][, "elev_min"] <- 1000 # Min elev
+full1[full1$species=="Coeligena coeligena",][, "elev_max"] <- 2600 # Max elev 
 
 # Coeligena torquata
 # Schulenberg et al. 2007: 1800-3000 m
-full1[full1$species=="Coeligena torquata",][28] <- 1800 # Min elev
-full1[full1$species=="Coeligena torquata",][29] <- 3000 # Max elev 
+full1[full1$species=="Coeligena torquata",][, "elev_min"] <- 1800 # Min elev
+full1[full1$species=="Coeligena torquata",][, "elev_max"] <- 3000 # Max elev 
  
 # Coeligena lutetiae
 # Schulenberg et al. 2007: 2600-2950; Stotz says 3000-3750; these are two very different ranges
-full1[full1$species=="Coeligena lutetiae",][28] <- 2600 # Min elev
-full1[full1$species=="Coeligena lutetiae",][29] <- 3700 # Max elev 
+full1[full1$species=="Coeligena lutetiae",][, "elev_min"] <- 2600 # Min elev
+full1[full1$species=="Coeligena lutetiae",][, "elev_max"] <- 3700 # Max elev 
 
 # Coeligena violifer
 # Schulenberg et al. 2007: 2500-3900 m; occasionally down to 1900 m
-full1[full1$species=="Coeligena violifer",][28] <- 2500 # Min elev
-full1[full1$species=="Coeligena violifer",][29] <- 3900 # Max elev 
+full1[full1$species=="Coeligena violifer",][, "elev_min"] <- 2500 # Min elev
+full1[full1$species=="Coeligena violifer",][, "elev_max"] <- 3900 # Max elev 
  
 # Ensifera ensifera
 # Schulenberg et al. 2007: 2400-3600
 # MSB records up to 3,835 m; bumping to 3,850
-full1[full1$species=="Ensifera ensifera",][28] <- 2400 # Min elev
-full1[full1$species=="Ensifera ensifera",][29] <- 3850 # Max elev
+full1[full1$species=="Ensifera ensifera",][, "elev_min"] <- 2400 # Min elev
+full1[full1$species=="Ensifera ensifera",][, "elev_max"] <- 3850 # Max elev
  
 # Pterophanes cyanopterus
 # Stotz and Schulenberg match exactly (2600-3700 m)
 # MSB specimen records reach 4200m
-full1[full1$species=="Pterophanes cyanopterus",][29] <- 4200 # Max elev 
+full1[full1$species=="Pterophanes cyanopterus",][, "elev_max"] <- 4200 # Max elev 
 
 # Boissonneaua matthewsii
 # Schulenberg et al. 2007: 1500-3300 m
-full1[full1$species=="Boissonneaua matthewsii",][28] <- 1500 # Min elev
-full1[full1$species=="Boissonneaua matthewsii",][29] <- 3300 # Max elev
+full1[full1$species=="Boissonneaua matthewsii",][, "elev_min"] <- 1500 # Min elev
+full1[full1$species=="Boissonneaua matthewsii",][, "elev_max"] <- 3300 # Max elev
 
 # Ocreatus underwoodii
 # Schulenberg et al. 2007: 1000-2400 m
-full1[full1$species=="Ocreatus underwoodii",][28] <- 1000 # Min elev
-full1[full1$species=="Ocreatus underwoodii",][29] <- 2400 # Max elev
+full1[full1$species=="Ocreatus underwoodii",][, "elev_min"] <- 1000 # Min elev
+full1[full1$species=="Ocreatus underwoodii",][, "elev_max"] <- 2400 # Max elev
 
 # Heliodoxa leadbeateri
 # Schulenberg et al. 2007: 900-2300 m
-full1[full1$species=="Heliodoxa leadbeateri",][28] <- 900 # Min elev
+full1[full1$species=="Heliodoxa leadbeateri",][, "elev_min"] <- 900 # Min elev
 
 # Heliodoxa aurescens
 # Schulenberg et al. 2007: Below 1400 m
-full1[full1$species=="Heliodoxa aurescens",][29] <- 1400 # Max elev
+full1[full1$species=="Heliodoxa aurescens",][, "elev_max"] <- 1400 # Max elev
 
 # Campylopterus largipennis
 # Schulenberg et al. 2007: Up to 1300 m
-full1[full1$species=="Campylopterus largipennis",][29] <- 1300 # Max elev
+full1[full1$species=="Campylopterus largipennis",][, "elev_max"] <- 1300 # Max elev
 
 # Campylopterus villaviscensio is interesting
 # Schulenberg et al. 2007: from 1050-1400 m
 # All MSB vouchers exceed upper range, with highest at 1776 m
-full1[full1$species=="Campylopterus villaviscensio",][29] <- 1800 # Max elev
+full1[full1$species=="Campylopterus villaviscensio",][, "elev_max"] <- 1800 # Max elev
 
 # Leucippus taczanowskii
 # Schulenberg et al. 2007: 1000-2400 m
-full1[full1$species=="Leucippus taczanowskii",][28] <- 350 # Min elev
-full1[full1$species=="Leucippus taczanowskii",][29] <- 2800 # Max elev
+full1[full1$species=="Leucippus taczanowskii",][, "elev_min"] <- 350 # Min elev
+full1[full1$species=="Leucippus taczanowskii",][, "elev_max"] <- 2800 # Max elev
 # Ask Chris about this one too 
 
 # Amazilia viridicauda
 # Schulenberg et al. 2007: 1000-2750 m
 # MSB specimen records collected to 3,005 m
-full1[full1$species=="Amazilia viridicauda",][28] <- 1000 # Min elev
-full1[full1$species=="Amazilia viridicauda",][29] <- 3050 # Max elev # Bumping up based on specimen records
+full1[full1$species=="Amazilia viridicauda",][, "elev_min"] <- 1000 # Min elev
+full1[full1$species=="Amazilia viridicauda",][, "elev_max"] <- 3050 # Max elev # Bumping up based on specimen records
 
 # Amazilia chionogaster
 # Schulenberg et al. 2007: primarily 1200-3500, locally as low as 350
 # MSB low record is 294 m, so rounding down to 250 m
-full1[full1$species=="Amazilia chionogaster",][28] <- 250 # Min elev
-full1[full1$species=="Amazilia chionogaster",][29] <- 3500 # Max elev 
+full1[full1$species=="Amazilia chionogaster",][, "elev_min"] <- 250 # Min elev
+full1[full1$species=="Amazilia chionogaster",][, "elev_max"] <- 3500 # Max elev 
 # Ask Chris about this one too 
 
 # Taphrospilus hypostictus
 # Schulenberg et al. 2007: 750-1500 m, occasionally up to 2800 m in upper Apurimac Valley 
-full1[full1$species=="Taphrospilus hypostictus",][29] <- 1500 # Max elev 
+full1[full1$species=="Taphrospilus hypostictus",][, "elev_max"] <- 1500 # Max elev 
 
 # Amazilia amazilia
 # Schulenberg et al. 2007: mostly below 1000, locally up to 2400 m
-full1[full1$species=="Amazilia amazilia",][29] <- 2400 # Max elev 
+full1[full1$species=="Amazilia amazilia",][, "elev_max"] <- 2400 # Max elev 
 # Ask Chris about this one too 
 
 # Chrysuronia oenone
 # Schulenberg et al. 2007: Lowlands to 1700 m
-full1[full1$species=="Chrysuronia oenone",][29] <- 1700 # Max elev 
+full1[full1$species=="Chrysuronia oenone",][, "elev_max"] <- 1700 # Max elev 
 
 # Myrmia micrura
 # Stotz says range is just sea level; Schulenberg et al. 2007: sea level to 1200 m locally
-full1[full1$species=="Myrmia micrura",][29] <- 1200 # Max elev
+full1[full1$species=="Myrmia micrura",][, "elev_max"] <- 1200 # Max elev
 
 # Klais guimeti
 # Schulenberg et al. 2007: 500-1550
 # MSB collection records go up to 1673 m, so adjusting upper limit to 1700 accordingly
-full1[full1$species=="Klais guimeti",][29] <- 1700 # Max elev 
+full1[full1$species=="Klais guimeti",][, "elev_max"] <- 1700 # Max elev 
 
 # Phaethornis atrimentalis
 # Schulenberg et al. 2007: up to 1,100 m
 # MSB collection records go up to 1209 m, so adjusting upper limit to 1250 accordingly
-full1[full1$species=="Phaethornis atrimentalis",][29] <- 1250 # Max elev
+full1[full1$species=="Phaethornis atrimentalis",][, "elev_max"] <- 1250 # Max elev
 
 # Lafresnaya lafresnayi
 # Schulenberg et al. 2007: 1800-3200 m; Stotz to 3,350 m
 # MSB collection records go up to 3376 m, so adjusting upper limit to 3400 accordingly
-full1[full1$species=="Lafresnaya lafresnayi",][29] <- 3400 # Max elev
+full1[full1$species=="Lafresnaya lafresnayi",][, "elev_max"] <- 3400 # Max elev
 
 # Chalcostigma herrani
 # Schulenberg et al. 2007: 2450-3100
 # MSB collection records go up to 3421 m, so adjusting upper limit to 3450 accordingly
-full1[full1$species=="Chalcostigma herrani",][29] <- 3450 # Max elev
+full1[full1$species=="Chalcostigma herrani",][, "elev_max"] <- 3450 # Max elev
 
 # Oreotrochilus estella
 # Schulenberg et al. 2007: 3400-4600, locally down to 3,000m
 # MSB collection records go down to 3,400. But because Schulenberg uses 3,000, I'll bump down to that as low point.
-full1[full1$species=="Oreotrochilus estella",][28] <- 3000 # Min elev
+full1[full1$species=="Oreotrochilus estella",][, "elev_min"] <- 3000 # Min elev
 
 
 # Eyeball full1 species count to verify you inspected all 
-sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk))
+sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk)); sp.count.full1
 #write.csv(sp.count.full1, "AllHummingbird_SpeciesList.csv")
 # Should be 77 total species 
 ```
@@ -1107,8 +998,7 @@ sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk))
 Projecto-Garcia et al. 2013 lists many species and their associated clades. Best phylogeny McGuire et al. 2014. 
 For helpful future reference, a list of hummingbirds and their respective clades: https://www.wikiwand.com/en/List_of_hummingbird_species
 ```{R}
-# Note: Colibri thalassinus is now Mexican Violetear and we want Lesser Violetear
-# change name to Colibri cyanotus by renaming the level of this factor variable 
+# Note: Colibri thalassinus is now Mexican Violetear; Lesser Violetear should be Colibri cyanotus = rename level of this factor
 levels(full1$species)[levels(full1$species)=="Colibri thalassinus"] <- "Colibri cyanotus"
 
 full1$Clade <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
@@ -1300,8 +1190,6 @@ final$Clade <- as.factor(final$Clade)
 
 
 
-
-
 #### SPATIAL AND ENVIRONMENTAL DATA ####
 
 # Country polygons, elevation rasters, BioClim download
@@ -1384,10 +1272,10 @@ proj4string(climate) == proj4string(peru_chile) #check projections
 # READ IN RASTERS TO AVOID RUNNING ALL CODE ABOVE 
 # Need to run BioClim data above to ensure that peru_chile is a raster brick otherwise you can't extract BioClim
 #peru_chile_bioclim <- raster("./peru_chile_bioclim.grd") # read in peru_chile BioClim data
-peru_alt <- raster("./peru_alt.grd") #read elevation raster
-chile_alt <- raster("./chile_alt.grd") #read elevation raster
-surrounding_elevs <- raster("./surrounding_elevs.grd") # surrounding South American country elevs
-south_america_elevs <- raster("./south_america_elevs.grd") # All South American country elevs combined
+peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//peru_alt.grd") #read elevation raster
+chile_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//chile_alt.grd") #read elevation raster
+surrounding_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//surrounding_elevs.grd") # surrounding South American country elevs
+south_america_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//south_america_elevs.grd") # All South American country elevs combined
 
 
 ###### PROCESS SPATIAL DATA 
@@ -1427,7 +1315,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-#write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_10-27-20.csv")
+#write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_11-09-20.csv")
 ```
 
 
@@ -1436,11 +1324,11 @@ final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 This is for variable reduction of BioClim variables; look at loadings to understand which directions things work in. 
 Collapse temp and aridity variables and use first PCA axis in models. 
 ```{r}
-# Code from Sabrina 
+# Code from McNew et al. 2020 (thanks for the help, SMM!)
 # PCA and scale raster data for temp variables and precip variables
 
 # Temperature PCA using BioClim vars 1-11
-tempPCA <- rasterPCA(subset(peru_chile, 1:11), spca = TRUE) #creates a raster of PCAd temp vals
+tempPCA <- rasterPCA(subset(peru_chile, 1:11), spca = TRUE) #creates a raster of PCA temp vals
 summary(tempPCA$model) #PC1 has 73.4% of variation and 89.5% w/ PC1+PC2
 tempPCA$model$loadings #
 
@@ -1474,22 +1362,10 @@ plot(bio19 ~ tempPC2, data=final)
 # writeRaster(precipPCA$map$PC2, "precipPC2.grd", overwrite=TRUE)
 
 
-# Look at distributions of BioClim variables and transform if necessary 
+# Look at distributions of BioClim variables 
+# This and other prelim qqPlots indicated some PC variables being off at tails; see HumBlood_Modeling.Rmd for transformations
 p <- ggpairs(subset(final, select = c(elev, elev_position, mass, hb, hct, trbc, mcv, mch, mchc, tempPC1, tempPC2, precipPC1, precipPC2))) 
 print(p)
-# PC variables look a little wonky 
-
-hist(final$tempPC1)
-qqPlot(final$tempPC1) # off at tails 
-
-hist(final$tempPC2)
-qqPlot(final$tempPC2) # off at left tail  
-
-hist(final$precipPC1)
-qqPlot(final$precipPC2) # weird skew 
-
-hist(final$precipPC2)
-qqPlot(final$precipPC2) # off at left tail  
 ```
 
 
@@ -1598,8 +1474,9 @@ If we don't eliminate NAs or impute missing values, brms won't give proper estim
     # change the distribution of that variable AND the relationship between that variable and the others you use to impute.
     # Doing so can lead to imputing outliers, creating more bias than just imputing the skewed variable
 # The more imputations, the more robust the estimates. Bodner (2008) recommends as many imputations as % missing data.
-    # Since our data is 57% complete, I'll run 50 imputations (43% incomplete + buffer)
+    # Since our data is 57% complete, I'd hypothetically run 50 imputations (43% incomplete + buffer)
 
+# HYPOTHETICALLY: 
 #library(mice)
 #imp <- mice(final, m=5, print=TRUE, maxit=5, method="cart", seed=500) # m= # imputations; maxit= # iterations/datasets
 # In order to get this to work, specify method='cart' for 'classification and regression trees'
@@ -1613,18 +1490,18 @@ percent.missing <- function(x){sum(is.na(x))/length(x)*100} # Function to calcul
 apply(final, 2, percent.missing)
 # apply(final.sub, 1, percent.missing)
 
-# We have a lot of missing blood data! % missing data: 
-# mass = 1.52%(this would be ok for imputation)
+# We have a lot of missing blood data! Percent missing data: 
+# mass = 1.52% (this would be ok for imputation)
 # hb: 13.3% 
 # hct 8.88%
 # mcv: 38%
 # mchc: 21.8%
 # mch: 40.4%
 
-# This is really *too* much missing data to be able to impute well. 
-# It's clunker, but probably more reliable to create subsets for each blood parameter model set, then remove NAs from those
+# We have too much missing data to be able to impute well. 
+# It's clunkier, but probably more reliable to create subsets for each blood parameter model set, then remove NAs from those
 
-# SECOND BUT: What we can do is as Chris suggested and impute mass values by taking means across species and sex
+# SECOND BUT: Chris suggested we can 'impute' mass values by substituting means across species and sex
 # Start with a summary of species means for each sex 
 library(dplyr)
 species.mass.summary <- final %>% group_by(species, sex) %>%
@@ -1639,23 +1516,24 @@ final.nomasses <- final[-which(is.na(final$mass)),] # Drop missing mass records 
 
 # Now, impute missing values manually based on species mean values for each sex 
 # There has *got* to be a less manual and clunky as hell way to do this...
+
 colnames(nomasses) # col 16 is mass 
-nomasses[nomasses$species=="Aglaiocercus kingii" & nomasses$sex=="female",][16] <- 4.465556 # Mean female mass
-nomasses[nomasses$species=="Amazilia chionogaster" & nomasses$sex=="female",][16] <- 5.513333
-nomasses[nomasses$species=="Chrysuronia oenone" & nomasses$sex=="male",][16] <- 4.599000
-nomasses[nomasses$species=="Coeligena violifer" & nomasses$sex=="male",][16] <- 7.894615
-nomasses[nomasses$species=="Coeligena violifer" & nomasses$sex=="female",][16] <- 7.693182
-nomasses[nomasses$species=="Colibri coruscans" & nomasses$sex=="male",][16] <- 8.466667
-nomasses[nomasses$species=="Eriocnemis luciani" & nomasses$sex=="female",][16] <- 6.491429 
-nomasses[nomasses$species=="Eriocnemis luciani" & nomasses$sex=="male",][16] <- 7.133333
-nomasses[nomasses$species=="Florisuga mellivora" & nomasses$sex=="male",][16] <- 6.882500
-nomasses[nomasses$species=="Metallura tyrianthina" & nomasses$sex=="male",][16] <- 3.784615
-nomasses[nomasses$species=="Myrtis fanny" & nomasses$sex=="female",][16] <- 2.648000
-nomasses[nomasses$species=="Oreotrochilus melanogaster" & nomasses$sex=="female",][16] <- 7.078448
-nomasses[nomasses$species=="Patagona gigas" & nomasses$sex=="female",][16] <- 19.972381
-nomasses[nomasses$species=="Pterophanes cyanopterus" & nomasses$sex=="female",][16] <- 10.465714
-nomasses[nomasses$species=="Pterophanes cyanopterus" & nomasses$sex=="male",][16] <- 11.550000
-nomasses[nomasses$species=="Taphrospilus hypostictus" & nomasses$sex=="female",][16] <- 7.150000
+nomasses[nomasses$species=="Aglaiocercus kingii" & nomasses$sex=="female",][, "mass"] <- 4.465556 # Mean female mass
+nomasses[nomasses$species=="Amazilia chionogaster" & nomasses$sex=="female",][, "mass"] <- 5.513333
+nomasses[nomasses$species=="Chrysuronia oenone" & nomasses$sex=="male",][, "mass"] <- 4.599000
+nomasses[nomasses$species=="Coeligena violifer" & nomasses$sex=="male",][, "mass"] <- 7.894615
+nomasses[nomasses$species=="Coeligena violifer" & nomasses$sex=="female",][, "mass"] <- 7.693182
+nomasses[nomasses$species=="Colibri coruscans" & nomasses$sex=="male",][, "mass"] <- 8.466667
+nomasses[nomasses$species=="Eriocnemis luciani" & nomasses$sex=="female",][, "mass"] <- 6.491429 
+nomasses[nomasses$species=="Eriocnemis luciani" & nomasses$sex=="male",][, "mass"] <- 7.133333
+nomasses[nomasses$species=="Florisuga mellivora" & nomasses$sex=="male",][, "mass"] <- 6.882500
+nomasses[nomasses$species=="Metallura tyrianthina" & nomasses$sex=="male",][, "mass"] <- 3.784615
+nomasses[nomasses$species=="Myrtis fanny" & nomasses$sex=="female",][, "mass"] <- 2.648000
+nomasses[nomasses$species=="Oreotrochilus melanogaster" & nomasses$sex=="female",][, "mass"] <- 7.078448
+nomasses[nomasses$species=="Patagona gigas" & nomasses$sex=="female",][, "mass"] <- 19.972381
+nomasses[nomasses$species=="Pterophanes cyanopterus" & nomasses$sex=="female",][, "mass"] <- 10.465714
+nomasses[nomasses$species=="Pterophanes cyanopterus" & nomasses$sex=="male",][, "mass"] <- 11.550000
+nomasses[nomasses$species=="Taphrospilus hypostictus" & nomasses$sex=="female",][, "mass"] <- 7.150000
 
 # Recombine datasets 
 final <- rbind(final.nomasses, nomasses)
@@ -1663,12 +1541,10 @@ final <- rbind(final.nomasses, nomasses)
 # Check percent missing mass with this, should now be zero 
 percent.missing <- function(x){sum(is.na(x))/length(x)*100} # Function to calculate % missing values 
 apply(final, 2, percent.missing)
-
 # yay! No missing mass data. 
 
 # Final dataset without Hb genotypes:
-write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_10-27-20.csv")
-
+write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_11-09-20.csv")
 ```
 
 Vignette on handling missing values w/ brms: 
@@ -1864,9 +1740,9 @@ final$b13b83.genotype <- paste(final$b13, final$b83,sep="-") # specify dash sepa
 genotype.summary <- final %>% group_by(b13b83.genotype) %>% summarise(count = length(species)); genotype.summary
 ```
 
-How we did this: We first added Hb genotypes from Projecto-Garcia et al. 2013. If any were missing, Jessie looked through old Hbba sequence files from Chris, assembled alignments with 5 GenBank Reference sequences from Projecto-Garcia, and determined Hb genotypes that way (see description of this workflow in Hbba-genotyping-workflow-hummingbird-comparative-data_08-27-20.doc). Then, if species were still missing, Jessie took Hb genotypes from the McGuire et al. .nex file that Chris sent over that has a nice little alignment of b13-b83 genotypes for many species. 
+How we did this: We first added Hb genotypes from Projecto-Garcia et al. 2013. If any were missing, Jessie looked through old Hbba sequence files from Chris, assembled alignments with 5 GenBank Reference sequences from Projecto-Garcia, and determined Hb genotypes that way (see description of this workflow in Hbba-genotyping-workflow-hummingbird-comparative-data_08-27-20.doc). Then, if species were still missing, Jessie took Hb genotypes from the McGuire et al .nex file that Chris sent over that has a nice little alignment of b13-b83 genotypes for many species. 
 
-After doing this, we were still left with 15 species missing Hb genotypes. We made educated best guesses based on genotypes of sister taxa, and elevational ranges. We think most of these are very solidly-inferred, though we know this is not a foolproof method. 
+After doing this, we were still left with 15 species missing Hb genotypes. We made educated best guesses based on genotypes of sister taxa and elevational ranges. We think most of these are solidly-inferred, though we know this is not a foolproof method. 
 Rationale for best guesses is provided in: ComparativeHummingbirdData_SpeciesMissingHbGenotypes_Data&BestGuesses_08-28-20.xlsx
 
 Here are the list of 15 species for which we used "best guess" Hb genotype info: 
@@ -1884,11 +1760,11 @@ Myrtis fanny
 Oreotrochilus leucopleurus
 
 
-# In case you end up modeling species-level data, create a species mean dataset
+# For elevational range phylogeny figure: Ceate a species mean dataset, wrangle into workable format for Illustrator figure
+Note: this script should be cleaned up and probably moved for my plots & figs .Rmd. Still a working chunk, in here for now. 
 ```{r}
 # Figure out why there are NaNs! In at least a few cases it comes from only 1 individual per species
 # drop species with fewer than 2? 
-## You'll need to figure this out if you do continuous trait mapping
 
 # species mean data
 species.means <- final %>% group_by(species) %>%
@@ -2107,7 +1983,7 @@ species.means$elevmidpt_offset <- species.means$elevmidpt + species.means$elev_m
 # To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min #
 # After testing this out, thins look correct: All elev midpoints plot accurately at their midpoints within their elev range (!)
 
-write.csv(species.means, "AllHummingbird_SpeciesMeanBloodData_09-17-20.csv")
+write.csv(species.means, "AllHummingbird_SpeciesMeanBloodData_11-09-20.csv")
 
 
 # Now make copy of 'final' dataset that you can finagle to get offset collection elevations to represent sampling: 
@@ -2264,17 +2140,19 @@ Helpful data summarizing tips: http://kbroman.org/datacarpentry_R_2016-06-01/03-
 Since Patagona is a huge body size outlier, make a non-Patagona subset to be able to do some body size comparisons below
 ```{r}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_10-27-20.csv")
+write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_11-09-20.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
 final.nopgig <- final[-which(final$species == "Patagona gigas"),] # 161 Patagona observations 
-write.csv(final.nopgig, "HumBlood.final.nopgig.csv")
+write.csv(final.nopgig, "HumBlood.final.nopgig_11-09-20.csv")
 ```
 
 
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
 
 ###########
-
-
 
 ## END 
