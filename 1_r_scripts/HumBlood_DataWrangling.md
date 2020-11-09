@@ -506,6 +506,581 @@ Predictor scatterplot matrix for outlier assessment
 ===================================================
 
 Predictors/possible predictors for models for models
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-1.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-2.png" style="display: block; margin: auto;" />
+
+         rowID     nk msb_cat_no prep_num            cat_owner        species
+    5710    57 279268       <NA> EBO 3089    Emil Bautista O.  Patagona gigas
+    661     66 279289       <NA> EBO 3102    Emil Bautista O.  Patagona gigas
+    1991   199 252159       <NA>     <NA> Jessie L. Williamson Patagona gigas
+             sex      age    month year            locality elev        department
+    5710  female    adult   August   42 Carretera_3N_km32.5 3672            Ancash
+    661     male    adult   August   42            Huanchay 3006            Ancash
+    1991 unknown juvenile February 2018           Algarrobo   10 Región Valparaíso
+             lat     lon mass    hb      hct trbc      mcv    mchc    mch wing
+    5710 -10.005 -77.130 20.0 13.05 42.40772 4.64 91.39594 30.7727 28.125  122
+    661  -10.461 -77.407 22.8  8.20       NA   NA       NA      NA     NA  136
+    1991 -33.348 -71.635 22.8 13.10       NA   NA       NA      NA     NA  117
+
+     [1] rowID      nk         msb_cat_no prep_num   cat_owner  species   
+     [7] sex        age        month      year       locality   elev      
+    [13] department lat        lon        mass       hb         hct       
+    [19] trbc       mcv        mchc       mch        wing      
+    <0 rows> (or 0-length row.names)
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-3.png" style="display: block; margin: auto;" />
+
+         rowID     nk msb_cat_no prep_num         cat_owner        species    sex
+    1910    19 168572      33353 EBO 1386 Emil Bautista O.  Patagona gigas   male
+    2110    21 168709      33490 EBO 1524 Emil Bautista O.  Patagona gigas female
+              age     month year                  locality elev department
+    1910 juvenile September   38 San_Pedro_de_Casta_Potago 3905       Lima
+    2110 juvenile   October   38 San_Pedro_de_Casta_Potago 4082       Lima
+               lat       lon mass   hb      hct trbc      mcv      mchc      mch
+    1910 -11.76770 -76.53462 18.4 22.6 14.97660 5.06 29.59802 150.90208 44.66403
+    2110 -11.76847 -76.53325 18.5 19.4 28.69469 6.04 47.50777  33.80416 32.11921
+         wing
+    1910  137
+    2110  137
+
+        rowID     nk msb_cat_no prep_num           cat_owner
+    49     49 161012      27245 ABJ 1712   Andrew B. Johnson
+    447   447 163390      31718  EBO 787    Emil Bautista O.
+    670   670 168900      33674  MJL 401 Michael J. Lelevier
+                           species    sex   age    month year
+    49          Schistes geoffroyi   male adult    March 2007
+    447 Oreotrochilus melanogaster female adult      May 2008
+    670          Amazilia amazilia   male adult December 2009
+                      locality elev department       lat       lon mass   hb
+    49                SanPedro 1395      Cuzco -13.05550 -71.54667 4.09 23.0
+    447            Carhuayumac 3750       Lima -11.76188 -76.54887 7.85   NA
+    670 ca. 9.8 km N. of Olmos  129 Lambayeque  -5.89136 -79.78718 4.43 16.5
+             hct trbc      mcv     mchc      mch wing
+    49  75.20000 5.91 127.2420 30.58511 38.91709   NA
+    447 76.15817   NA       NA       NA       NA   NA
+    670 76.91014 5.80 132.6037 21.45361 28.44828   NA
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-4.png" style="display: block; margin: auto;" />
+
+         rowID     nk msb_cat_no prep_num              cat_owner
+    522    522 167714      32542  JNZ 758 Jano Alex Nunez Zapata
+    527    527 167853      32681 ABJ 2164      Andrew B. Johnson
+    974    974 176294      37114 PMB 1500        Phred M. Benham
+    1185  1186 279004       <NA>  SMB 503  Selina M. Bauernfeind
+                           species    sex      age    month year  locality elev
+    522       Heliodoxa rubinoides female    adult     July 2008  Tullanya 2200
+    527  Phaethornis syrmatophorus female juvenile     July 2008  Tullanya 2031
+    974           Glaucis hirsutus   male    adult     June 2011    Alerta  290
+    1185   Sephanoides sephaniodes   male juvenile December 2018 Algarrobo   10
+            department        lat       lon mass   hb      hct trbc      mcv
+    522       Amazonas  -6.099083 -78.34277 8.41 19.2 59.62993 0.75 795.0657
+    527       Amazonas  -6.109700 -78.34158 5.67 16.5 53.63300 1.99 269.5126
+    974  Madre de Dios -11.710300 -69.21115 6.93   NA 60.80560 1.55 392.2942
+    1185    Valparaíso -33.348600 -71.63690 5.70   NA       NA 1.17       NA
+             mchc       mch wing
+    522  32.19860 256.00000   NA
+    527  30.76464  82.91457   NA
+    974        NA        NA   NA
+    1185       NA        NA   NA
+
+        rowID     nk msb_cat_no prep_num           cat_owner
+    337   337 162788      28218  EBO 473    Emil Bautista O.
+    680   680 169123      33897  MJL 460 Michael J. Lelevier
+    681   681 169124      33898  PMB 945     Phred M. Benham
+    726   726 169373      34147 EBO 1646    Emil Bautista O.
+    896   896 173953      36122  MRJ 238    Matthew R. Jones
+    916   916 175375      36444  MRJ 325    Matthew R. Jones
+                        species    sex   age    month year       locality elev
+    337   Metallura tyrianthina   male adult     July 2007   Tres Lagunas 3219
+    680   Metallura tyrianthina   male adult December 2009         Ccocha 3688
+    681      Coeligena violifer   male adult December 2009         Ccocha 3688
+    726 Aglaeactis castelnaudii female adult  January 2010 Laguna Anantay 4578
+    896    Ocreatus underwoodii   male adult     June 2011     Plataforma 1683
+    916     Heliodoxa aurescens female adult     June 2011     Plataforma 1343
+        department        lat       lon  mass   hb      hct  trbc      mcv     mchc
+    337 Lambayeque  -6.244333 -79.24667 4.000 18.7 63.77220 13.07 48.79280 29.32312
+    680   Apurimac -13.487100 -72.98202 3.430 17.9 58.73984 14.32 41.01944 30.47336
+    681   Apurimac -13.487100 -72.98202 7.012 20.2 64.75114 15.67 41.32172 31.19636
+    726   Apurimac -14.068767 -73.01717 5.950 19.6 60.74194 10.13 59.96243 32.26765
+    896 San Martin  -7.419150 -76.29115 2.700   NA 61.98251 12.69 48.84358       NA
+    916 San Martin  -7.411300 -76.27625 5.680   NA 63.34297 12.16 52.09126       NA
+             mch wing
+    337 14.30757   NA
+    680 12.50000   NA
+    681 12.89087   NA
+    726 19.34847   NA
+    896       NA   NA
+    916       NA   NA
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-5.png" style="display: block; margin: auto;" />
+
+         rowID     nk msb_cat_no prep_num           cat_owner               species
+    337    337 162788      28218  EBO 473    Emil Bautista O. Metallura tyrianthina
+    680    680 169123      33897  MJL 460 Michael J. Lelevier Metallura tyrianthina
+    681    681 169124      33898  PMB 945     Phred M. Benham    Coeligena violifer
+    896    896 173953      36122  MRJ 238    Matthew R. Jones  Ocreatus underwoodii
+    1910    19 168572      33353 EBO 1386   Emil Bautista O.         Patagona gigas
+    2110    21 168709      33490 EBO 1524   Emil Bautista O.         Patagona gigas
+            sex      age     month year                  locality elev department
+    337    male    adult      July 2007              Tres Lagunas 3219 Lambayeque
+    680    male    adult  December 2009                    Ccocha 3688   Apurimac
+    681    male    adult  December 2009                    Ccocha 3688   Apurimac
+    896    male    adult      June 2011                Plataforma 1683 San Martin
+    1910   male juvenile September   38 San_Pedro_de_Casta_Potago 3905       Lima
+    2110 female juvenile   October   38 San_Pedro_de_Casta_Potago 4082       Lima
+                lat       lon   mass   hb      hct  trbc      mcv      mchc
+    337   -6.244333 -79.24667  4.000 18.7 63.77220 13.07 48.79280  29.32312
+    680  -13.487100 -72.98202  3.430 17.9 58.73984 14.32 41.01944  30.47336
+    681  -13.487100 -72.98202  7.012 20.2 64.75114 15.67 41.32172  31.19636
+    896   -7.419150 -76.29115  2.700   NA 61.98251 12.69 48.84358        NA
+    1910 -11.767700 -76.53462 18.400 22.6 14.97660  5.06 29.59802 150.90208
+    2110 -11.768467 -76.53325 18.500 19.4 28.69469  6.04 47.50777  33.80416
+              mch wing
+    337  14.30757   NA
+    680  12.50000   NA
+    681  12.89087   NA
+    896        NA   NA
+    1910 44.66403  137
+    2110 32.11921  137
+
+         rowID     nk msb_cat_no prep_num              cat_owner
+    259    259 162528      31309  DSC 708      Dora Susanibar C.
+    505    505 163895      32223 DCS 6025       Donna C. Schmitt
+    508    508 163914      32242 DFL 2393         Daniel F. Lane
+    509    509 163915      32243 DFL 2396         Daniel F. Lane
+    511    511 167516      32344  RJD 112       Robert J. Driver
+    514    514 167564      32392 ABJ 2135      Andrew B. Johnson
+    517    517 167644      32472 ABJ 2147      Andrew B. Johnson
+    518    518 167651      32479 DCS 6100       Donna C. Schmitt
+    522    522 167714      32542  JNZ 758 Jano Alex Nunez Zapata
+    525    525 167798      32626 DCS 6140       Donna C. Schmitt
+    527    527 167853      32681 ABJ 2164      Andrew B. Johnson
+    530    530 167867      32695  RJD 140       Robert J. Driver
+    532    532 167874      32702 DFL 2419         Daniel F. Lane
+    534    534 167879      32707 DCS 6158       Donna C. Schmitt
+    535    535 167880      32708 DCS 6159       Donna C. Schmitt
+    536    536 167994      32822 DCS 6177       Donna C. Schmitt
+    537    537 168012      32840  AQZ 202    Alessandra Quinonez
+    538    538 168015      32843  WAT 199      William A. Talbot
+    539    539 168042      32870 ABJ 2172      Andrew B. Johnson
+    540    540 168052      32880  EBO 929       Emil Bautista O.
+    541    541 168056      32884  AQZ 204    Alessandra Quinonez
+    595    595 168416      33197 EBO 1213       Emil Bautista O.
+    617    617 168510      33291 EBO 1324       Emil Bautista O.
+    624    624 168530      33311 EBO 1339       Emil Bautista O.
+    626    626 168532      33313 EBO 1346       Emil Bautista O.
+    636    636 168600      33381 EBO 1414       Emil Bautista O.
+    639    639 168608      33389 EBO 1422       Emil Bautista O.
+    640    640 168609      33390 EBO 1423       Emil Bautista O.
+    647    647 168630      33411 EBO 1444       Emil Bautista O.
+    733    733 171080      34354 DCS 6967       Donna C. Schmitt
+    734    734 171094      34368 DCS 6972       Donna C. Schmitt
+    736    736 171099      34373  CJS 459    C. Jonathan Schmitt
+    737    737 171100      34374 DCS 6976       Donna C. Schmitt
+    738    738 171104      34378 DCS 6977       Donna C. Schmitt
+    743    743 171133      34407 DCS 6994       Donna C. Schmitt
+    945    945 176006      36826  EJB 153   Elizabeth J. Beckman
+    974    974 176294      37114 PMB 1500        Phred M. Benham
+    991    991 176420      37240 ABJ 2862      Andrew B. Johnson
+    1109  1110 220246      31024 CCW 1042    Christopher C. Witt
+    1187  1188 279035       <NA>  SMB 524  Selina M. Bauernfeind
+    1188  1189 279047       <NA>  JLW 062   Jessie L. Williamson
+    3210    32 279226       <NA> EBO 3063      Emil Bautista O. 
+    3310    33 279227       <NA> EBO 3064      Emil Bautista O. 
+    391     39 279236       <NA> EBO 3069      Emil Bautista O. 
+    6110    61 279278       <NA> EBO 3095      Emil Bautista O. 
+                             species    sex      age     month year       locality
+    259          Phaethornis malaris female    adult      June 2007        Sianbal
+    505          Coeligena coeligena   male    adult      July 2008       Tullanya
+    508          Coeligena coeligena female    adult      July 2008       Tullanya
+    509          Coeligena coeligena female    adult      July 2008       Tullanya
+    511          Coeligena coeligena   male    adult      July 2008       Tullanya
+    514        Adelomyia melanogenys   male    adult      July 2008       Tullanya
+    517          Coeligena coeligena female juvenile      July 2008       Tullanya
+    518           Doryfera ludovicae female    adult      July 2008       Tullanya
+    522         Heliodoxa rubinoides female    adult      July 2008       Tullanya
+    525           Doryfera ludovicae female    adult      July 2008       Tullanya
+    527    Phaethornis syrmatophorus female juvenile      July 2008       Tullanya
+    530           Doryfera ludovicae female    adult      July 2008       Tullanya
+    532          Colibri thalassinus   male    adult      July 2008       Tullanya
+    534      Boissonneaua matthewsii   male juvenile      July 2008       Tullanya
+    535      Boissonneaua matthewsii female juvenile      July 2008       Tullanya
+    536        Heliodoxa leadbeateri female    adult      July 2008       Tullanya
+    537        Adelomyia melanogenys   male juvenile      July 2008       Tullanya
+    538           Coeligena torquata female    adult      July 2008       Tullanya
+    539         Ocreatus underwoodii female    adult      July 2008       Tullanya
+    540    Phaethornis syrmatophorus female juvenile      July 2008       Tullanya
+    541    Phaethornis syrmatophorus   male juvenile      July 2008       Tullanya
+    595           Coeligena violifer   male    adult     March 2009 Quebrada Honda
+    617   Oreotrochilus melanogaster female    adult September 2009         Potaga
+    624   Oreotrochilus melanogaster female juvenile September 2009         Potaga
+    626   Oreotrochilus melanogaster female    adult September 2009         Potaga
+    636   Oreotrochilus melanogaster   male  unknown September 2009         Potaga
+    639             Metallura phoebe   male    adult September 2009         Potaga
+    640            Colibri coruscans   male    adult September 2009         Potaga
+    647             Metallura phoebe   male juvenile September 2009         Potaga
+    733              Phaethornis guy   male    adult      June 2010       Quebrada
+    734        Chalcostigma ruficeps female    adult      June 2010 Quebrada Honda
+    736        Chalcostigma ruficeps female    adult      June 2010 Quebrada Honda
+    737           Coeligena violifer   male    adult      June 2010 Quebrada Honda
+    738  Heliangelus amethysticollis female    adult      June 2010 Quebrada Honda
+    743           Coeligena violifer   male    adult      June 2010 Quebrada Honda
+    945           Schistes geoffroyi   male    adult      June 2011         Cadena
+    974             Glaucis hirsutus   male    adult      June 2011         Alerta
+    991          Florisuga mellivora female    adult      July 2011         Alerta
+    1109           Colibri coruscans   male    adult      July 2006            SE2
+    1187     Sephanoides sephaniodes   male juvenile  December 2018      Algarrobo
+    1188     Sephanoides sephaniodes   male juvenile  December 2018      Algarrobo
+    3210              Patagona gigas female    adult    August   42       Atogolpo
+    3310              Patagona gigas   male    adult    August   42       Atogolpo
+    391               Patagona gigas female    adult    August   42       Atogolpo
+    6110              Patagona gigas female    adult    August   42          Oncoy
+         elev    department        lat       lon  mass   hb      hct trbc      mcv
+    259   352    San Martin  -6.650767 -76.07918  5.60 20.5 65.44635 3.57 183.3231
+    505  2181      Amazonas  -6.101500 -78.34428  8.40 19.5 63.46597 3.50 181.3314
+    508  2131      Amazonas  -6.103833 -78.34358  6.15 18.1 54.57766 3.55 153.7399
+    509  2100      Amazonas  -6.100000 -78.33333  5.38 17.6 55.21874 3.46 159.5917
+    511  2052      Amazonas  -6.104500 -78.34158  6.85 19.8 63.47962 3.34 190.0588
+    514  2031      Amazonas  -6.109700 -78.34158  4.10 19.2 58.60377 3.06 191.5156
+    517  2100      Amazonas  -6.101650 -78.34288  5.92 16.1 48.60380 2.71 179.3498
+    518  2131      Amazonas  -6.103750 -78.34358  5.50 20.7 65.58458 3.76 174.4271
+    522  2200      Amazonas  -6.099083 -78.34277  8.41 19.2 59.62993 0.75 795.0657
+    525  2015      Amazonas  -6.098917 -78.33827  6.16 19.7 58.62983 3.42 171.4322
+    527  2031      Amazonas  -6.109700 -78.34158  5.67 16.5 53.63300 1.99 269.5126
+    530  2031      Amazonas  -6.100600 -78.33947  5.99 19.7 57.29697 2.19 261.6300
+    532  1890      Amazonas  -6.117600 -78.34218  5.12 18.1 55.50864 2.74 202.5863
+    534  2076      Amazonas  -6.099517 -78.33923  8.09 17.8 51.39585 2.33 220.5830
+    535  2076      Amazonas  -6.099517 -78.33923  7.25 17.0 50.18778 3.18 157.8232
+    536  1890      Amazonas  -6.117600 -78.34218  8.86 18.1 57.46672 3.06 187.7997
+    537  2015      Amazonas  -6.098917 -78.33827  4.21 19.3 60.41162 2.52 239.7287
+    538  2884      Amazonas  -6.074333 -78.32353  8.05 20.6 67.71888 2.90 233.5134
+    539  2131      Amazonas  -6.103750 -78.34358  2.85 20.0 61.34650 3.66 167.6134
+    540  2085      Amazonas  -6.099750 -78.33925  4.86 18.1 56.92155 3.42 166.4373
+    541  2085      Amazonas  -6.099750 -78.33925  4.77 21.1 65.11091 3.50 186.0312
+    595  2858         Cuzco -12.621417 -72.24210  7.53 22.6 65.93663 4.16 158.5015
+    617  3932          Lima -11.764183 -76.54300  7.46 20.7 66.40811 3.45 192.4873
+    624  4056          Lima -11.767700 -76.53462  6.40   NA 58.58974 2.90 202.0336
+    626  4056          Lima -11.767700 -76.53462  6.40 23.6 63.05125 4.10 153.7835
+    636  4150          Lima -11.769583 -76.53193  8.40 21.7 62.99283 4.01 157.0894
+    639  3908          Lima -11.767700 -76.53462  7.00 20.4 57.86385 3.20 180.8245
+    640  3907          Lima -11.767700 -76.53462 10.30 21.3 56.51895 3.34 169.2184
+    647  3974          Lima -11.767700 -76.53462  7.50 18.9 54.51128 3.50 155.7465
+    733  1500         Cuzco -12.651900 -72.32360  5.00 18.5 70.02012 4.43 158.0590
+    734  2850         Cuzco -12.621050 -72.24240  4.00 19.2 62.81646 3.52 178.4558
+    736  2850         Cuzco -12.621050 -72.24240  3.45 17.7 61.71533 2.89 213.5478
+    737  2850         Cuzco -12.621050 -72.24240  8.87 18.1 58.92624 2.21 266.6346
+    738  2850         Cuzco -12.621050 -72.24240  4.84 18.2 58.31584 2.79 209.0174
+    743  2850         Cuzco -12.621050 -72.24240  7.51 19.7 62.52148 4.14 151.0181
+    945  1172         Cuzco -13.349633 -70.86185  3.60   NA 70.97242 4.13 171.8461
+    974   290 Madre de Dios -11.710300 -69.21115  6.93   NA 60.80560 1.55 392.2942
+    991   290 Madre de Dios -11.710300 -69.21115  6.58   NA 57.79851 3.53 163.7351
+    1109 3040          Lima -11.758317 -76.58463  8.40 19.8 57.86646 2.90 199.5395
+    1187   10    Valparaíso -33.348600 -71.63690  6.10 15.9 51.53374 3.42 150.6835
+    1188   10    Valparaíso -33.348600 -71.63690  5.70 16.3 48.70000 2.74 177.7372
+    3210 3707          Lima -11.772000 -76.57300 20.00 22.8 68.44538 3.87 176.8614
+    3310 3707          Lima -11.772000 -76.57300 25.50 22.1 58.83002 3.56 165.2529
+    391  3707          Lima -11.772000 -76.57300 18.30 21.3 62.82987 4.09 153.6183
+    6110 3796        Ancash -10.341000 -77.35500 22.10 18.6 56.58763 2.76 205.0276
+             mchc       mch wing
+    259  31.32336  57.42297   NA
+    505  30.72512  55.71429   NA
+    508  33.16375  50.98592   NA
+    509  31.87324  50.86705   NA
+    511  31.19111  59.28144   NA
+    514  32.76240  62.74510   NA
+    517  33.12498  59.40959   NA
+    518  31.56230  55.05319   NA
+    522  32.19860 256.00000   NA
+    525  33.60065  57.60234   NA
+    527  30.76464  82.91457   NA
+    530  34.38227  89.95434   NA
+    532  32.60753  66.05839   NA
+    534  34.63315  76.39485   NA
+    535  33.87279  53.45912   NA
+    536  31.49649  59.15033   NA
+    537  31.94749  76.58730   NA
+    538  30.41988  71.03448   NA
+    539  32.60170  54.64481   NA
+    540  31.79815  52.92398   NA
+    541  32.40625  60.28571   NA
+    595  34.27534  54.32692   NA
+    617  31.17089  60.00000   NA
+    624        NA        NA   NA
+    626  37.42987  57.56098   NA
+    636  34.44836  54.11471   NA
+    639  35.25517  63.75000   NA
+    640  37.68648  63.77246   NA
+    647  34.67172  54.00000   NA
+    733  26.42098  41.76072   NA
+    734  30.56524  54.54545   NA
+    736  28.68007  61.24567   NA
+    737  30.71636  81.90045   NA
+    738  31.20936  65.23297   NA
+    743  31.50917  47.58454   NA
+    945        NA        NA   NA
+    974        NA        NA   NA
+    991        NA        NA   NA
+    1109 34.21671  68.27586   NA
+    1187 30.85357  46.49123   NA
+    1188 33.47023  59.48905   NA
+    3210 33.31123  58.91473   NA
+    3310 37.56585  62.07865   NA
+    391  33.90107  52.07824  115
+    6110 32.86938  67.39130  136
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-6.png" style="display: block; margin: auto;" />
+
+     [1] rowID      nk         msb_cat_no prep_num   cat_owner  species   
+     [7] sex        age        month      year       locality   elev      
+    [13] department lat        lon        mass       hb         hct       
+    [19] trbc       mcv        mchc       mch        wing      
+    <0 rows> (or 0-length row.names)
+
+         rowID     nk msb_cat_no prep_num            cat_owner              species
+    1065  1065 218922      42294  SGD 533       Shane G. DuBay  Coeligena coeligena
+    1078  1078 218967      42339  SGD 543       Shane G. DuBay Ocreatus underwoodii
+    1093  1093 219391      42453  EJB 354 Elizabeth J. Beckman  Colibri thalassinus
+    1910    19 168572      33353 EBO 1386    Emil Bautista O.        Patagona gigas
+            sex      age     month year                  locality elev department
+    1065 female    adult      June 2012                 Las Pinas 2142   Amazonas
+    1078   male    adult      June 2012                 Las Pinas 2200   Amazonas
+    1093   male    adult      July 2012                  Chontali 2512  Cajamarca
+    1910   male juvenile September   38 San_Pedro_de_Casta_Potago 3905       Lima
+                lat       lon  mass   hb      hct trbc      mcv      mchc      mch
+    1065  -6.049133 -78.22678  6.41 19.5 39.09091   NA       NA  49.88372       NA
+    1078  -6.047667 -78.22873  2.84 16.0 37.90323   NA       NA  42.21277       NA
+    1093  -5.585183 -79.15823  4.92 18.3 35.29957   NA       NA  51.84199       NA
+    1910 -11.767700 -76.53462 18.40 22.6 14.97660 5.06 29.59802 150.90208 44.66403
+         wing
+    1065   NA
+    1078   NA
+    1093   NA
+    1910  137
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-7.png" style="display: block; margin: auto;" />
+
+        rowID     nk msb_cat_no prep_num           cat_owner               species
+    337   337 162788      28218  EBO 473    Emil Bautista O. Metallura tyrianthina
+    680   680 169123      33897  MJL 460 Michael J. Lelevier Metallura tyrianthina
+    681   681 169124      33898  PMB 945     Phred M. Benham    Coeligena violifer
+         sex   age    month year     locality elev department        lat       lon
+    337 male adult     July 2007 Tres Lagunas 3219 Lambayeque  -6.244333 -79.24667
+    680 male adult December 2009       Ccocha 3688   Apurimac -13.487100 -72.98202
+    681 male adult December 2009       Ccocha 3688   Apurimac -13.487100 -72.98202
+         mass   hb      hct  trbc      mcv     mchc      mch wing
+    337 4.000 18.7 63.77220 13.07 48.79280 29.32312 14.30757   NA
+    680 3.430 17.9 58.73984 14.32 41.01944 30.47336 12.50000   NA
+    681 7.012 20.2 64.75114 15.67 41.32172 31.19636 12.89087   NA
+
+         rowID     nk msb_cat_no prep_num              cat_owner
+    259    259 162528      31309  DSC 708      Dora Susanibar C.
+    406    406 163091      31527  EBO 644       Emil Bautista O.
+    505    505 163895      32223 DCS 6025       Donna C. Schmitt
+    508    508 163914      32242 DFL 2393         Daniel F. Lane
+    509    509 163915      32243 DFL 2396         Daniel F. Lane
+    511    511 167516      32344  RJD 112       Robert J. Driver
+    514    514 167564      32392 ABJ 2135      Andrew B. Johnson
+    517    517 167644      32472 ABJ 2147      Andrew B. Johnson
+    518    518 167651      32479 DCS 6100       Donna C. Schmitt
+    522    522 167714      32542  JNZ 758 Jano Alex Nunez Zapata
+    525    525 167798      32626 DCS 6140       Donna C. Schmitt
+    527    527 167853      32681 ABJ 2164      Andrew B. Johnson
+    530    530 167867      32695  RJD 140       Robert J. Driver
+    532    532 167874      32702 DFL 2419         Daniel F. Lane
+    534    534 167879      32707 DCS 6158       Donna C. Schmitt
+    535    535 167880      32708 DCS 6159       Donna C. Schmitt
+    536    536 167994      32822 DCS 6177       Donna C. Schmitt
+    537    537 168012      32840  AQZ 202    Alessandra Quinonez
+    538    538 168015      32843  WAT 199      William A. Talbot
+    539    539 168042      32870 ABJ 2172      Andrew B. Johnson
+    540    540 168052      32880  EBO 929       Emil Bautista O.
+    541    541 168056      32884  AQZ 204    Alessandra Quinonez
+    595    595 168416      33197 EBO 1213       Emil Bautista O.
+    609    609 168489      33270 EBO 1269       Emil Bautista O.
+    617    617 168510      33291 EBO 1324       Emil Bautista O.
+    626    626 168532      33313 EBO 1346       Emil Bautista O.
+    636    636 168600      33381 EBO 1414       Emil Bautista O.
+    639    639 168608      33389 EBO 1422       Emil Bautista O.
+    640    640 168609      33390 EBO 1423       Emil Bautista O.
+    647    647 168630      33411 EBO 1444       Emil Bautista O.
+    734    734 171094      34368 DCS 6972       Donna C. Schmitt
+    736    736 171099      34373  CJS 459    C. Jonathan Schmitt
+    737    737 171100      34374 DCS 6976       Donna C. Schmitt
+    738    738 171104      34378 DCS 6977       Donna C. Schmitt
+    879    879 173835      36004 EBO 2014       Emil Bautista O.
+    1109  1110 220246      31024 CCW 1042    Christopher C. Witt
+    1153  1154 220382      31160    CCW ?    Christopher C. Witt
+    1188  1189 279047       <NA>  JLW 062   Jessie L. Williamson
+    3210    32 279226       <NA> EBO 3063      Emil Bautista O. 
+    3310    33 279227       <NA> EBO 3064      Emil Bautista O. 
+    3610    36 279232       <NA> EBO 3067      Emil Bautista O. 
+    391     39 279236       <NA> EBO 3069      Emil Bautista O. 
+    6110    61 279278       <NA> EBO 3095      Emil Bautista O. 
+                             species    sex      age     month year       locality
+    259          Phaethornis malaris female    adult      June 2007        Sianbal
+    406             Metallura phoebe female    adult   January 2008      Carampoma
+    505          Coeligena coeligena   male    adult      July 2008       Tullanya
+    508          Coeligena coeligena female    adult      July 2008       Tullanya
+    509          Coeligena coeligena female    adult      July 2008       Tullanya
+    511          Coeligena coeligena   male    adult      July 2008       Tullanya
+    514        Adelomyia melanogenys   male    adult      July 2008       Tullanya
+    517          Coeligena coeligena female juvenile      July 2008       Tullanya
+    518           Doryfera ludovicae female    adult      July 2008       Tullanya
+    522         Heliodoxa rubinoides female    adult      July 2008       Tullanya
+    525           Doryfera ludovicae female    adult      July 2008       Tullanya
+    527    Phaethornis syrmatophorus female juvenile      July 2008       Tullanya
+    530           Doryfera ludovicae female    adult      July 2008       Tullanya
+    532          Colibri thalassinus   male    adult      July 2008       Tullanya
+    534      Boissonneaua matthewsii   male juvenile      July 2008       Tullanya
+    535      Boissonneaua matthewsii female juvenile      July 2008       Tullanya
+    536        Heliodoxa leadbeateri female    adult      July 2008       Tullanya
+    537        Adelomyia melanogenys   male juvenile      July 2008       Tullanya
+    538           Coeligena torquata female    adult      July 2008       Tullanya
+    539         Ocreatus underwoodii female    adult      July 2008       Tullanya
+    540    Phaethornis syrmatophorus female juvenile      July 2008       Tullanya
+    541    Phaethornis syrmatophorus   male juvenile      July 2008       Tullanya
+    595           Coeligena violifer   male    adult     March 2009 Quebrada Honda
+    609         Amazilia viridicauda   male juvenile     April 2009      Calca Rio
+    617   Oreotrochilus melanogaster female    adult September 2009         Potaga
+    626   Oreotrochilus melanogaster female    adult September 2009         Potaga
+    636   Oreotrochilus melanogaster   male  unknown September 2009         Potaga
+    639             Metallura phoebe   male    adult September 2009         Potaga
+    640            Colibri coruscans   male    adult September 2009         Potaga
+    647             Metallura phoebe   male juvenile September 2009         Potaga
+    734        Chalcostigma ruficeps female    adult      June 2010 Quebrada Honda
+    736        Chalcostigma ruficeps female    adult      June 2010 Quebrada Honda
+    737           Coeligena violifer   male    adult      June 2010 Quebrada Honda
+    738  Heliangelus amethysticollis female    adult      June 2010 Quebrada Honda
+    879             Metallura phoebe female    adult       May 2011         Macate
+    1109           Colibri coruscans   male    adult      July 2006            SE2
+    1153          Coeligena torquata   male    adult    August 2006      Calabaza1
+    1188     Sephanoides sephaniodes   male juvenile  December 2018      Algarrobo
+    3210              Patagona gigas female    adult    August   42       Atogolpo
+    3310              Patagona gigas   male    adult    August   42       Atogolpo
+    3610              Patagona gigas female    adult    August   42       Atogolpo
+    391               Patagona gigas female    adult    August   42       Atogolpo
+    6110              Patagona gigas female    adult    August   42          Oncoy
+         elev department        lat       lon  mass   hb      hct trbc      mcv
+    259   352 San Martin  -6.650767 -76.07918  5.60 20.5 65.44635 3.57 183.3231
+    406  3981       Lima -11.627783 -76.43412  5.19 20.3       NA 3.99       NA
+    505  2181   Amazonas  -6.101500 -78.34428  8.40 19.5 63.46597 3.50 181.3314
+    508  2131   Amazonas  -6.103833 -78.34358  6.15 18.1 54.57766 3.55 153.7399
+    509  2100   Amazonas  -6.100000 -78.33333  5.38 17.6 55.21874 3.46 159.5917
+    511  2052   Amazonas  -6.104500 -78.34158  6.85 19.8 63.47962 3.34 190.0588
+    514  2031   Amazonas  -6.109700 -78.34158  4.10 19.2 58.60377 3.06 191.5156
+    517  2100   Amazonas  -6.101650 -78.34288  5.92 16.1 48.60380 2.71 179.3498
+    518  2131   Amazonas  -6.103750 -78.34358  5.50 20.7 65.58458 3.76 174.4271
+    522  2200   Amazonas  -6.099083 -78.34277  8.41 19.2 59.62993 0.75 795.0657
+    525  2015   Amazonas  -6.098917 -78.33827  6.16 19.7 58.62983 3.42 171.4322
+    527  2031   Amazonas  -6.109700 -78.34158  5.67 16.5 53.63300 1.99 269.5126
+    530  2031   Amazonas  -6.100600 -78.33947  5.99 19.7 57.29697 2.19 261.6300
+    532  1890   Amazonas  -6.117600 -78.34218  5.12 18.1 55.50864 2.74 202.5863
+    534  2076   Amazonas  -6.099517 -78.33923  8.09 17.8 51.39585 2.33 220.5830
+    535  2076   Amazonas  -6.099517 -78.33923  7.25 17.0 50.18778 3.18 157.8232
+    536  1890   Amazonas  -6.117600 -78.34218  8.86 18.1 57.46672 3.06 187.7997
+    537  2015   Amazonas  -6.098917 -78.33827  4.21 19.3 60.41162 2.52 239.7287
+    538  2884   Amazonas  -6.074333 -78.32353  8.05 20.6 67.71888 2.90 233.5134
+    539  2131   Amazonas  -6.103750 -78.34358  2.85 20.0 61.34650 3.66 167.6134
+    540  2085   Amazonas  -6.099750 -78.33925  4.86 18.1 56.92155 3.42 166.4373
+    541  2085   Amazonas  -6.099750 -78.33925  4.77 21.1 65.11091 3.50 186.0312
+    595  2858      Cuzco -12.621417 -72.24210  7.53 22.6 65.93663 4.16 158.5015
+    609  2953      Cuzco -13.325900 -71.95682  5.61 22.8 60.07151 4.02 149.4316
+    617  3932       Lima -11.764183 -76.54300  7.46 20.7 66.40811 3.45 192.4873
+    626  4056       Lima -11.767700 -76.53462  6.40 23.6 63.05125 4.10 153.7835
+    636  4150       Lima -11.769583 -76.53193  8.40 21.7 62.99283 4.01 157.0894
+    639  3908       Lima -11.767700 -76.53462  7.00 20.4 57.86385 3.20 180.8245
+    640  3907       Lima -11.767700 -76.53462 10.30 21.3 56.51895 3.34 169.2184
+    647  3974       Lima -11.767700 -76.53462  7.50 18.9 54.51128 3.50 155.7465
+    734  2850      Cuzco -12.621050 -72.24240  4.00 19.2 62.81646 3.52 178.4558
+    736  2850      Cuzco -12.621050 -72.24240  3.45 17.7 61.71533 2.89 213.5478
+    737  2850      Cuzco -12.621050 -72.24240  8.87 18.1 58.92624 2.21 266.6346
+    738  2850      Cuzco -12.621050 -72.24240  4.84 18.2 58.31584 2.79 209.0174
+    879  3900     Ancash  -8.752360 -78.03402  5.05 19.3       NA 3.58       NA
+    1109 3040       Lima -11.758317 -76.58463  8.40 19.8 57.86646 2.90 199.5395
+    1153 2440      Junin -11.510783 -74.84242  7.60 22.0 62.86895 4.29 146.5477
+    1188   10 Valparaíso -33.348600 -71.63690  5.70 16.3 48.70000 2.74 177.7372
+    3210 3707       Lima -11.772000 -76.57300 20.00 22.8 68.44538 3.87 176.8614
+    3310 3707       Lima -11.772000 -76.57300 25.50 22.1 58.83002 3.56 165.2529
+    3610 3707       Lima -11.772000 -76.57300 20.00 19.9 52.51214 3.58 146.6820
+    391  3707       Lima -11.772000 -76.57300 18.30 21.3 62.82987 4.09 153.6183
+    6110 3796     Ancash -10.341000 -77.35500 22.10 18.6 56.58763 2.76 205.0276
+             mchc       mch wing
+    259  31.32336  57.42297   NA
+    406        NA  50.87719   NA
+    505  30.72512  55.71429   NA
+    508  33.16375  50.98592   NA
+    509  31.87324  50.86705   NA
+    511  31.19111  59.28144   NA
+    514  32.76240  62.74510   NA
+    517  33.12498  59.40959   NA
+    518  31.56230  55.05319   NA
+    522  32.19860 256.00000   NA
+    525  33.60065  57.60234   NA
+    527  30.76464  82.91457   NA
+    530  34.38227  89.95434   NA
+    532  32.60753  66.05839   NA
+    534  34.63315  76.39485   NA
+    535  33.87279  53.45912   NA
+    536  31.49649  59.15033   NA
+    537  31.94749  76.58730   NA
+    538  30.41988  71.03448   NA
+    539  32.60170  54.64481   NA
+    540  31.79815  52.92398   NA
+    541  32.40625  60.28571   NA
+    595  34.27534  54.32692   NA
+    609  37.95476  56.71642   NA
+    617  31.17089  60.00000   NA
+    626  37.42987  57.56098   NA
+    636  34.44836  54.11471   NA
+    639  35.25517  63.75000   NA
+    640  37.68648  63.77246   NA
+    647  34.67172  54.00000   NA
+    734  30.56524  54.54545   NA
+    736  28.68007  61.24567   NA
+    737  30.71636  81.90045   NA
+    738  31.20936  65.23297   NA
+    879        NA  53.91061   NA
+    1109 34.21671  68.27586   NA
+    1153 34.99343  51.28205   NA
+    1188 33.47023  59.48905   NA
+    3210 33.31123  58.91473   NA
+    3310 37.56585  62.07865   NA
+    3610 37.89600  55.58659  125
+    391  33.90107  52.07824  115
+    6110 32.86938  67.39130  136
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-8.png" style="display: block; margin: auto;" />
+
+    [1] 1236 1261
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-9.png" style="display: block; margin: auto;" />
+
+    [1] 1135 1136
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-10.png" style="display: block; margin: auto;" />
+
+    [1] 1216 1208
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-11.png" style="display: block; margin: auto;" />
+
+    [1] 1170 1172
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-12.png" style="display: block; margin: auto;" />
+
+    [1] 646 645
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-13.png" style="display: block; margin: auto;" />
+
+    [1] 499 929
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-14.png" style="display: block; margin: auto;" />
+
+    [1] 499 507
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-15.png" style="display: block; margin: auto;" />
+
+    [1] 1170 1048
+
+<img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-16.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-17.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-18.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-19.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-20.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-21.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-22.png" style="display: block; margin: auto;" /><img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-13-23.png" style="display: block; margin: auto;" />
 
 Drop outlier values for blood parameters
 ========================================
