@@ -7,8 +7,8 @@ making individual elevational range adjustments, processing spatial data
 and generating sampling map, BioClim processing, reading out of final
 data file for modeling, plotting, etc.
 
-Load packages
-=============
+Load packages —-
+================
 
 ``` r
 library(reshape)
@@ -33,6 +33,7 @@ library(faraway)
 library(ape)
 library(tidyr)
 library(rcompanion)
+library(here)
 
 # Mapping 
 library(raster)
@@ -70,23 +71,31 @@ library(phytools)
 
 ------------------------------------------------------------------------
 
-Clear workspace and set WD
-==========================
+Set up directory structure with here() —-
+=========================================
 
 ``` r
-rm(list=ls(all=TRUE)) # clear workspace 
-setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+# rm(list=ls(all=TRUE)) # clear workspace 
+# setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+here::here() # This will enable me to build a path to top level of my project file every time I use it. 
 ```
 
-load in data
-============
+    [1] "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood"
+
+Nice info about why setwd() can be really problematic:
+<a href="https://github.com/jennybc/here_here#readme" class="uri">https://github.com/jennybc/here_here#readme</a>
+More on benefits of ‘here()’ here:
+<a href="http://jenrichmond.rbind.io/post/how-to-use-the-here-package/" class="uri">http://jenrichmond.rbind.io/post/how-to-use-the-here-package/</a>
+
+load in data —-
+===============
 
 ``` r
 # Load functions 
-source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
+source(here::here("./1_r_scripts/ada_functions.R")) # Erik's ADA functions for clean & collated lm diag plots
 
 # All hummingbird blood data
-blood <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv")
+blood <- read.csv(here::here("All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv"))
 # Note: all variables read in with "X0_" (just "0_" in Excel) are variables that will be dropped once you run code for 
 # blood calculations below. This prefix indicates DROP ME, NOT PART OF FINAL ANYTHING.
 
@@ -95,15 +104,15 @@ blood$rowID <- 1:nrow(blood)
 blood$species <- as.factor(blood$species)
 
 # Cleaned Patagona data (written in Patagona_blood_analysis_2020.Rmd file for Patagona analysis)
-pdat <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_10-27-20.csv")  
+pdat <- read.csv(here::here("./Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_10-27-20.csv"))  
 # Make sure this is most updated version; 10-27-20 version updated from 07-08-20 w/ museum cat num added 
 pdat <- pdat[ , !(colnames(pdat) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Stotz elev data 
-stotz <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/StotzEtAl_ElevRangeData.csv")
+stotz <- read.csv(here::here("./StotzEtAl_ElevRangeData.csv"))
 
 # Wing loading data from MSB records (59 spp only)
-wload <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Hummingbird_WingLoading_Summary_59spp_FromChris.csv") 
+wload <- read.csv(here::here("./Hummingbird_WingLoading_Summary_59spp_FromChris.csv")) 
 
 # # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd) # Don't need to read in tree for this script
 # tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
@@ -111,8 +120,8 @@ wload <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummin
 # plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
 ```
 
-First trim of dataset
-=====================
+First trim of dataset —-
+========================
 
 NOTE: This is a super quick and dirty first pass that I’ll need to
 revise. Goal right now is to remove a bunch of things I won’t need so
@@ -168,17 +177,16 @@ blood <- subset(blood, select = -c(pe6_no,
                                         ) )
 ```
 
-Coerce structure so things run smoothly
-=======================================
+Coerce structure so things run smoothly —-
+==========================================
 
-Calculate blood variables needed for analysis
-=============================================
+Calculate blood variables needed for analysis —-
+================================================
 
 ``` r
 # See Patagona script for code if you need to merge masses and/or calculate flight muscle or organ mass variables 
 
 # MASS
-# HEMOGLOBIN - corrected
 names(blood)[names(blood) == "mass_for_analyses"] <- "mass_final" # Change name for consistent naming
 # NOTE: mass "converted from dwt" under "mass_for_analyses" means converted from pennyweight (dwt) 
 
@@ -223,10 +231,59 @@ blood <- blood %>% mutate(MCH_calculated = (hb_final/TRBC*10)) # Calculated MCH
 names(blood)[names(blood) == "MCH_calculated"] <- "MCH_final" # Change name
 ```
 
-Convert lats and lons
-=====================
+Convert lats and lons —-
+========================
+
+``` r
+# Function to convert latitude from degrees decimal minutes to decimal degrees 
+convert_lat <- function(dataframe){
+  lat_degrees_S <- dataframe$lat_degrees_S 
+  lat_mins <- dataframe$lat_mins 
+  lat <- lat_degrees_S + (lat_mins/60)
+  return(-lat) # ask to return negative to indicate southern hemisphere 
+}
+
+# Function to convert longitude from degrees decimal minutes to decimal degrees 
+convert_lon <- function(dataframe){
+  lon_degrees_W <- dataframe$lon_degrees_W
+  lon_mins <- dataframe$lon_mins
+  lon <- lon_degrees_W + (lon_mins/60)
+  return(-lon) # ask to return negative to indicate southern hemisphere 
+}
+
+blood$lat_convert <- convert_lat(blood) # Convert all lat values and add to data frame 
+blood$lon_convert <- convert_lon(blood) # Convert all lon values and add to data frame 
+
+# Convert decimal lat and lon to negative for southern hemisphere (currently these are NOT negative)
+blood$lat_dec_deg_S <- -blood$lat_dec_deg_S
+blood$lon_dec_deg_W <- -blood$lon_dec_deg_W
+
+# Merge raw decimal degree lats and lons w/ converted lats and lons to create one column for each
+# Take raw over converted values when possible, as we assume these are more precise from GPS readings
+blood <- blood %>% mutate(lat = coalesce(lat_dec_deg_S, lat_convert), 
+                          lon = coalesce(lon_dec_deg_W, lon_convert))
+# specifying lat_dec_deg_S & lon_dec_deg_W means these get inserted OVER lat_convert and lon_convert values
+
+# Check positions of lat and lon with simple world map (all should be in southern hemisphere)
+library(maptools)
+data(wrld_simpl)
+plot(wrld_simpl, xlim=c(-100,-10), ylim=c(-57,17), axes=TRUE, col="snow2") # plots gray world map 
+box() # restore the box around the map
+points(blood$lon, blood$lat, col='cyan3', pch=20, cex=1) # plot lat/lon points
+```
 
 <img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-8-1.png" style="display: block; margin: auto;" />
+
+``` r
+# Looks good; all points appear in their proper places 
+
+# Drop the one instance of no lat/lon, which will cause problems for spatial data below
+blood <- blood %>% filter(!is.na(lat)) # keep only records with lat 
+blood <- blood %>% filter(!is.na(lon)) # keep only records with lon
+# Note: this is a Phaethornis malaris observation with only Hct, so we don't lose much by dropping it
+
+#write.csv(blood, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/blood.latlontest.csv")
+```
 
 Note about lat/lons: A bunch of lat/lons were missing from July 2007
 Tres Lagunas, Lambayeque birds at 3,200 m. Chris said there was an error
