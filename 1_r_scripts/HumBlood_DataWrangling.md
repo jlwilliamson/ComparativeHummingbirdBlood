@@ -1,12 +1,11 @@
-#### 
+Comparative Hummingbird Blood: Data Wrangling
+=============================================
 
 **This script includes**: processing raw data, evaluating and
 eliminating outliers, creating new variables, combining data w/ Stotz,
 making individual elevational range adjustments, processing spatial data
 and generating sampling map, BioClim processing, reading out of final
 data file for modeling, plotting, etc.
-
-#### 
 
 Load packages
 =============
@@ -76,7 +75,7 @@ Clear workspace and set WD
 
 ``` r
 rm(list=ls(all=TRUE)) # clear workspace 
-# setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 ```
 
 load in data
