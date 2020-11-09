@@ -3,8 +3,10 @@ title: "Hummingbird blood data from an interspecific comparative standpoint"
 author: "Jessie Williamson"
 date: "11/29/2020"
 output:
-  pdf_document: default
+  md_document:
+    variant: markdown_github
   html_document: default
+  pdf_document: default
 ---
 
 #### 
@@ -14,20 +16,16 @@ output:
 ####
 
 
-```{R, echo=FALSE, include=FALSE}
-# I set some GLOBAL R chunk options here.
-#   (to hide this message add "echo=FALSE" to the code chunk options)
-
+```{R, echo=FALSE}
+# GLOBAL R chunk options here (hide message w/ echo=FALSE)
 knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
 knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
-
-#knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
 knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
 ```
 
 
 # Load packages
-```{R}
+```{R, message=FALSE, warning=FALSE}
 library(reshape)
 library(reshape2)
 library(plyr)
@@ -89,17 +87,17 @@ library(phytools)
 ---
 
 # Clear workspace and set WD
-```{R}
+```{R, message=FALSE, warning=FALSE}
 rm(list=ls(all=TRUE)) # clear workspace 
-setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+# setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 ```
 
 
 
 # load in data 
-```{R}
+```{R, message=FALSE, warning=FALSE}
 # Load functions 
-source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
 
 # All hummingbird blood data
 blood <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv")
@@ -130,7 +128,7 @@ wload <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummin
 
 # First trim of dataset 
 NOTE: This is a super quick and dirty first pass. You WILL need to revise this. Goal is to remove a bunch of things you won't need so this is a little easier to manipulate. 
-```{R}
+```{R, message=FALSE, warning=FALSE}
 # Drop clunky notes variables you don't want for analysis
 blood <- subset(blood, select = -c(pe6_no,
                                    order, # since all same order 
@@ -183,7 +181,7 @@ blood <- subset(blood, select = -c(pe6_no,
 
 
 # Coerce structure so things run smoothly  
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
 
 # Convert integers to numeric for the following code chunk to work properly:
@@ -200,7 +198,7 @@ blood$hct_best <- as.numeric(blood$hct_best)
 
 
 # Calculate blood variables needed for analysis
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # See Patagona script for code if you need to merge masses and/or calculate flight muscle or organ mass variables 
 
 # MASS
@@ -295,7 +293,7 @@ blood <- blood %>% filter(!is.na(lat)) # keep only records with lat
 blood <- blood %>% filter(!is.na(lon)) # keep only records with lon
 # Note: this is a Phaethornis malaris observation with only Hct, so we don't lose much by dropping it
 
-#write.csv(blood, "blood.latlontest.csv")
+#write.csv(blood, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/blood.latlontest.csv")
 ```
 
 Note about lat/lons: A bunch of lat/lons were missing from July 2007 Tres Lagunas, Lambayeque birds at 3,200 m. Chris said there was an error in processing all of these birds, which are all problematic cases, so we don't have coords for them. However, one bird, NK162815 (C. iris) from 12 July 2007 does have coords for this locality, elev, and date range. Chris and I decided to use the lat/lon for NK162815's to fill in coordinates for all missing-coord NKS.  
@@ -306,7 +304,7 @@ I added coords from NK162815 to the following NKs: 162691, 162758, 162720, 16270
 
 # Subset the data by just values you'll use in analysis 
 Previous code chunks made the dataset bloated and w/ many values you don't need; after comparing w/ raw Excel values, subset to have something more manageable; also helps initiate removal of NAs, which is prudent for modeling. 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # The order that you write these in here is the order they'll appear in once subsetted
 bsub <- subset(blood, select = c(rowID,
                                  nk,
@@ -368,7 +366,7 @@ Note: NK219789 oddly has no locality or collection info associated w/ it. It doe
 
 
 # Prep for merge w/ Patagona data 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Drop Patagona data in pdat that doesn't have any blood information associated with it
 pdat$blood_data_YN <- as.factor(pdat$blood_data_YN)
 pdat <- pdat[-which(pdat$blood_data_YN =="no"),] 
@@ -434,7 +432,7 @@ colnames(bsub)
 
 
 # Merge all hummingbird blood data w/ curated Patagona data 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Merge the two datasets together: marry the all hummingbird dataset minus Patagona WITH the full Patagona dataset 
 # This includes Chilean Patagona and Peru Patagona collected by JLW 
 full <- rbind(bsub, pdat) # Should be 1317 total rows 
@@ -454,14 +452,14 @@ length(unique(full$species)) # number of unique species
 
 
 # Transform some variables
-```{r}
+```{r, include=FALSE}
 # I now do this in modeling file! Made a lot more sense to combine all transformations prior to modeling. 
 ```
 
 
 # Predictor scatterplot matrix for outlier assessment 
 Predictors/possible predictors for models for models
-```{R, fig.height = 6, fig.width = 6}
+```{R, echo=FALSE, message=FALSE, warning=FALSE, fig.height = 6, fig.width = 6}
 # full dataset
 p <- ggpairs(subset(full, select = c(elev, mass, hb, hct, trbc, mcv, mch, mchc))) 
 print(p)
@@ -534,7 +532,7 @@ print(p)
 # Drop outlier values for blood parameters
 note: you CANNOT run na.omit on your subsetted data or you'll be left with only 18 observations. 
 I think the best approach is to create separate subsets that remove outliers for each possible response variable of interest; that way, you'll retain as many values as possible in the subsetted dataset
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # FULL DATASET OUTLIERS 
 # For [Hb]: drop any value <14 or >25
 # DuBay and Witt range from 13.2-21.4 g/dl
@@ -577,7 +575,7 @@ full <- full[-which(full$mch < 18 | full$mch > 50),] # 4 observations
 # Take a look at the unique number of species in the dataset and observations per species:
 sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
 # Should be 77 total species 
-write.csv(sp.count.full, "HumBlood_species_list.csv")
+write.csv(sp.count.full, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood_species_list.csv")
 
 # The plots/distributions above certainly look a LOT better after removing outliers
 # Total outlier points dropped: 68 of 1,317
@@ -595,7 +593,7 @@ Bursa lasts longer than anomalous juvenile blood characteristics, so presence/ab
 - "Large" bursa is ~2x2 mm or greater for hummingbirds, indicative of a bird recently out of the nest.  
 - This approach allows us to identify and possibly drop any errant values caused by age and retain all values of juveniles that fall within the "normal" adult range. 
 - Also NOTE: Any non-vouchered (i.e. tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
-```{r}
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
 # GGpairs comparison plot colored by age 
 p <- ggpairs(full[ ,c("elev", "mass", "hb", "hct", "trbc", "mcv", "mch", "mchc", "age")], 
             mapping=ggplot2::aes(colour=full$age), lower=list(continuous="smooth"), 
@@ -615,7 +613,7 @@ print(p)
 -------
 
 # Wrangling MSB wing loading data 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(tidyr)
 
 # Need to merge with full dataset
@@ -646,7 +644,7 @@ print(p)
 
 # Wrangle Stotz
 See Ethan Linck's code here for smooth Stotz merging: https://github.com/elinck/andean_range_limits/blob/master/scripts/01_blood_data_exploration.Rmd
-```{R}
+```{R, message=FALSE, warning=FALSE}
 # Subset Stotz by just variables you want 
 stotz.sub <- cbind.data.frame(stotz$GENUS, stotz$SPECIES, stotz$MIN, stotz$MAX, stotz$MIDPT.ELEV) 
 colnames(stotz.sub) <- c("genus", "species", "elev_min", "elev_max", "elev_midpt") # assign column names 
@@ -727,7 +725,7 @@ full1[full1$species==missing[11],][, "elev_midpt"] <- 2000 # Sephanoides sephani
 
 # Species elevational range adjustments 
 Stotz (Parker et al. 1996) is a good baseline for elevational ranges but is frequently inaccurate, and in some cases, outdated. Adjust species elevational ranges based on Schulenberg et al. 2007 Birds of Peru, museum records, other field guides (if necessary), and working knowledge. 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Note: this process could be simplified with a nice function like the one Ethan wrote for Linck et al. all-species
 # blood comparison. *But* I committed to this clunky, "species-specific-personalized" method, so sticking with it for now.
 
@@ -1001,7 +999,7 @@ sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk));
 # Assign hummingbirds to approprite clades 
 Projecto-Garcia et al. 2013 lists many species and their associated clades. Best phylogeny McGuire et al. 2014. 
 For helpful future reference, a list of hummingbirds and their respective clades: https://www.wikiwand.com/en/List_of_hummingbird_species
-```{R}
+```{r, message=FALSE, warning=FALSE}
 # Note: Colibri thalassinus is now Mexican Violetear; Lesser Violetear should be Colibri cyanotus = rename level of this factor
 levels(full1$species)[levels(full1$species)=="Colibri thalassinus"] <- "Colibri cyanotus"
 
@@ -1110,7 +1108,8 @@ clade.summary <- full1 %>% group_by(Clade) %>% summarise(count = length(species)
 
 
 # Classify elev range breadth, elevational range class, and *P*O2 class
-```{r}
+```{r, include=FALSE, message=FALSE, warning=FALSE} 
+# Exclude code chunk because we no longer use this 
 # Create elevational range breadth variable: elev_max-elev_min
 full1$elev_range <- (full1$elev_max-full1$elev_min)
 
@@ -1156,7 +1155,7 @@ po2.generalist <- full1[which(full1$po2_class == "generalist"),]
 
 
 # Calculate elevational range position 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Elev_position = scale of 0-1 for individual positions along a species elev range (e.g. 0=bottom, 0.5=middle, 1=top)
 # This is more meaningful than looking at elev_range width comparisons since my analysis is individual-level
 # We expect that birds at the top of their range have higher blood values (generally) 
@@ -1169,7 +1168,7 @@ full1$elev_position <- 1-((full1$elev_max-full1$elev)/full1$elev_range)
 
 
 # Save final dataset and adjust data structure for modeling 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Drop lingering rows from Stotz merge (some of which still have NAs due to taxonomic changes)
 full1 <- full1[ , -which(names(full1) %in% c("genus","species.y"))] 
 
@@ -1197,7 +1196,8 @@ final$Clade <- as.factor(final$Clade)
 #### SPATIAL AND ENVIRONMENTAL DATA ####
 
 # Country polygons, elevation rasters, BioClim download
-```{r}
+Download country polygons with elevation layers, crop Chile to mainland extent to exclude Juan Fernandez Islands, merge country polygons, and get climate data into country shapes. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(raster)
 library(sp)
 
@@ -1264,8 +1264,8 @@ plot(peru_clim$bio1) # Plot this as a test that the above cropping and masking w
 # # Masking literally masks the shapes of adjoining countries (i.e. "messy stuff") for a clean look; not masking...doesn't.
 plot(peru_chile$layer.12) # plot to verify this worked; layer is calling a bioclim variable
 proj4string(climate) == proj4string(peru_chile) #check projections
-#writeRaster(climate, "world_climate.grd", overwrite=TRUE) # the world?; write out bioclim brick; takes ~10-15 mins
-#writeRaster(peru_chile, "peru_chile_bioclim.grd", overwrite=TRUE) # Just Peru and Chile
+#writeRaster(climate, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/world_climate.grd", overwrite=TRUE) # the world?; write out bioclim brick; takes ~10-15 mins
+#writeRaster(peru_chile, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd", overwrite=TRUE) # Just Peru and Chile
 
 # Note: I tried to switch Sabrina's order to merge polygons and THEN clip + mask but this never worked
 # For some reason it kept only grabbing Peru, which is weird. Here's the code anyways:
@@ -1275,11 +1275,12 @@ proj4string(climate) == proj4string(peru_chile) #check projections
 
 # READ IN RASTERS TO AVOID RUNNING ALL CODE ABOVE 
 # Need to run BioClim data above to ensure that peru_chile is a raster brick otherwise you can't extract BioClim
-#peru_chile_bioclim <- raster("./peru_chile_bioclim.grd") # read in peru_chile BioClim data
-peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//peru_alt.grd") #read elevation raster
-chile_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//chile_alt.grd") #read elevation raster
-surrounding_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//surrounding_elevs.grd") # surrounding South American country elevs
-south_america_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood//south_america_elevs.grd") # All South American country elevs combined
+#peru_chile_bioclim <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd") # read in peru_chile BioClim data
+peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_alt.grd") # elevation raster
+chile_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/chile_alt.grd") # elevation raster
+surrounding_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/surrounding_elevs.grd") 
+# surrounding South American country elevs
+south_america_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/south_america_elevs.grd") # All South American country elevs combined
 
 
 ###### PROCESS SPATIAL DATA 
@@ -1319,7 +1320,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-#write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_11-09-20.csv")
+#write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_11-09-20.csv")
 ```
 
 
@@ -1327,7 +1328,7 @@ final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 # Spatial coords PCA 
 This is for variable reduction of BioClim variables; look at loadings to understand which directions things work in. 
 Collapse temp and aridity variables and use first PCA axis in models. 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Code from McNew et al. 2020 (thanks for the help, SMM!)
 # PCA and scale raster data for temp variables and precip variables
 
@@ -1403,7 +1404,7 @@ BIO19 = Precipitation of Coldest Quarter
 
 # SAMPLING LOCALITY MAP 
 Mapping tips here: https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(viridis)
 library(RColorBrewer)
 
@@ -1433,7 +1434,7 @@ southamerica_cropped <- crop(southamerica_countries, ex)
 
 # FINAL MAP
 # Peru and Chile sampling localities w/ rest of South America 
-pdf("./Peru_and_Chile_SamplingMap_WithSouthAmerica_Cropped_Outlines.pdf", useDingbats = F)
+pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Peru_and_Chile_SamplingMap_WithSouthAmerica_Cropped_Outlines.pdf", useDingbats = F)
 #plot(south_america_elevs_cropped, col = colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5, ext=ex)
 plot(south_america_elevs_cropped, col=magma(200), cex.axis=1.5, ext=ex)
 plot(manycountries, add=TRUE, border = "gray92", lwd = 0.05) # outlines surrounding countries; must be first to "layer"
@@ -1471,7 +1472,7 @@ dev.off()
 
 # IMPUTE MISSING VALUES? = NO! 
 If we don't eliminate NAs or impute missing values, brms won't give proper estimates
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Notes on imputation: 
 # Don't impute categorical variables
 # Don’t transform skewed variables: when you transform a variable to meet normality assumptions before imputing, you
@@ -1548,7 +1549,7 @@ apply(final, 2, percent.missing)
 # yay! No missing mass data. 
 
 # Final dataset without Hb genotypes:
-write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_11-09-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_11-09-20.csv")
 ```
 
 Vignette on handling missing values w/ brms: 
@@ -1565,7 +1566,7 @@ Imputation help: https://www.kaggle.com/c/house-prices-advanced-regression-techn
 
 
 # ADD IN HEMOGLOBIN GENOTYPES
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Instantiate new columns 
 final$b13 <- NA
 final$b83 <- NA 
@@ -1766,7 +1767,7 @@ Oreotrochilus leucopleurus
 
 # For elevational range phylogeny figure: Ceate a species mean dataset, wrangle into workable format for Illustrator figure
 Note: this script should be cleaned up and probably moved for my plots & figs .Rmd. Still a working chunk, in here for now. 
-```{r}
+```{r, echo=FALSE,  message=FALSE, warning=FALSE}
 # Figure out why there are NaNs! In at least a few cases it comes from only 1 individual per species
 # drop species with fewer than 2? 
 
@@ -1987,7 +1988,7 @@ species.means$elevmidpt_offset <- species.means$elevmidpt + species.means$elev_m
 # To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min #
 # After testing this out, thins look correct: All elev midpoints plot accurately at their midpoints within their elev range (!)
 
-write.csv(species.means, "AllHummingbird_SpeciesMeanBloodData_11-09-20.csv")
+write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_11-09-20.csv")
 
 
 # Now make copy of 'final' dataset that you can finagle to get offset collection elevations to represent sampling: 
@@ -2112,7 +2113,7 @@ p1 <- ggplot(data=species.means, aes(y=range, x=reorder(phylo_order, -phylo_orde
       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
       theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=8))
 print(p1)
-ggsave(p1, filename="AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_09-17-20.pdf", height=6.35, width=2.8, units="in")
+ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_09-17-20.pdf", height=6.35, width=2.8, units="in")
 # Same units as phylogeny for easy wrangling? 
 
 #####
@@ -2142,18 +2143,18 @@ Helpful data summarizing tips: http://kbroman.org/datacarpentry_R_2016-06-01/03-
 
 # READ OUT FINAL DATASETS FOR DOWNSTREAM ANALYSES: 
 Since Patagona is a huge body size outlier, make a non-Patagona subset to be able to do some body size comparisons below
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "AllHummingbirdBlood_Wrangled_withBioClim_andPCA_11-09-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_11-09-20.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
 final.nopgig <- final[-which(final$species == "Patagona gigas"),] # 161 Patagona observations 
-write.csv(final.nopgig, "HumBlood.final.nopgig_11-09-20.csv")
+write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_11-09-20.csv")
 ```
 
 
 # Print environment for reproducibility
-```{r}
+```{r, include=FALSE}
 sessionInfo() # List of packages and versions in use 
 ```
 
