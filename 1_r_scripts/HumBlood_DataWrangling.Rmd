@@ -3,8 +3,8 @@ title: "Hummingbird blood data from an interspecific comparative standpoint"
 author: "Jessie Williamson"
 date: "11/29/2020"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 #### 
@@ -14,7 +14,7 @@ output:
 ####
 
 
-```{R, echo=FALSE}
+```{R, echo=FALSE, include=FALSE}
 # I set some GLOBAL R chunk options here.
 #   (to hide this message add "echo=FALSE" to the code chunk options)
 
@@ -182,8 +182,8 @@ blood <- subset(blood, select = -c(pe6_no,
 
 
 
-# Calculate blood variables needed for analysis 
-```{r}
+# Coerce structure so things run smoothly  
+```{r, echo=FALSE}
 library(dplyr)
 
 # Convert integers to numeric for the following code chunk to work properly:
@@ -196,7 +196,11 @@ blood$hct2_top <- as.numeric(blood$hct2_top)
 blood$hct2_bottom <- as.numeric(blood$hct2_bottom)
 blood$hct_best <- as.numeric(blood$hct_best)
 # Lots of NAs introduced by coercion is because there are some wonky values in cells 
+```
 
+
+# Calculate blood variables needed for analysis
+```{r}
 # See Patagona script for code if you need to merge masses and/or calculate flight muscle or organ mass variables 
 
 # MASS
@@ -247,7 +251,7 @@ names(blood)[names(blood) == "MCH_calculated"] <- "MCH_final" # Change name
 ```
 
 
-# convert lats and lons
+# Convert lats and lons
 ```{r}
 # Function to convert latitude from degrees decimal minutes to decimal degrees 
 convert_lat <- function(dataframe){
@@ -1364,8 +1368,8 @@ plot(bio19 ~ tempPC2, data=final)
 
 # Look at distributions of BioClim variables 
 # This and other prelim qqPlots indicated some PC variables being off at tails; see HumBlood_Modeling.Rmd for transformations
-p <- ggpairs(subset(final, select = c(elev, elev_position, mass, hb, hct, trbc, mcv, mch, mchc, tempPC1, tempPC2, precipPC1, precipPC2))) 
-print(p)
+# p <- ggpairs(subset(final, select = c(elev, elev_position, mass, hb, hct, trbc, mcv, mch, mchc, tempPC1, tempPC2, precipPC1, precipPC2))) 
+# print(p)
 ```
 
 
