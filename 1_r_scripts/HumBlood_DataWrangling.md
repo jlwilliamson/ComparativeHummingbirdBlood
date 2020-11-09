@@ -226,56 +226,7 @@ names(blood)[names(blood) == "MCH_calculated"] <- "MCH_final" # Change name
 Convert lats and lons
 =====================
 
-``` r
-# Function to convert latitude from degrees decimal minutes to decimal degrees 
-convert_lat <- function(dataframe){
-  lat_degrees_S <- dataframe$lat_degrees_S 
-  lat_mins <- dataframe$lat_mins 
-  lat <- lat_degrees_S + (lat_mins/60)
-  return(-lat) # ask to return negative to indicate southern hemisphere 
-}
-
-# Function to convert longitude from degrees decimal minutes to decimal degrees 
-convert_lon <- function(dataframe){
-  lon_degrees_W <- dataframe$lon_degrees_W
-  lon_mins <- dataframe$lon_mins
-  lon <- lon_degrees_W + (lon_mins/60)
-  return(-lon) # ask to return negative to indicate southern hemisphere 
-}
-
-blood$lat_convert <- convert_lat(blood) # Convert all lat values and add to data frame 
-blood$lon_convert <- convert_lon(blood) # Convert all lon values and add to data frame 
-
-# Convert decimal lat and lon to negative for southern hemisphere (currently these are NOT negative)
-blood$lat_dec_deg_S <- -blood$lat_dec_deg_S
-blood$lon_dec_deg_W <- -blood$lon_dec_deg_W
-
-# Merge raw decimal degree lats and lons w/ converted lats and lons to create one column for each
-# Take raw over converted values when possible, as we assume these are more precise from GPS readings
-blood <- blood %>% mutate(lat = coalesce(lat_dec_deg_S, lat_convert), 
-                          lon = coalesce(lon_dec_deg_W, lon_convert))
-# specifying lat_dec_deg_S & lon_dec_deg_W means these get inserted OVER lat_convert and lon_convert values
-
-# Check positions of lat and lon with simple world map (all should be in southern hemisphere)
-library(maptools)
-data(wrld_simpl)
-plot(wrld_simpl, xlim=c(-100,-10), ylim=c(-57,17), axes=TRUE, col="snow2") # plots gray world map 
-box() # restore the box around the map
-points(blood$lon, blood$lat, col='cyan3', pch=20, cex=1) # plot lat/lon points
-```
-
 <img src="HumBlood_DataWrangling_files/figure-markdown_github/unnamed-chunk-8-1.png" style="display: block; margin: auto;" />
-
-``` r
-# Looks good; all points appear in their proper places 
-
-# Drop the one instance of no lat/lon, which will cause problems for spatial data below
-blood <- blood %>% filter(!is.na(lat)) # keep only records with lat 
-blood <- blood %>% filter(!is.na(lon)) # keep only records with lon
-# Note: this is a Phaethornis malaris observation with only Hct, so we don't lose much by dropping it
-
-#write.csv(blood, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/blood.latlontest.csv")
-```
 
 Note about lat/lons: A bunch of lat/lons were missing from July 2007
 Tres Lagunas, Lambayeque birds at 3,200 m. Chris said there was an error
