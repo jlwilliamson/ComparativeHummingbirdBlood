@@ -1,19 +1,16 @@
 ---
-title: "Hummingbird blood data from an interspecific comparative standpoint"
+title: "Comparative Hummingbird Blood: Data Wrangling"
 author: "Jessie Williamson"
-date: "11/29/2020"
+date: "11/23/2020"
 output:
   md_document:
     variant: markdown_github
-  html_document: default
-  pdf_document: default
+
 ---
 
-#### 
+# Comparative Hummingbird Blood: Data Wrangling
 
-**This script includes**: processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, etc.
-
-####
+**This script includes**: processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz and MSB wing loading, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, etc.
 
 
 ```{R, echo=FALSE}
@@ -48,6 +45,8 @@ library(faraway)
 library(ape)
 library(tidyr)
 library(rcompanion)
+library(here)
+library(cowplot)
 
 # Mapping 
 library(raster)
@@ -86,21 +85,23 @@ library(phytools)
 
 ---
 
-# Clear workspace and set WD
+# Set up directory structure with here() 
 ```{R, message=FALSE, warning=FALSE}
-rm(list=ls(all=TRUE)) # clear workspace 
+# rm(list=ls(all=TRUE)) # clear workspace 
 # setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+here::here() # This will enable me to build a path to top level of my project file every time I use it. 
 ```
-
+Nice info about why setwd() can be really problematic: https://github.com/jennybc/here_here#readme
+More on benefits of 'here()' here: http://jenrichmond.rbind.io/post/how-to-use-the-here-package/
 
 
 # load in data 
 ```{R, message=FALSE, warning=FALSE}
 # Load functions 
-source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
+source(here::here("./1_r_scripts/ada_functions.R")) # Erik's ADA functions for clean & collated lm diag plots
 
 # All hummingbird blood data
-blood <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv")
+blood <- read.csv(here::here("All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv"))
 # Note: all variables read in with "X0_" (just "0_" in Excel) are variables that will be dropped once you run code for 
 # blood calculations below. This prefix indicates DROP ME, NOT PART OF FINAL ANYTHING.
 
@@ -109,25 +110,20 @@ blood$rowID <- 1:nrow(blood)
 blood$species <- as.factor(blood$species)
 
 # Cleaned Patagona data (written in Patagona_blood_analysis_2020.Rmd file for Patagona analysis)
-pdat <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_10-27-20.csv")  
+pdat <- read.csv(here::here("./Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_11-30-20.csv"))  
 # Make sure this is most updated version; 10-27-20 version updated from 07-08-20 w/ museum cat num added 
 pdat <- pdat[ , !(colnames(pdat) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Stotz elev data 
-stotz <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/StotzEtAl_ElevRangeData.csv")
+stotz <- read.csv(here::here("./StotzEtAl_ElevRangeData.csv"))
 
 # Wing loading data from MSB records (59 spp only)
-wload <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Hummingbird_WingLoading_Summary_59spp_FromChris.csv") 
-
-# # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd) # Don't need to read in tree for this script
-# tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
-# tree$tip.label # Check 77 tips
-# plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
+wload <- read.csv(here::here("./Hummingbird_WingLoading_Summary_59spp_FromChris.csv")) 
 ```
 
 
-# First trim of dataset 
-NOTE: This is a super quick and dirty first pass. You WILL need to revise this. Goal is to remove a bunch of things you won't need so this is a little easier to manipulate. 
+# First trim of dataset
+NOTE: This is a super quick and dirty first pass. The goal right now is to remove a bunch of things I won't need so things are a little easier to manipulate. 
 ```{R, message=FALSE, warning=FALSE}
 # Drop clunky notes variables you don't want for analysis
 blood <- subset(blood, select = -c(pe6_no,
@@ -180,29 +176,28 @@ blood <- subset(blood, select = -c(pe6_no,
 
 
 
-# Coerce structure so things run smoothly  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Coerce structure so things run smoothly
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
 
 # Convert integers to numeric for the following code chunk to work properly:
 str(blood)
 blood$hb <- as.numeric(blood$hb) # NAS intro-ed after coercion is because NK161316 has value of "infer" for Hb
 blood$mass_for_analyses <- as.numeric(blood$mass_for_analyses)
-blood$hct1_column <- as.numeric(blood$hct1_column)
-blood$hct2_column <- as.numeric(blood$hct2_column)
-blood$hct2_top <- as.numeric(blood$hct2_top)
+blood$hct1_column <- as.numeric(blood$hct1_column) # NAS intro-ed after coercion because "**" in several cells
+blood$hct2_column <- as.numeric(blood$hct2_column) # NAS intro-ed after coercion because "**" in several cells
+blood$hct2_top <- as.numeric(blood$hct2_top) # NAS intro-ed after coercion because "**" in several cells
 blood$hct2_bottom <- as.numeric(blood$hct2_bottom)
 blood$hct_best <- as.numeric(blood$hct_best)
 # Lots of NAs introduced by coercion is because there are some wonky values in cells 
 ```
 
 
-# Calculate blood variables needed for analysis
+# Calculate blood variables needed for analysis 
 ```{r, message=FALSE, warning=FALSE}
 # See Patagona script for code if you need to merge masses and/or calculate flight muscle or organ mass variables 
 
 # MASS
-# HEMOGLOBIN - corrected
 names(blood)[names(blood) == "mass_for_analyses"] <- "mass_final" # Change name for consistent naming
 # NOTE: mass "converted from dwt" under "mass_for_analyses" means converted from pennyweight (dwt) 
 
@@ -245,11 +240,10 @@ names(blood)[names(blood) == "MCHC_calculated"] <- "MCHC_final" # Change name
 # Formula for MCH (pg) from Campbell & ellis (2007): (Hb/TRBC)*10
 blood <- blood %>% mutate(MCH_calculated = (hb_final/TRBC*10)) # Calculated MCH
 names(blood)[names(blood) == "MCH_calculated"] <- "MCH_final" # Change name
-
 ```
 
 
-# Convert lats and lons
+# Convert lats and lons 
 ```{r}
 # Function to convert latitude from degrees decimal minutes to decimal degrees 
 convert_lat <- function(dataframe){
@@ -302,8 +296,8 @@ I added coords from NK162815 to the following NKs: 162691, 162758, 162720, 16270
 
 
 
-# Subset the data by just values you'll use in analysis 
-Previous code chunks made the dataset bloated and w/ many values you don't need; after comparing w/ raw Excel values, subset to have something more manageable; also helps initiate removal of NAs, which is prudent for modeling. 
+# Subset the data by just values I'll use in analysis 
+Previous code chunks increased dataset 'bloat'. Now, subset to something more manageable. This also helps initiate removal of NAs, which is prudent for modeling. 
 ```{r, message=FALSE, warning=FALSE}
 # The order that you write these in here is the order they'll appear in once subsetted
 bsub <- subset(blood, select = c(rowID,
@@ -364,14 +358,13 @@ bsub$wing <- as.numeric(paste(""))
 Note: NK219789 oddly has no locality or collection info associated w/ it. It does have some blood data, but this may end up being dropped unless I can find other info (it doesn't come up in a quick Arctos search, so may require more digging).
 
 
-
 # Prep for merge w/ Patagona data 
+The Patagona data we will include that is not in the all-hummingbird dataset are those data from Chilean birds for which we have full blood data (n=17). This list excludes tracked birds, which are the focus of forthcoming publications. Because this is a short list of 17, we will subset by the NKs of the specific individuals whose data we want. 
 ```{r, message=FALSE, warning=FALSE}
-# Drop Patagona data in pdat that doesn't have any blood information associated with it
-pdat$blood_data_YN <- as.factor(pdat$blood_data_YN)
-pdat <- pdat[-which(pdat$blood_data_YN =="no"),] 
-table(pdat$blood_data_YN) # Confirm that there are zero instances of "no" (should be 166 of "yes")
-#test <- subset(pdat, (!is.na(pdat[,2]))) # This is a way to remove all NA vals from only column 2, but not sure I want this
+
+# Subset Patagona data by just those n=17 individuals from Chile for which we have full blood data 
+pdat$nk <- as.factor(pdat$nk) # Make sure nk is factor for subsetting
+pdat <- subset(pdat, subset=pdat$nk %in% c("279049", "279062", "279062", "279017", "279034", "279070", "279040", "279076", "279053", "279079", "279098", "279003", "279058", "279114", "279103", "279057", "279104", "279106"))
 
 # Split Patagona' museum_cat_num (in MSB:BIRD:xxxxx format) into three variables so you can extract just catalog number 
 pdat <- separate(pdat, museum_cat_num, into=c("museum", "filler", "msb_cat_no"), sep = "[^[:alnum:]]+",
@@ -380,6 +373,7 @@ pdat <- separate(pdat, museum_cat_num, into=c("museum", "filler", "msb_cat_no"),
   extra = "warn",
   fill = "warn"
 )
+# NOTE: no longer relevant since none of these specimens are catalogued yet! (and msb_cat_no is not in MSBBird:XXXXX format)
 
 # subset pdat to include all the same columns that bsub has 
 # subset pdat to prepare for merge w/ bsub
@@ -418,13 +412,6 @@ pdat$species <- as.factor(pdat$species) # Make sure this is coded as a factor
 levels(pdat$species) # Verify level 
 levels(pdat$species) <- c("Patagona gigas")
 
-# Now fill in cat_owner NAs with my name as the collector of blood data: 
-pdat$cat_owner[is.na(pdat$cat_owner)] <- paste("Jessie L. Williamson") 
-
-# Drop Patagona records from bsub - Patagona dataset is more stringently curated, so you want to replace Patagona
-# data in bsub with Patagona data from pdat 
-bsub <- bsub[-which(bsub$species =="Patagona gigas"),] 
-
 # Compare column names of bsub and pdat to confirm order before merge 
 colnames(pdat)
 colnames(bsub)
@@ -435,7 +422,7 @@ colnames(bsub)
 ```{r, message=FALSE, warning=FALSE}
 # Merge the two datasets together: marry the all hummingbird dataset minus Patagona WITH the full Patagona dataset 
 # This includes Chilean Patagona and Peru Patagona collected by JLW 
-full <- rbind(bsub, pdat) # Should be 1317 total rows 
+full <- rbind(bsub, pdat) # Should be 1217 total rows 
 # Keep in mind that many 'wing' measurements are zero at this point; this will be fixed once we combine w/ Skandalis & impute
 
 # Now change name of "hct_percent" to "hct" to standardize
@@ -447,12 +434,12 @@ length(unique(full$species)) # number of unique species
 # 77 total species 
 
 # Write out "full" dataset for HumBlood_PreparatorContributions.rmd
-#write.csv(full, "humblood_full.csv")
+# write.csv(full, "humblood_full.csv")
 ```
 
 
 # Transform some variables
-```{r, include=FALSE}
+```{r, echo=FALSE}
 # I now do this in modeling file! Made a lot more sense to combine all transformations prior to modeling. 
 ```
 
@@ -467,61 +454,96 @@ print(p)
 # Initial outlier/distribution assessment 
 
 # Hb
-hist(full$hb)
-abline(v=c(14,25), col=c("red", "red"), lty=c(2,2), lwd=c(2, 3)) # <24 and > 25 outliers 
-full[which(full$hb < 14),] # 3 outliers 
-full[which(full$hb > 25),] # 0 outliers 
+n1 <- (ggplot(full, aes(x=hb)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=14), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=25), color="blue", linetype="dashed", size=1)) 
+n1
+# n1 <- (hist(full$hb) 
+# abline(v=c(14,25), col=c("red", "red"), lty=c(2,2), lwd=c(2, 3))) # <24 and > 25 outliers 
+# full[which(full$hb < 14),] # 3 outliers # don't print for md 
+# full[which(full$hb > 25),] # 0 outliers # don't print for md
 
 # Hct
-hist(full$hct)
-abline(v=c(35,75), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <35 and > 75 outliers 
-full[which(full$hct < 35),] # 2 outliers 
-full[which(full$hct > 75),] # 3 outliers 
+n2 <- (ggplot(full, aes(x=hct)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=35), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=75), color="blue", linetype="dashed", size=1)) 
+n2
+# hist(full$hct)
+# abline(v=c(35,75), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <35 and > 75 outliers 
+# full[which(full$hct < 35),] # 2 outliers 
+# full[which(full$hct > 75),] # 3 outliers 
 
 # trbc
-hist(full$trbc)
-abline(v=c(2,10), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <2 and > 10 outliers 
-full[which(full$trbc < 2),] # 4 outliers 
-full[which(full$trbc > 10),] # 6 outliers
+n3 <- (ggplot(full, aes(x=trbc)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=1.8), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=10.2), color="blue", linetype="dashed", size=1)) 
+n3
+# hist(full$trbc)
+# abline(v=c(2,10), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <2 and > 10 outliers 
+# full[which(full$trbc < 2),] # 4 outliers 
+# full[which(full$trbc > 10),] # 6 outliers
 # Note: some crossover in TRBC and MCV outliers
 
+plot_grid(n1, n2, n3, nrow=3)
+
 # MCV
+n4 <- (ggplot(full, aes(x=mcv)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=50), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=150), color="blue", linetype="dashed", size=1)) 
+n4
 hist(full$mcv)
-abline(v=c(50,175), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <50 and > 200 outliers 
-full[which(full$mcv < 50),] # 0 outliers 
-full[which(full$mcv > 150),] # 10 outliers 
+abline(v=c(50,175), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <50 and > 200 outliers
+full[which(full$mcv < 50),] # 0 outliers
+full[which(full$mcv > 150),] # 10 outliers
 # Note: some crossover in TRBC and MCV outliers
 
 # MCHC
-hist(full$mchc)
-abline(v=c(20,42), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <20 and > 42 outliers 
-full[which(full$mchc < 20),] # 0 outliers 
-full[which(full$mchc > 42),] # 3 outliers
+n5 <- (ggplot(full, aes(x=mchc)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=24), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=40), color="blue", linetype="dashed", size=1)) 
+n5
+# hist(full$mchc)
+# abline(v=c(20,42), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <20 and > 42 outliers 
+# full[which(full$mchc < 20),] # 0 outliers 
+# full[which(full$mchc > 42),] # 3 outliers
 
 # MCH
-hist(full$mch)
-abline(v=c(18,50), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <50 and > 200 outliers 
-full[which(full$mch < 18),] # 0 outliers 
-full[which(full$mch > 50),] # 5 outliers
+n6 <- (ggplot(full, aes(x=mch)) + 
+       geom_density(alpha=.2, fill="#FF6666") +
+       geom_histogram(aes(y=..density..), colour="black", fill="white")+
+       geom_vline(aes(xintercept=19), color="blue", linetype="dashed", size=1) + 
+       geom_vline(aes(xintercept=50), color="blue", linetype="dashed", size=1)) 
+n6
+# hist(full$mch)
+# abline(v=c(18,50), col=c("red", "red"), lty=c(2,2), lwd=c(3, 3)) # <50 and > 200 outliers 
+# full[which(full$mch < 18),] # 0 outliers 
+# full[which(full$mch > 50),] # 5 outliers
 
+plot_grid(n4, n5, n6, nrow=3)
 
 # Generally, these look really good. I don't think any need to be transformed, but that could change. 
-qqPlot(full$mass) # looks bad (but would look ok w/out Patagona...)
+qqPlot(full$mass) # looks bad; will need to log transform 
 qqPlot(full$elev) # not great but maybe hard to fix because of uneven sampling?
-qqPlot(full$hb) # fine AF 
-qqPlot(full$hct) # damn near perfect
-qqPlot(full$trbc) # some *slight* curvature tails, but within normal range 
-qqPlot(full$mcv) # Upper limit of 150 MCV brings curvature at tails within liveable/normal-ish range = good 
-qqPlot(full$mch) # off at the right tail, ok
-qqPlot(full$mchc) # Still a little off at the tails, but very livable 
+q1 <- qqPlot(full$hb) # looks good 
+q2 <- qqPlot(full$hct) # a bit off at tails 
+q3 <- qqPlot(full$trbc) # some *slight* curvature tails, but within normal range 
+q4 <- qqPlot(full$mcv) # Upper limit of 150 MCV brings curvature at tails within liveable/normal-ish range = good 
+q5 <- qqPlot(full$mch) # off at the right tail, ok
+q6 <- (qqPlot(full$mchc)) # Still a little off at the tails, but very livable 
 
-hist(full$mass)
-hist(full$elev)
-hist(full$hb) # So beautiful I want to cry 
-hist(full$hct)
-hist(full$mcv) # Right skew apparent
-hist(full$mch) # right skew apparent
-hist(full$mchc) # pretty good 
+# LEFT OFF HERE! WORK ON THIS! Can't save qqplot object as object, for some reason.
+
+#plot_grid(q1, q2, q3, q4, q5, q6)
 
 # Categorical predictors
 p <- ggpairs(subset(full, select = c(sex, month, age))) # dpto, provincia, & distrito have too many categories
@@ -536,12 +558,12 @@ I think the best approach is to create separate subsets that remove outliers for
 # FULL DATASET OUTLIERS 
 # For [Hb]: drop any value <14 or >25
 # DuBay and Witt range from 13.2-21.4 g/dl
-full <- full[-which(full$hb < 14 | full$hb > 25),] # drop Hb <14 # -3 observations 
+# full <- full[-which(full$hb < 14 | full$hb > 25),] # No Hb outliers 
 
 # for Hct: drop any value <35 or >75
 # (we originally had this set to 72 but I bumped it to 75 after examining distribution)
 # DuBay and Witt range from 46.3-58.1 for Hct
-full <- full[-which(full$hct < 35 | full$hct > 75),] # 5 observations 
+full <- full[-which(full$hct < 35 | full$hct > 75.2),] # 3 observations 
 # Campbell and Ellis report "normal" range for birds 35-55
 # <35% suggests anemia; >55% suggests dehyrdation or erythrocytocis (polycythemia; increase in RBCs)
 # They note that PCV > 70% is usually indicative of chronic pulmonary disease 
@@ -551,26 +573,25 @@ full <- full[-which(full$hct < 35 | full$hct > 75),] # 5 observations
 # Full Campbell and Ellis range from Table B3 is 1.2-4.7
 # We expect these values to be higher because of altitude effects
 # Based on inspection of the distribution, we pick an informed range of 2-10
-full <- full[-which(full$trbc < 2 | full$trbc > 10),] # -10 observations 
+full <- full[-which(full$trbc < 1.8 | full$trbc > 10.2),] # -7 observations 
 
 
 # Note: Campbell and Ellis 2007 say: 
 # "assessment of abnormal values of MCV, MCH, and MCHC has not been properly evaluted in birds" - so outliers are up to us
 
 # for MCV: drop any value <50 or >200
-full <- full[-which(full$mcv < 50 | full$mcv > 150),] # >30 observations 
+full <- full[-which(full$mcv < 50 | test$mcv > 150),] # 29 observations 
 # Cambpell & Ellis note that 308 MCV is "large" and indicative of younger cells while 128 is smaller, suggests older cells
 # I made the upper limit cut-off 150 instead of 200 after looking at distributions again; makes hist and qqPlots look better
 
-# for MCHC: drop any value <20 or >42
+# for MCHC: drop any value <24 or >40
 # Campbell and Ellis values range from 20-38.5 (Table B3); Dubay & Witt values range from 
 # DuBay and Witt range from 26.5-36.9 g/dl
-full <- full[-which(full$mchc < 20 | full$mchc > 42),] # -3 observations 
-# Leave for now; consider making this a more stringent 22-40
+full <- full[-which(full$mchc < 24 | full$mchc > 40),] # -8 observations 
 
 # for MCH: drop any value 
 # Elarabany 2018 values for two duck species range from 24.6-31.1 PG; normal range for humans is 32-36 gm/dl 
-full <- full[-which(full$mch < 18 | full$mch > 50),] # 4 observations 
+full <- full[-which(full$mch < 19 | full$mch > 50),] # 28 observations 
 
 # Take a look at the unique number of species in the dataset and observations per species:
 sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
@@ -578,21 +599,21 @@ sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
 write.csv(sp.count.full, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood_species_list.csv")
 
 # The plots/distributions above certainly look a LOT better after removing outliers
-# Total outlier points dropped: 68 of 1,317
-# 1,249 total data points for analysis
+# Total outlier points dropped: 60 of 1,217
+# 1,157 total data points for analysis
 ```
 
-Note about outlier removal: Since dropping extreme values for e.g. MCV leads to a LOT of lost data, another thing I could do is JUST remove outliers for individual model datasets. I could then check the distributions of individual model data sets before working with them, and this would allow me to ditch 8 weird MCV values but keep the associated perfectly regular hemoglobin values, for example. 
+Note about outlier removal: Since dropping extreme values can result in more lost data (though I'd argue that 60 total observations isn't much, an alternative approach would be to only eliminate outliers for each response variable data subset, thereby retaining more subset-specific data; i.e. by just dropping MCV outliers in MCV dataset, I'd then keep normal Hb values associated with outlier MCV values)
 
 
 # Assess age-based outliers
 Blood data values are anomalous in in nestlings and fledglings and normalize quickly within a few months of fledging. 
 Bursa lasts longer than anomalous juvenile blood characteristics, so presence/absence of bursa isn't 100% correlative with ages that would be important for blood analyses. Jessie, Chris, and Ethan decided that looking at a *combination* of characteristics is the best approach: 
-- First, eliminate anomalous blood values (see code chunks above)
-- Then, analyze distribution of blood values. If these look normal and fit in with others, don't remove on the basis of having a bursa. But, if blood values look weird *AND* a bird has a "large" bursa, then remove value. 
-- "Large" bursa is ~2x2 mm or greater for hummingbirds, indicative of a bird recently out of the nest.  
-- This approach allows us to identify and possibly drop any errant values caused by age and retain all values of juveniles that fall within the "normal" adult range. 
-- Also NOTE: Any non-vouchered (i.e. tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
+* First, eliminate anomalous blood values (see code chunks above)
+* Then, analyze distribution of blood values. If these look normal and fit in with others, don't remove on the basis of having a bursa. But, if blood values look weird *AND* a bird has a "large" bursa, then remove value. 
+* "Large" bursa is ~2x2 mm or greater for hummingbirds, indicative of a bird recently out of the nest.  
+* This approach allows us to identify and possibly drop any errant values caused by age and retain all values of juveniles that fall within the "normal" adult range. 
+* Also NOTE (though this is only relevant if non-vouchered Chilean Patagona have been included): Any non-vouchered (i.e. tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 # GGpairs comparison plot colored by age 
 p <- ggpairs(full[ ,c("elev", "mass", "hb", "hct", "trbc", "mcv", "mch", "mchc", "age")], 
@@ -604,8 +625,8 @@ print(p)
 # green = juvenile
 # blue = unknown (because bursa was undetermined, not found, not recorded, Patagona not collected for tracking, etc.)
 
-# This looks pretty good. If age-based outliers remained, we'd expect lots of errant green points
-# Instead, these fall in line with pink clusters and show similar spread in boxplots. 
+# This looks good. If age-based outliers remained, we'd expect lots of errant green points
+# Instead, these fall in line with pink clusters and show similar spread and means in boxplots. 
 ```
 
 
@@ -991,7 +1012,7 @@ full1[full1$species=="Oreotrochilus estella",][, "elev_min"] <- 3000 # Min elev
 
 # Eyeball full1 species count to verify you inspected all 
 sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk)); sp.count.full1
-#write.csv(sp.count.full1, "AllHummingbird_SpeciesList.csv")
+# write.csv(sp.count.full1, "AllHummingbird_SpeciesList.csv")
 # Should be 77 total species 
 ```
 
@@ -1125,32 +1146,32 @@ elev.range.summary <- full1 %>% group_by(species) %>% summarise(range = mean(ele
 
 # -------
 
-# Assign Elevational range class ('range_class'): 
-# Specialist =  elev_range <1500m
-# generalist = elev_range >2,500 m 
-# Neither = elev_range 1500-2499 m 
-full1$range_class <- NA
-full1$range_class[full1$elev_range < 1500] <- "specialist"
-full1$range_class[full1$elev_range > 2500] <- "generalist"
-full1$range_class[is.na(full1$range_class)] <- "neither"
-
-# PO2_class = degree to which species may specialize on PO2
-# Specialists occur only > 2,500 m
-# Generalists occur < 1000 m and > 3,000 m 
-full1$po2_class <- NA
-full1$po2_class[full1$elev_min > 2499] <- "specialist"
-full1$po2_class[full1$elev_min < 1000 & full1$elev_max > 2999] <- "generalist"
-full1$po2_class[is.na(full1$po2_class)] <- "neither"
-
-# Summarize PO2 classes
-# This is a little janky but allows me to sort by po2_class
-po2.class.summary <- full1 %>% group_by(species) %>% count(po2_class)
-# 6 generalists, 14 specialists, the rest are neither 
-
-# Separate out PO2 specialists and generalists:
-# Patagona-free subset:
-po2.specialist <- full1[which(full1$po2_class == "specialist"),] 
-po2.generalist <- full1[which(full1$po2_class == "generalist"),] 
+# # Assign Elevational range class ('range_class'): 
+# # Specialist =  elev_range <1500m
+# # generalist = elev_range >2,500 m 
+# # Neither = elev_range 1500-2499 m 
+# full1$range_class <- NA
+# full1$range_class[full1$elev_range < 1500] <- "specialist"
+# full1$range_class[full1$elev_range > 2500] <- "generalist"
+# full1$range_class[is.na(full1$range_class)] <- "neither"
+# 
+# # PO2_class = degree to which species may specialize on PO2
+# # Specialists occur only > 2,500 m
+# # Generalists occur < 1000 m and > 3,000 m 
+# full1$po2_class <- NA
+# full1$po2_class[full1$elev_min > 2499] <- "specialist"
+# full1$po2_class[full1$elev_min < 1000 & full1$elev_max > 2999] <- "generalist"
+# full1$po2_class[is.na(full1$po2_class)] <- "neither"
+# 
+# # Summarize PO2 classes
+# # This is a little janky but allows me to sort by po2_class
+# po2.class.summary <- full1 %>% group_by(species) %>% count(po2_class)
+# # 6 generalists, 14 specialists, the rest are neither 
+# 
+# # Separate out PO2 specialists and generalists:
+# # Patagona-free subset:
+# po2.specialist <- full1[which(full1$po2_class == "specialist"),] 
+# po2.generalist <- full1[which(full1$po2_class == "generalist"),] 
 ```
 
 
@@ -1189,284 +1210,6 @@ final$Clade <- as.factor(final$Clade)
 # Looks good! Should be ready for modeling.
 # Best approach for balancing NA omission w/ preserving data is probably to create a subset for each blood parameter
 # e.g. subset to include JUST data you need for models, call datasets something like 'final.hb', 'final.hct', etc.
-```
-
-
-
-#### SPATIAL AND ENVIRONMENTAL DATA ####
-
-# Country polygons, elevation rasters, BioClim download
-Download country polygons with elevation layers, crop Chile to mainland extent to exclude Juan Fernandez Islands, merge country polygons, and get climate data into country shapes. 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-library(raster)
-library(sp)
-
-# DOWNLOAD COUNTRY POLYGONS 
-# Search country 3-letter ISO code: https://www.iso.org/obp/ui/#search
-# Note: Chile's southern coastline makes plotting the outline near impossible; R  crashes every time 
-# If you do want to plot outline, write straight to .pdf instead of plotting w/in RStudio
-# Best approach seems to be to crop the extent of hte outline to remove Juan Fernandez Islands
-# Then to crop and mask climate rasters to Peru and Chile
-# THEN to merge these two rasters. 
-peru <- raster::getData('GADM', country = "PER", level = 0) # download country shape  
-chile <- raster::getData('GADM', country = "CHL", level = 0) 
-extent(chile) # look at the spatial extent (lat, lon) of Chile; compare to map 
-# Chile's extent goes way out into the Pacific because of Juan Fernandez Islands; get rid of these
-extent_mainland <- extent(c(-76, -66.41472, -55.98403,-17.50755)) # Use map to pick a reasonable x min
-chile <- crop(chile, extent_mainland) # this takes ~3-5 mins
-
-# Download surrounding countries for visualization/map-making
-countries = c("BRA", "ARG", "ECU", "BOL", "VEN", "COL", "GUY", "SUR", "PRY", "URY") 
-manycountries = do.call("bind", lapply(countries, function(x) raster::getData('GADM', country=x, level=0)))
-
-# Merge country polygons 
-southamerica_countries <- merge(peru, chile, manycountries)
-
-# ELEVATION DATA
-# # Note similar weirdness with Chile elevation layer as w/ Chile polygons; namely, Juan Fernandez Islands make extent wonky
-# peru_alt <- raster::getData('alt', country = "PER", mask=TRUE) # Peru elev data
-# chile_alt <- raster::getData('alt', country = "CHL", mask=TRUE) # Chile elev data; a list of 2
-# # In Chile alt list: [[1]] = mainland, [[2]] = Juan Fernandez Islands
-# chile_alt <- chile_alt[[1]] # Assign mainland Chile to to Chile_alt because that's all I want 
-# proj4string(peru_alt) <- CRS("+init=epsg:4326")
-# proj4string(chile_alt) <- CRS("+init=epsg:4326")
-# #writeRaster(peru_alt, "peru_alt.grd", overwrite=TRUE) # Save raster files 
-# #writeRaster(chile_alt, "chile_alt.grd", overwrite=TRUE) 
-# peru_chile_elev <- merge(peru_alt, chile_alt) # Merge Peru and Chile elev layers for map-making
-# #writeRaster(peru_chile_elev, "peru_chile_alt.grd", overwrite=TRUE) 
-# 
-# # Get elev data for surrounding countries to make your map prettier
-# bol_alt <- raster::getData('alt', country = "BOL", mask=TRUE) # Bolivia elev data
-# arg_alt <- raster::getData('alt', country = "ARG", mask=TRUE) # Argentina elev data
-# bra_alt <- raster::getData('alt', country = "BRA", mask=TRUE) # Brazil elev data
-# ecu_alt <- raster::getData('alt', country = "ECU", mask=TRUE) # Ecuador elev data
-# col_alt <- raster::getData('alt', country = "COL", mask=TRUE) # Colombia elev data
-# vez_alt <- raster::getData('alt', country = "VEN", mask=TRUE) # Venezuela elev data
-# guy_alt <- raster::getData('alt', country = "GUY", mask=TRUE) # Guyana elev data
-# sur_alt <- raster::getData('alt', country = "SUR", mask=TRUE) # Suriname elev data
-# pry_alt <- raster::getData('alt', country = "PRY", mask=TRUE) # Paraguay elev data
-# uru_alt <- raster::getData('alt', country = "URY", mask=TRUE) # Uruguay elev data
-# surrounding_elevs <- merge(bol_alt, arg_alt, bra_alt, ecu_alt, col_alt, vez_alt, guy_alt, sur_alt, pry_alt, uru_alt) 
-# # Merge elev layers of surrounding countries 
-# south_america_elevs <- merge(peru_chile_elev, surrounding_elevs) # Merge surrounding countries w/ Chile and Peru
-# #writeRaster(surrounding_elevs, "surrounding_elevs.grd", overwrite=TRUE) # Save raster files 
-#writeRaster(south_america_elevs, "south_america_elevs.grd", overwrite=TRUE) 
-
-# GET CLIMATE DATA, CROP TO COUNTRY SHAPES
-climate <- raster::getData("worldclim", var="bio", res = 2.5) # download bioclim data
-projection(climate) <- CRS("+init=epsg:4326")
-chile_clim <- climate %>% crop(., chile) %>% raster::mask(., chile) # Crop and mask climate raster to Chile
-peru_clim <- climate %>% crop(., peru) %>% raster::mask(., peru) # Crop and mask climate raster to Peru
-proj4string(chile_clim) == proj4string(peru_clim) #check projections between Peru and Chile files 
-peru_chile <- merge(peru_clim, chile_clim) # Merge Peru and Chile rasters; this forms raster brick 
-plot(peru_clim$bio1) # Plot this as a test that the above cropping and masking worked
-# # NOTE: must call raster::mask()! Otherwise mask() is actually masked by another function and I get an error message. 
-# # Masking literally masks the shapes of adjoining countries (i.e. "messy stuff") for a clean look; not masking...doesn't.
-plot(peru_chile$layer.12) # plot to verify this worked; layer is calling a bioclim variable
-proj4string(climate) == proj4string(peru_chile) #check projections
-#writeRaster(climate, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/world_climate.grd", overwrite=TRUE) # the world?; write out bioclim brick; takes ~10-15 mins
-#writeRaster(peru_chile, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd", overwrite=TRUE) # Just Peru and Chile
-
-# Note: I tried to switch Sabrina's order to merge polygons and THEN clip + mask but this never worked
-# For some reason it kept only grabbing Peru, which is weird. Here's the code anyways:
-# peru_chile <- merge(peru, chile) # Merge country polygons 
-#peru_chile_clim <- climate %>% crop(., peru_chile) %>% raster::mask(., peru_chile) # Crop and mask climate to countries 
-
-
-# READ IN RASTERS TO AVOID RUNNING ALL CODE ABOVE 
-# Need to run BioClim data above to ensure that peru_chile is a raster brick otherwise you can't extract BioClim
-#peru_chile_bioclim <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd") # read in peru_chile BioClim data
-peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_alt.grd") # elevation raster
-chile_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/chile_alt.grd") # elevation raster
-surrounding_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/surrounding_elevs.grd") 
-# surrounding South American country elevs
-south_america_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/south_america_elevs.grd") # All South American country elevs combined
-
-
-###### PROCESS SPATIAL DATA 
-
-# Create a spatial data frame that has our community localities
-# NAs in the data will create problems; e.g. you won't be able to make spatial data frame 
-locality.coords <- SpatialPointsDataFrame(
-                   matrix(c(final$lon, final$lat), ncol = 2),
-                   data.frame(ID=1:nrow(final),
-                   sampling.locality = final$locality,
-                   sampling.elev = final$elev),
-                   proj4string=CRS("+init=epsg:4326")
-                   )
-
-# Extract mean temp and mean precip for our all localities 
-# Use clipped shape of peru_chile to do this
-# If you use peru_clim it won't grab Chile points; if you use chile_clim it won't grab Peru points
-# With raster brick, need to specify $layer.1 for $bio1; note this name change or you'll get an error
-final$bio1 <- raster::extract(peru_chile$layer.1, locality.coords)
-final$bio2 <- raster::extract(peru_chile$layer.2, locality.coords)
-final$bio3 <- raster::extract(peru_chile$layer.3, locality.coords)
-final$bio4 <- raster::extract(peru_chile$layer.4, locality.coords)
-final$bio5 <- raster::extract(peru_chile$layer.5, locality.coords)
-final$bio6 <- raster::extract(peru_chile$layer.6, locality.coords)
-final$bio7 <- raster::extract(peru_chile$layer.7, locality.coords)
-final$bio8 <- raster::extract(peru_chile$layer.8, locality.coords)
-final$bio9 <- raster::extract(peru_chile$layer.9, locality.coords)
-final$bio10 <- raster::extract(peru_chile$layer.10, locality.coords)
-final$bio11 <- raster::extract(peru_chile$layer.11, locality.coords)
-final$bio12 <- raster::extract(peru_chile$layer.12, locality.coords)
-final$bio13 <- raster::extract(peru_chile$layer.13, locality.coords)
-final$bio14 <- raster::extract(peru_chile$layer.14, locality.coords)
-final$bio15 <- raster::extract(peru_chile$layer.15, locality.coords)
-final$bio16 <- raster::extract(peru_chile$layer.16, locality.coords)
-final$bio17 <- raster::extract(peru_chile$layer.17, locality.coords)
-final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
-final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
-
-# Now write out this dataset, which represents the near-final version of what you'll want for analysis
-#write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_11-09-20.csv")
-```
-
-
-
-# Spatial coords PCA 
-This is for variable reduction of BioClim variables; look at loadings to understand which directions things work in. 
-Collapse temp and aridity variables and use first PCA axis in models. 
-```{r, message=FALSE, warning=FALSE}
-# Code from McNew et al. 2020 (thanks for the help, SMM!)
-# PCA and scale raster data for temp variables and precip variables
-
-# Temperature PCA using BioClim vars 1-11
-tempPCA <- rasterPCA(subset(peru_chile, 1:11), spca = TRUE) #creates a raster of PCA temp vals
-summary(tempPCA$model) #PC1 has 73.4% of variation and 89.5% w/ PC1+PC2
-tempPCA$model$loadings #
-
-#Pull PC1 and PC2 values for each community and add to dataset
-final$tempPC1 <- raster::extract(tempPCA$map$PC1, locality.coords)
-final$tempPC2 <- raster::extract(tempPCA$map$PC2, locality.coords)
-
-plot(bio11 ~ tempPC1, data=final) #PC1 is highly correlated with mean temp
-plot(bio11 ~ tempPC1, data=final) #PC1 also highly correlated w/ mean temp of coldest quarter 
-# Fairly correlated w/ bio5, bio6
- 
-## -------
-
-# Precipitation PCA using BioClim vars 12-19
-precipPCA <- rasterPCA(subset(peru_chile, 12:19), spca = TRUE)
-summary(precipPCA$model) #PC1 has 79.8% of variation and 89.1% of variation w/ PC1+PC2
-precipPCA$model$loadings #
-
-# Add PC1 and PC2 values to dataset 
-final$precipPC1 <- raster::extract(precipPCA$map$PC1, locality.coords)
-final$precipPC2 <- raster::extract(precipPCA$map$PC2, locality.coords)
-
-plot(bio12 ~ precipPC1, data=final) # Moderate correlation between PC1 and mean annual precip
-# Overal not many correlations here 
-plot(bio19 ~ tempPC2, data=final) 
-
-# Write out PCA rasters for later map generation:
-# writeRaster(tempPCA$map$PC1, "tempPC1.grd", overwrite=TRUE)
-# writeRaster(tempPCA$map$PC2, "tempPC2.grd", overwrite=TRUE)
-# writeRaster(precipPCA$map$PC1, "precipPC1.grd", overwrite=TRUE)
-# writeRaster(precipPCA$map$PC2, "precipPC2.grd", overwrite=TRUE)
-
-
-# Look at distributions of BioClim variables 
-# This and other prelim qqPlots indicated some PC variables being off at tails; see HumBlood_Modeling.Rmd for transformations
-# p <- ggpairs(subset(final, select = c(elev, elev_position, mass, hb, hct, trbc, mcv, mch, mchc, tempPC1, tempPC2, precipPC1, precipPC2))) 
-# print(p)
-```
-
-
-WORLDCLIM CODEBOOK 
-```
-
-They are coded as follows:
-
-BIO1 = Annual Mean Temperature
-BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))
-BIO3 = Isothermality (BIO2/BIO7) (* 100)
-BIO4 = Temperature Seasonality (standard deviation *100)
-BIO5 = Max Temperature of Warmest Month
-BIO6 = Min Temperature of Coldest Month
-BIO7 = Temperature Annual Range (BIO5-BIO6)
-BIO8 = Mean Temperature of Wettest Quarter
-BIO9 = Mean Temperature of Driest Quarter (*transformed)
-BIO10 = Mean Temperature of Warmest Quarter
-BIO11 = Mean Temperature of Coldest Quarter
-BIO12 = Annual Precipitation
-BIO13 = Precipitation of Wettest Month
-BIO14 = Precipitation of Driest Month (*transformed)
-BIO15 = Precipitation Seasonality (Coefficient of Variation)
-BIO16 = Precipitation of Wettest Quarter
-BIO17 = Precipitation of Driest Quarter (*transformed)
-BIO18 = Precipitation of Warmest Quarter
-BIO19 = Precipitation of Coldest Quarter
-
-```
-
-
-# SAMPLING LOCALITY MAP 
-Mapping tips here: https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
-```{r, message=FALSE, warning=FALSE}
-library(viridis)
-library(RColorBrewer)
-
-# CROP MAP EXTENT FOR BETTER VISUALIZATION 
-# Wide version: 
-# xmin = -90
-# xmax = 41.7
-# y min = -45.3
-# y max = 0.8
-
-# Zoomed version: 
-# xmin = -86
-# xmax = 47.4
-# y min = -37
-# y max = 0.8
-
-# crop raster and country lines to a smaller box (hard to get right, requires a lot of tinkering)
-# south_america_elevs_cropped = all elevation rasters combined 
-# southamerica_cropped = all country polygons combined 
-# These are perfect but fairly zoomed out to capture more of southern Chile 
-#ex <- extent(c(-90, -41.7, -45.3, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
-# Zoomed in version: 
-ex <- extent(c(-86, -47.4, -37, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
-south_america_elevs_cropped <- crop(south_america_elevs, ex)
-extent(south_america_elevs_cropped)
-southamerica_cropped <- crop(southamerica_countries, ex)
-
-# FINAL MAP
-# Peru and Chile sampling localities w/ rest of South America 
-pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Peru_and_Chile_SamplingMap_WithSouthAmerica_Cropped_Outlines.pdf", useDingbats = F)
-#plot(south_america_elevs_cropped, col = colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5, ext=ex)
-plot(south_america_elevs_cropped, col=magma(200), cex.axis=1.5, ext=ex)
-plot(manycountries, add=TRUE, border = "gray92", lwd = 0.05) # outlines surrounding countries; must be first to "layer"
-#plot(manycountries, add=TRUE, border = "gray28", lwd = 0.5) # outlines surrounding countries; must be first to "layer"
-plot(peru, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru 
-plot(chile, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru 
-#plot(locality.coords, add=TRUE, pch=19, cex=0.8, col="olivedrab1") # olivedrab1 points w/ no outline # doesn't look great
-plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="olivedrab1") # pch=21 is circle w/ black outline
-# olivedrab1 is electric and amazing; olivedrab2 *slightly* subtler and nice, but doesn't 'pop' quite as much
-# olivedrab3 looks fantastic; yellow looks nice
-addscalebar(plotepsg = 4326, widthhint=0.20, labelpadin = 0.08, label.cex = 0.8, label.col = "black", pos = "bottomleft")
-#with(CommunitySpatial, text(CommunitySpatial,
-#  labels=CommunitySpatial$ID, pos=4, cex=1.3))
-dev.off()
-
-# Played around a lot with aesthetics, namely: w/out country outlines, it's a little hard to orient in South America. 
-# EBL thinks 2 colors to denote country lines is a little distracting
-# I sorta like thin gray28 spiderweb lines for surrounding countries and thick white lines for Peru and Chile
-# I also played around with ALL white outlines but thick for Peru and Chile and super thin for surrounding countries
-# I think the best approach might be THICK white Peru + Chile outlines w/ slightly dulled bright gray spiderwebs
-# that are much thinner; this makes it look like all the same color, but spiderwebs won't 'pop' as much to distract
-
-# Notes on elevation color palettes, ranked: 
-# magma is stunning, sophisticated
-# cividis is stunning and lovely; equivalent topography resolution to inferno but subtler palette and nice 
-# inferno looks great as well but doesn't pick up as much subtlety in topography as magma 
-# Viridis is stunning but is what Sabrina used for Peru malaria paper; magma also picks up more detail in topography
-# plasma is ok but looks a little 'cheaper' than magma, which is very sophisticated
-# terrain.colors: base R option, looks cheap
-# topo.colors: actually painful for the eyes 
-
-# See allhum_blood_comp_CUT.Rmd for other map versions that I cut/didn't include here 
 ```
 
 
@@ -1765,391 +1508,226 @@ Myrtis fanny
 Oreotrochilus leucopleurus
 
 
-# For elevational range phylogeny figure: Ceate a species mean dataset, wrangle into workable format for Illustrator figure
-Note: this script should be cleaned up and probably moved for my plots & figs .Rmd. Still a working chunk, in here for now. 
-```{r, echo=FALSE,  message=FALSE, warning=FALSE}
-# Figure out why there are NaNs! In at least a few cases it comes from only 1 individual per species
-# drop species with fewer than 2? 
+#### SPATIAL AND ENVIRONMENTAL DATA ####
 
-# species mean data
-species.means <- final %>% group_by(species) %>%
-                                  dplyr::summarize(
-                                    mean_mass = mean(mass, na.rm = TRUE),
-                                    mean_hb = mean(hb, na.rm=TRUE),
-                                    mean_hct = mean(hct, na.rm=TRUE),
-                                    mean_trbc = mean(trbc, na.rm=TRUE),
-                                    mean_mcv = mean(mcv, na.rm=TRUE),
-                                    mean_mch = mean(mch, na.rm=TRUE),
-                                    mean_mchc = mean(mchc, na.rm=TRUE),
-                                    mean_elev = mean(elev, na.rm=TRUE),
-                                    elev_min = mean(elev_min, na.rm=TRUE), # Mean will just be elev_min cause all same 
-                                    elev_max = mean(elev_max, na.rm=TRUE), # Mean will just be elev_max cause all same 
-                                    range = mean(elev_range, na.rm=TRUE),  # Mean will just be elev_range cause all same 
-                                    count=n())                              #Gives a count of total samples/species
+# Country polygons, elevation rasters, BioClim download
+Download country polygons with elevation layers, crop Chile to mainland extent to exclude Juan Fernandez Islands, merge country polygons, and get climate data into country shapes. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(raster)
+library(sp)
 
-# Assign species to clades 
-species.means$Clade <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
+# DOWNLOAD COUNTRY POLYGONS 
+# Search country 3-letter ISO code: https://www.iso.org/obp/ui/#search
+# Note: Chile's southern coastline makes plotting the outline near impossible; R  crashes every time 
+# If you do want to plot outline, write straight to .pdf instead of plotting w/in RStudio
+# Best approach seems to be to crop the extent of hte outline to remove Juan Fernandez Islands
+# Then to crop and mask climate rasters to Peru and Chile
+# THEN to merge these two rasters. 
+peru <- raster::getData('GADM', country = "PER", level = 0) # download country shape  
+chile <- raster::getData('GADM', country = "CHL", level = 0) 
+extent(chile) # look at the spatial extent (lat, lon) of Chile; compare to map 
+# Chile's extent goes way out into the Pacific because of Juan Fernandez Islands; get rid of these
+extent_mainland <- extent(c(-76, -66.41472, -55.98403,-17.50755)) # Use map to pick a reasonable x min
+chile <- crop(chile, extent_mainland) # this takes ~3-5 mins
 
-# add clade labels for 9 hummingbird clades
+# Download surrounding countries for visualization/map-making
+countries <- c("BRA", "ARG", "ECU", "BOL", "VEN", "COL", "GUY", "SUR", "PRY", "URY") 
+manycountries <- do.call("bind", lapply(countries, function(x) raster::getData('GADM', country=x, level=0)))
 
-# EMERALDS
-species.means$Clade[species.means$species=="Amazilia amazilia" | 
-           species.means$species=="Amazilia chionogaster" | 
-           species.means$species=="Amazilia franciae" | 
-           species.means$species=="Amazilia lactea" | 
-           species.means$species=="Amazilia viridicauda" | 
-           species.means$species=="Chrysuronia oenone" | 
-           species.means$species=="Taphrospilus hypostictus" | 
-           species.means$species=="Thalurania furcata" | 
-           species.means$species=="Campylopterus largipennis" | 
-           species.means$species=="Campylopterus villaviscensio" | 
-           species.means$species=="Leucippus taczanowskii" | 
-           species.means$species=="Klais guimeti"] <- paste("Emerald")
+# Merge country polygons 
+southamerica_countries <- merge(peru, chile, manycountries)
 
-# BEES 
-species.means$Clade[species.means$species=="Calliphlox amethystina" | 
-           species.means$species=="Thaumastura cora" | 
-           species.means$species=="Chaetocercus mulsant" |
-           species.means$species=="Myrmia micrura" |
-           species.means$species=="Myrtis fanny" |
-           species.means$species=="Rhodopis vesper"] <- paste("Bee") 
+# ELEVATION DATA
+# Get this once and then read in data below! Takes a long time. 
+# # Note similar weirdness with Chile elevation layer as w/ Chile polygons; namely, Juan Fernandez Islands make extent wonky
+# peru_alt <- raster::getData('alt', country = "PER", mask=TRUE) # Peru elev data
+# chile_alt <- raster::getData('alt', country = "CHL", mask=TRUE) # Chile elev data; a list of 2
+# # In Chile alt list: [[1]] = mainland, [[2]] = Juan Fernandez Islands
+# chile_alt <- chile_alt[[1]] # Assign mainland Chile to to Chile_alt because that's all I want 
+# proj4string(peru_alt) <- CRS("+init=epsg:4326")
+# proj4string(chile_alt) <- CRS("+init=epsg:4326")
+# #writeRaster(peru_alt, "peru_alt.grd", overwrite=TRUE) # Save raster files 
+# #writeRaster(chile_alt, "chile_alt.grd", overwrite=TRUE) 
+# peru_chile_elev <- merge(peru_alt, chile_alt) # Merge Peru and Chile elev layers for map-making
+# #writeRaster(peru_chile_elev, "peru_chile_alt.grd", overwrite=TRUE) 
+# 
+# # Get elev data for surrounding countries to make your map prettier
+# bol_alt <- raster::getData('alt', country = "BOL", mask=TRUE) # Bolivia elev data
+# arg_alt <- raster::getData('alt', country = "ARG", mask=TRUE) # Argentina elev data
+# bra_alt <- raster::getData('alt', country = "BRA", mask=TRUE) # Brazil elev data
+# ecu_alt <- raster::getData('alt', country = "ECU", mask=TRUE) # Ecuador elev data
+# col_alt <- raster::getData('alt', country = "COL", mask=TRUE) # Colombia elev data
+# vez_alt <- raster::getData('alt', country = "VEN", mask=TRUE) # Venezuela elev data
+# guy_alt <- raster::getData('alt', country = "GUY", mask=TRUE) # Guyana elev data
+# sur_alt <- raster::getData('alt', country = "SUR", mask=TRUE) # Suriname elev data
+# pry_alt <- raster::getData('alt', country = "PRY", mask=TRUE) # Paraguay elev data
+# uru_alt <- raster::getData('alt', country = "URY", mask=TRUE) # Uruguay elev data
+# surrounding_elevs <- merge(bol_alt, arg_alt, bra_alt, ecu_alt, col_alt, vez_alt, guy_alt, sur_alt, pry_alt, uru_alt) 
+# # Merge elev layers of surrounding countries 
+# south_america_elevs <- merge(peru_chile_elev, surrounding_elevs) # Merge surrounding countries w/ Chile and Peru
+# #writeRaster(surrounding_elevs, "surrounding_elevs.grd", overwrite=TRUE) # Save raster files 
+#writeRaster(south_america_elevs, "south_america_elevs.grd", overwrite=TRUE) 
 
-# MOUNTAIN GEMS 
-species.means$Clade[species.means$species=="Heliomaster longirostris"] <- paste("Mountain-gem")
+# GET CLIMATE DATA, CROP TO COUNTRY SHAPES
+climate <- raster::getData("worldclim", var="bio", res = 2.5) # download bioclim data
+projection(climate) <- CRS("+init=epsg:4326")
+chile_clim <- climate %>% crop(., chile) %>% raster::mask(., chile) # Crop and mask climate raster to Chile
+peru_clim <- climate %>% crop(., peru) %>% raster::mask(., peru) # Crop and mask climate raster to Peru
+proj4string(chile_clim) == proj4string(peru_clim) #check projections between Peru and Chile files 
+peru_chile <- merge(peru_clim, chile_clim) # Merge Peru and Chile rasters; this forms raster brick 
+plot(peru_clim$bio1) # Plot this as a test that the above cropping and masking worked
+# # NOTE: must call raster::mask()! Otherwise mask() is actually masked by another function and I get an error message. 
+# # Masking literally masks the shapes of adjoining countries (i.e. "messy stuff") for a clean look; not masking...doesn't.
+plot(peru_chile$layer.12) # plot to verify this worked; layer is calling a bioclim variable
+proj4string(climate) == proj4string(peru_chile) #check projections
+#writeRaster(climate, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/world_climate.grd", overwrite=TRUE) # the world?; write out bioclim brick; takes ~10-15 mins
+#writeRaster(peru_chile, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd", overwrite=TRUE) # Just Peru and Chile
 
-# PATAGONA 
-species.means$Clade[species.means$species=="Patagona gigas"] <- paste("Patagona") 
-
-# COQUETTES (Andean clade)
-species.means$Clade[species.means$species=="Phlogophilus harterti" | 
-           species.means$species=="Adelomyia melanogenys" | 
-           species.means$species=="Aglaiocercus kingii" | 
-           species.means$species=="Chalcostigma herrani" | 
-           species.means$species=="Chalcostigma ruficeps" | 
-           species.means$species=="Chalcostigma stanleyi" | 
-           species.means$species=="Heliangelus amethysticollis" | 
-           species.means$species=="Heliangelus micraster" | 
-           species.means$species=="Heliangelus viola" | 
-           species.means$species=="Metallura eupogon" | 
-           species.means$species=="Metallura phoebe" | 
-           species.means$species=="Metallura tyrianthina" | 
-           species.means$species=="Oreotrochilus estella" | 
-           species.means$species=="Oreotrochilus leucopleurus" | 
-           species.means$species=="Oreotrochilus melanogaster" | 
-           species.means$species=="Polyonymus caroli" | 
-           species.means$species=="Sephanoides sephaniodes" | 
-           species.means$species=="Oreonympha nobilis" |
-           species.means$species=="Lesbia nuna" |
-           species.means$species=="Lesbia victoriae"] <- paste("Coquette")
-
-# BRILLIANTS (Andean clade)
-species.means$Clade[species.means$species=="Aglaeactis castelnaudii" | 
-           species.means$species=="Aglaeactis cupripennis" | 
-           species.means$species=="Boissonneaua matthewsii" | 
-           species.means$species=="Coeligena coeligena" | 
-           species.means$species=="Coeligena iris" | 
-           species.means$species=="Coeligena lutetiae" | 
-           species.means$species=="Coeligena torquata" | 
-           species.means$species=="Coeligena violifer" | 
-           species.means$species=="Ensifera ensifera" | 
-           species.means$species=="Eriocnemis aline" | 
-           species.means$species=="Eriocnemis luciani" | 
-           species.means$species=="Eriocnemis vestita" | 
-           species.means$species=="Haplophaedia aureliae" | 
-           species.means$species=="Heliodoxa aurescens" | 
-           species.means$species=="Heliodoxa leadbeateri" | 
-           species.means$species=="Heliodoxa rubinoides" | 
-           species.means$species=="Lafresnaya lafresnayi" | 
-           species.means$species=="Ocreatus underwoodii" | 
-           species.means$species=="Pterophanes cyanopterus"] <- paste("Brilliant")
-
-# MANGOS
-species.means$Clade[species.means$species=="Anthracothorax nigricollis" | 
-           species.means$species=="Colibri coruscans" | 
-           species.means$species=="Colibri cyanotus" |  # Remember you changed Colibri thalassinus to cyanotus above 
-           species.means$species=="Doryfera ludovicae" |
-           species.means$species=="Schistes geoffroyi"] <- paste("Mango")
-
-# HERMITS 
-species.means$Clade[species.means$species=="Eutoxeres aquila" | 
-           species.means$species=="Eutoxeres condamini" | 
-           species.means$species=="Glaucis hirsutus" | 
-           species.means$species=="Phaethornis atrimentalis" | 
-           species.means$species=="Phaethornis guy" | 
-           species.means$species=="Phaethornis hispidus" | 
-           species.means$species=="Phaethornis malaris" | 
-           species.means$species=="Phaethornis philippii" | 
-           species.means$species=="Phaethornis ruber" | 
-           species.means$species=="Phaethornis stuarti" | 
-           species.means$species=="Phaethornis syrmatophorus" | 
-           species.means$species=="Threnetes leucurus"] <- paste("Hermit")
-
-# TOPAZES AND JACOBINS 
-species.means$Clade[species.means$species=="Florisuga mellivora"] <- paste("Topaz") 
+# Note: I tried to switch Sabrina's order to merge polygons and THEN clip + mask but this never worked
+# For some reason it kept only grabbing Peru, which is weird. Here's the code anyways:
+# peru_chile <- merge(peru, chile) # Merge country polygons 
+#peru_chile_clim <- climate %>% crop(., peru_chile) %>% raster::mask(., peru_chile) # Crop and mask climate to countries 
 
 
-# Create order based on phylogeny branch order (for elev_range plotting)
-species.means$phylo_order <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
-
-species.means$phylo_order[species.means$species=="Phlogophilus harterti"] <- paste(.1) # Weird decimals only way to keep order
-species.means$phylo_order[species.means$species=="Oreotrochilus leucopleurus"] <- paste(.2)
-species.means$phylo_order[species.means$species=="Oreotrochilus estella"] <- paste(.3)
-species.means$phylo_order[species.means$species=="Oreotrochilus melanogaster"] <- paste(.4)
-species.means$phylo_order[species.means$species=="Polyonymus caroli"] <- paste(.5)
-species.means$phylo_order[species.means$species=="Chalcostigma herrani"] <- paste(.6)
-species.means$phylo_order[species.means$species=="Chalcostigma ruficeps"] <- paste(.7)
-species.means$phylo_order[species.means$species=="Oreonympha nobilis"] <- paste(.8)
-species.means$phylo_order[species.means$species=="Chalcostigma stanleyi"] <- paste(.9)
-species.means$phylo_order[species.means$species=="Metallura eupogon"] <- paste(10)
-species.means$phylo_order[species.means$species=="Metallura tyrianthina"] <- paste(11)
-species.means$phylo_order[species.means$species=="Metallura phoebe"] <- paste(12)
-species.means$phylo_order[species.means$species=="Lesbia nuna"] <- paste(13)
-species.means$phylo_order[species.means$species=="Lesbia victoriae"] <- paste(14)
-species.means$phylo_order[species.means$species=="Adelomyia melanogenys"] <- paste(15)
-species.means$phylo_order[species.means$species=="Aglaiocercus kingii"] <- paste(16)
-species.means$phylo_order[species.means$species=="Heliangelus amethysticollis"] <- paste(17)
-species.means$phylo_order[species.means$species=="Heliangelus micraster"] <- paste(18)
-species.means$phylo_order[species.means$species=="Heliangelus viola"] <- paste(19)
-species.means$phylo_order[species.means$species=="Sephanoides sephaniodes"] <- paste(20) # Coquettes  
-
-species.means$phylo_order[species.means$species=="Lafresnaya lafresnayi"] <- paste(21)
-species.means$phylo_order[species.means$species=="Aglaeactis castelnaudii"] <- paste(22)
-species.means$phylo_order[species.means$species=="Aglaeactis cupripennis"] <- paste(23)
-species.means$phylo_order[species.means$species=="Heliodoxa leadbeateri"] <- paste(24)
-species.means$phylo_order[species.means$species=="Heliodoxa rubinoides"] <- paste(25)
-species.means$phylo_order[species.means$species=="Heliodoxa aurescens"] <- paste(26)
-species.means$phylo_order[species.means$species=="Boissonneaua matthewsii"] <- paste(27)
-species.means$phylo_order[species.means$species=="Ocreatus underwoodii"] <- paste(28)
-species.means$phylo_order[species.means$species=="Pterophanes cyanopterus"] <- paste(29)
-species.means$phylo_order[species.means$species=="Ensifera ensifera"] <- paste(30)
-species.means$phylo_order[species.means$species=="Coeligena coeligena"] <- paste(31)
-species.means$phylo_order[species.means$species=="Coeligena violifer"] <- paste(32)
-species.means$phylo_order[species.means$species=="Coeligena lutetiae"] <- paste(33)
-species.means$phylo_order[species.means$species=="Coeligena iris"] <- paste(34)
-species.means$phylo_order[species.means$species=="Coeligena torquata"] <- paste(35)
-species.means$phylo_order[species.means$species=="Eriocnemis vestita"] <- paste(36)
-species.means$phylo_order[species.means$species=="Eriocnemis luciani"] <- paste(37)
-species.means$phylo_order[species.means$species=="Eriocnemis aline"] <- paste(38)
-species.means$phylo_order[species.means$species=="Haplophaedia aureliae"] <- paste(39) # Brilliants
-
-species.means$phylo_order[species.means$species=="Patagona gigas"] <- paste(40) # Patagona
-
-species.means$phylo_order[species.means$species=="Calliphlox amethystina"] <- paste(41)
-species.means$phylo_order[species.means$species=="Rhodopis vesper"] <- paste(42) 
-species.means$phylo_order[species.means$species=="Myrtis fanny"] <- paste(43) 
-species.means$phylo_order[species.means$species=="Thaumastura cora"] <- paste(44) 
-species.means$phylo_order[species.means$species=="Myrmia micrura"] <- paste(45) 
-species.means$phylo_order[species.means$species=="Chaetocercus mulsant"] <- paste(46) # Bees 
-
-species.means$phylo_order[species.means$species=="Heliomaster longirostris"] <- paste(47) # Mountain-gems 
-
-species.means$phylo_order[species.means$species=="Campylopterus villaviscensio"] <- paste(48) 
-species.means$phylo_order[species.means$species=="Campylopterus largipennis"] <- paste(49) 
-species.means$phylo_order[species.means$species=="Klais guimeti"] <- paste(50) 
-species.means$phylo_order[species.means$species=="Amazilia lactea"] <- paste(51) 
-species.means$phylo_order[species.means$species=="Amazilia viridicauda"] <- paste(52) 
-species.means$phylo_order[species.means$species=="Amazilia chionogaster"] <- paste(53) 
-species.means$phylo_order[species.means$species=="Chrysuronia oenone"] <- paste(54) 
-species.means$phylo_order[species.means$species=="Amazilia franciae"] <- paste(55) 
-species.means$phylo_order[species.means$species=="Amazilia amazilia"] <- paste(56) 
-species.means$phylo_order[species.means$species=="Leucippus taczanowskii"] <- paste(57) 
-species.means$phylo_order[species.means$species=="Taphrospilus hypostictus"] <- paste(58) 
-species.means$phylo_order[species.means$species=="Thalurania furcata"] <- paste(59) # Emeralds
-
-species.means$phylo_order[species.means$species=="Anthracothorax nigricollis"] <- paste(60) 
-species.means$phylo_order[species.means$species=="Doryfera ludovicae"] <- paste(61) 
-species.means$phylo_order[species.means$species=="Colibri cyanotus"] <- paste(62) 
-species.means$phylo_order[species.means$species=="Colibri coruscans"] <- paste(63) 
-species.means$phylo_order[species.means$species=="Schistes geoffroyi"] <- paste(64) # Mangos
-
-species.means$phylo_order[species.means$species=="Florisuga mellivora"] <- paste(65) # Topazes
-
-species.means$phylo_order[species.means$species=="Eutoxeres condamini"] <- paste(66) 
-species.means$phylo_order[species.means$species=="Eutoxeres aquila"] <- paste(67) 
-species.means$phylo_order[species.means$species=="Glaucis hirsutus"] <- paste(68) 
-species.means$phylo_order[species.means$species=="Threnetes leucurus"] <- paste(69) 
-species.means$phylo_order[species.means$species=="Phaethornis guy"] <- paste(70) 
-species.means$phylo_order[species.means$species=="Phaethornis malaris"] <- paste(71) 
-species.means$phylo_order[species.means$species=="Phaethornis syrmatophorus"] <- paste(72) 
-species.means$phylo_order[species.means$species=="Phaethornis hispidus"] <- paste(73)
-species.means$phylo_order[species.means$species=="Phaethornis philippii"] <- paste(74) 
-species.means$phylo_order[species.means$species=="Phaethornis stuarti"] <- paste(75) 
-species.means$phylo_order[species.means$species=="Phaethornis atrimentalis"] <- paste(76) 
-species.means$phylo_order[species.means$species=="Phaethornis ruber"] <- paste(77) # Hermits
-
-# Consider adding elev_position, BioClim variables, temp and precip PCAs, other stuff
-# If you do want to use this and color by clades, need to manually add in clades 
-
-# Calculate elevation range midpoints and midpoint offsets: 
-species.means$elevmidpt <- species.means$range/2 # Make variable for elevational midpoint for each species 
-species.means$elevmidpt_offset <- species.means$elevmidpt + species.means$elev_min # IMPORTANT!!!!
-# Because midpoints will be plotted with correct numbers but on full elev x-axis scale, midpoints don't align properly w/in 
-# their associated elev ranges (i.e. if range = 1000-2000, midpoint=500, but point will be plotted AT 500 instead of 1,500)
-# To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min #
-# After testing this out, thins look correct: All elev midpoints plot accurately at their midpoints within their elev range (!)
-
-write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_11-09-20.csv")
+# READ IN RASTERS TO AVOID RUNNING ALL CODE ABOVE 
+# Need to run BioClim data above to ensure that peru_chile is a raster brick otherwise you can't extract BioClim
+#peru_chile_bioclim <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd") # read in peru_chile BioClim data
+peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_alt.grd") # elevation raster
+chile_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/chile_alt.grd") # elevation raster
+surrounding_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/surrounding_elevs.grd") 
+# surrounding South American country elevs
+peru_chile_elev <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_alt.grd") 
+  # Peru + Chile elev raster layer 
+south_america_elevs <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/south_america_elevs.grd") # All South American country elevs combined
 
 
-# Now make copy of 'final' dataset that you can finagle to get offset collection elevations to represent sampling: 
-sampling <- final 
+###### PROCESS SPATIAL DATA 
 
-# Add phylo order to this big samping dataset
-sampling$phylo_order <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
+# Create a spatial data frame that has our community localities
+# NAs in the data will create problems; e.g. you won't be able to make spatial data frame 
+locality.coords <- SpatialPointsDataFrame(
+                   matrix(c(final$lon, final$lat), ncol = 2),
+                   data.frame(ID=1:nrow(final),
+                   sampling.locality = final$locality,
+                   sampling.elev = final$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
 
-sampling$phylo_order[sampling$species=="Phlogophilus harterti"] <- paste(.1) # Weird decimals only way to keep order
-sampling$phylo_order[sampling$species=="Oreotrochilus leucopleurus"] <- paste(.2)
-sampling$phylo_order[sampling$species=="Oreotrochilus estella"] <- paste(.3)
-sampling$phylo_order[sampling$species=="Oreotrochilus melanogaster"] <- paste(.4)
-sampling$phylo_order[sampling$species=="Polyonymus caroli"] <- paste(.5)
-sampling$phylo_order[sampling$species=="Chalcostigma herrani"] <- paste(.6)
-sampling$phylo_order[sampling$species=="Chalcostigma ruficeps"] <- paste(.7)
-sampling$phylo_order[sampling$species=="Oreonympha nobilis"] <- paste(.8)
-sampling$phylo_order[sampling$species=="Chalcostigma stanleyi"] <- paste(.9)
-sampling$phylo_order[sampling$species=="Metallura eupogon"] <- paste(10)
-sampling$phylo_order[sampling$species=="Metallura tyrianthina"] <- paste(11)
-sampling$phylo_order[sampling$species=="Metallura phoebe"] <- paste(12)
-sampling$phylo_order[sampling$species=="Lesbia nuna"] <- paste(13)
-sampling$phylo_order[sampling$species=="Lesbia victoriae"] <- paste(14)
-sampling$phylo_order[sampling$species=="Adelomyia melanogenys"] <- paste(15)
-sampling$phylo_order[sampling$species=="Aglaiocercus kingii"] <- paste(16)
-sampling$phylo_order[sampling$species=="Heliangelus amethysticollis"] <- paste(17)
-sampling$phylo_order[sampling$species=="Heliangelus micraster"] <- paste(18)
-sampling$phylo_order[sampling$species=="Heliangelus viola"] <- paste(19)
-sampling$phylo_order[sampling$species=="Sephanoides sephaniodes"] <- paste(20) # Coquettes  
+# Extract mean temp and mean precip for our all localities 
+# Use clipped shape of peru_chile to do this
+# If you use peru_clim it won't grab Chile points; if you use chile_clim it won't grab Peru points
+# With raster brick, need to specify $layer.1 for $bio1; note this name change or you'll get an error
+final$bio1 <- raster::extract(peru_chile$layer.1, locality.coords)
+final$bio2 <- raster::extract(peru_chile$layer.2, locality.coords)
+final$bio3 <- raster::extract(peru_chile$layer.3, locality.coords)
+final$bio4 <- raster::extract(peru_chile$layer.4, locality.coords)
+final$bio5 <- raster::extract(peru_chile$layer.5, locality.coords)
+final$bio6 <- raster::extract(peru_chile$layer.6, locality.coords)
+final$bio7 <- raster::extract(peru_chile$layer.7, locality.coords)
+final$bio8 <- raster::extract(peru_chile$layer.8, locality.coords)
+final$bio9 <- raster::extract(peru_chile$layer.9, locality.coords)
+final$bio10 <- raster::extract(peru_chile$layer.10, locality.coords)
+final$bio11 <- raster::extract(peru_chile$layer.11, locality.coords)
+final$bio12 <- raster::extract(peru_chile$layer.12, locality.coords)
+final$bio13 <- raster::extract(peru_chile$layer.13, locality.coords)
+final$bio14 <- raster::extract(peru_chile$layer.14, locality.coords)
+final$bio15 <- raster::extract(peru_chile$layer.15, locality.coords)
+final$bio16 <- raster::extract(peru_chile$layer.16, locality.coords)
+final$bio17 <- raster::extract(peru_chile$layer.17, locality.coords)
+final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
+final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
-sampling$phylo_order[sampling$species=="Lafresnaya lafresnayi"] <- paste(21)
-sampling$phylo_order[sampling$species=="Aglaeactis castelnaudii"] <- paste(22)
-sampling$phylo_order[sampling$species=="Aglaeactis cupripennis"] <- paste(23)
-sampling$phylo_order[sampling$species=="Heliodoxa leadbeateri"] <- paste(24)
-sampling$phylo_order[sampling$species=="Heliodoxa rubinoides"] <- paste(25)
-sampling$phylo_order[sampling$species=="Heliodoxa aurescens"] <- paste(26)
-sampling$phylo_order[sampling$species=="Boissonneaua matthewsii"] <- paste(27)
-sampling$phylo_order[sampling$species=="Ocreatus underwoodii"] <- paste(28)
-sampling$phylo_order[sampling$species=="Pterophanes cyanopterus"] <- paste(29)
-sampling$phylo_order[sampling$species=="Ensifera ensifera"] <- paste(30)
-sampling$phylo_order[sampling$species=="Coeligena coeligena"] <- paste(31)
-sampling$phylo_order[sampling$species=="Coeligena violifer"] <- paste(32)
-sampling$phylo_order[sampling$species=="Coeligena lutetiae"] <- paste(33)
-sampling$phylo_order[sampling$species=="Coeligena iris"] <- paste(34)
-sampling$phylo_order[sampling$species=="Coeligena torquata"] <- paste(35)
-sampling$phylo_order[sampling$species=="Eriocnemis vestita"] <- paste(36)
-sampling$phylo_order[sampling$species=="Eriocnemis luciani"] <- paste(37)
-sampling$phylo_order[sampling$species=="Eriocnemis aline"] <- paste(38)
-sampling$phylo_order[sampling$species=="Haplophaedia aureliae"] <- paste(39) # Brilliants
+# Now write out this dataset, which represents the near-final version of what you'll want for analysis
+# write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_11-30-20.csv")
+```
 
-sampling$phylo_order[sampling$species=="Patagona gigas"] <- paste(40) # Patagona
 
-sampling$phylo_order[sampling$species=="Calliphlox amethystina"] <- paste(41)
-sampling$phylo_order[sampling$species=="Rhodopis vesper"] <- paste(42) 
-sampling$phylo_order[sampling$species=="Myrtis fanny"] <- paste(43) 
-sampling$phylo_order[sampling$species=="Thaumastura cora"] <- paste(44) 
-sampling$phylo_order[sampling$species=="Myrmia micrura"] <- paste(45) 
-sampling$phylo_order[sampling$species=="Chaetocercus mulsant"] <- paste(46) # Bees 
 
-sampling$phylo_order[sampling$species=="Heliomaster longirostris"] <- paste(47) # Mountain-gems 
+# Spatial coords PCA 
+This is for variable reduction of BioClim variables; look at loadings to understand which directions things work in. 
+Collapse temp and aridity variables and use first PCA axis in models. 
+```{r, message=FALSE, warning=FALSE}
+# Code from McNew et al. 2020 (thanks for the help, SMM!)
+# PCA and scale raster data for temp variables and precip variables
 
-sampling$phylo_order[sampling$species=="Campylopterus villaviscensio"] <- paste(48) 
-sampling$phylo_order[sampling$species=="Campylopterus largipennis"] <- paste(49) 
-sampling$phylo_order[sampling$species=="Klais guimeti"] <- paste(50) 
-sampling$phylo_order[sampling$species=="Amazilia lactea"] <- paste(51) 
-sampling$phylo_order[sampling$species=="Amazilia viridicauda"] <- paste(52) 
-sampling$phylo_order[sampling$species=="Amazilia chionogaster"] <- paste(53) 
-sampling$phylo_order[sampling$species=="Chrysuronia oenone"] <- paste(54) 
-sampling$phylo_order[sampling$species=="Amazilia franciae"] <- paste(55) 
-sampling$phylo_order[sampling$species=="Amazilia amazilia"] <- paste(56) 
-sampling$phylo_order[sampling$species=="Leucippus taczanowskii"] <- paste(57) 
-sampling$phylo_order[sampling$species=="Taphrospilus hypostictus"] <- paste(58) 
-sampling$phylo_order[sampling$species=="Thalurania furcata"] <- paste(59) # Emeralds
+# Temperature PCA using BioClim vars 1-11
+tempPCA <- rasterPCA(subset(peru_chile, 1:11), spca = TRUE) #creates a raster of PCA temp vals
+summary(tempPCA$model) #PC1 has 73.4% of variation and 89.5% w/ PC1+PC2
+tempPCA$model$loadings #
 
-sampling$phylo_order[sampling$species=="Anthracothorax nigricollis"] <- paste(60) 
-sampling$phylo_order[sampling$species=="Doryfera ludovicae"] <- paste(61) 
-sampling$phylo_order[sampling$species=="Colibri cyanotus"] <- paste(62) 
-sampling$phylo_order[sampling$species=="Colibri coruscans"] <- paste(63) 
-sampling$phylo_order[sampling$species=="Schistes geoffroyi"] <- paste(64) # Mangos
+#Pull PC1 and PC2 values for each community and add to dataset
+final$tempPC1 <- raster::extract(tempPCA$map$PC1, locality.coords)
+final$tempPC2 <- raster::extract(tempPCA$map$PC2, locality.coords)
 
-sampling$phylo_order[sampling$species=="Florisuga mellivora"] <- paste(65) # Topazes
+plot(bio11 ~ tempPC1, data=final) #PC1 is highly correlated with mean temp
+plot(bio11 ~ tempPC1, data=final) #PC1 also highly correlated w/ mean temp of coldest quarter 
+# Fairly correlated w/ bio5, bio6
+ 
+## -------
 
-sampling$phylo_order[sampling$species=="Eutoxeres condamini"] <- paste(66) 
-sampling$phylo_order[sampling$species=="Eutoxeres aquila"] <- paste(67) 
-sampling$phylo_order[sampling$species=="Glaucis hirsutus"] <- paste(68) 
-sampling$phylo_order[sampling$species=="Threnetes leucurus"] <- paste(69) 
-sampling$phylo_order[sampling$species=="Phaethornis guy"] <- paste(70) 
-sampling$phylo_order[sampling$species=="Phaethornis malaris"] <- paste(71) 
-sampling$phylo_order[sampling$species=="Phaethornis syrmatophorus"] <- paste(72) 
-sampling$phylo_order[sampling$species=="Phaethornis hispidus"] <- paste(73)
-sampling$phylo_order[sampling$species=="Phaethornis philippii"] <- paste(74) 
-sampling$phylo_order[sampling$species=="Phaethornis stuarti"] <- paste(75) 
-sampling$phylo_order[sampling$species=="Phaethornis atrimentalis"] <- paste(76) 
-sampling$phylo_order[sampling$species=="Phaethornis ruber"] <- paste(77) # Hermits
+# Precipitation PCA using BioClim vars 12-19
+precipPCA <- rasterPCA(subset(peru_chile, 12:19), spca = TRUE)
+summary(precipPCA$model) #PC1 has 79.8% of variation and 89.1% of variation w/ PC1+PC2
+precipPCA$model$loadings #
 
-#### playing around, this needs to go in plots and figs script
+# Add PC1 and PC2 values to dataset 
+final$precipPC1 <- raster::extract(precipPCA$map$PC1, locality.coords)
+final$precipPC2 <- raster::extract(precipPCA$map$PC2, locality.coords)
 
-#sort by complete ENSM magnitude (descending)
-species.means$phylo_order <- as.numeric(species.means$phylo_order) # Need to make this numeric
-sampling$phylo_order <- as.numeric(sampling$phylo_order) # Need to make this numeric
-# species.means$range <- as.numeric(species.means$range)
+plot(bio12 ~ precipPC1, data=final) # Moderate correlation between PC1 and mean annual precip
+# Overal not many correlations here 
+plot(bio19 ~ tempPC2, data=final) 
 
-# Species elevational ranges in order of phylogeny 
-p1 <- ggplot(data=species.means, aes(y=range, x=reorder(phylo_order, -phylo_order))) + # Add fill=Clade to color by clade 
-            # x=reorder is saying "reorder common_name on x-axis by magnitude of elev shift in DESCENDING"
-      # geom_bar(stat="identity", position=position_dodge(), width=0.2) + # trick: don't plot these! 
-     # geom_line(aes(ymin=elev_min, ymax=elev_max)) +
-      geom_errorbar(aes(ymin=elev_min, ymax=elev_max), width=0.5) + # Specifies exact elev range; width controls error bar caps
-      geom_point(data=sampling, position=position_jitter(width=0.08, height=0.5), # SAMPLING POINTS, jittered 
-                 # WIDTH=height and HEIGHT=width w/ coordflip
-                 aes(y=elev, x=reorder(phylo_order, -phylo_order)), 
-                 shape=16, color="gray28", alpha=0.5, size=1.0) + # or gray28 for a bit lighter? 
-      geom_point(aes(y=elevmidpt_offset, x=reorder(phylo_order, -phylo_order)), # ELEVATION MIDPOINT OF RANGE 
-                 shape=18, color="firebrick1", size=1.4) +
-      coord_flip() + # This flips x and y axes
-      scale_y_continuous(position="right") + # Because of coord flip, "right" moves x-axis to top of plot 
-      theme(axis.text.x=element_text(angle=0, hjust=0.5),
-           panel.grid.major=element_blank(), 
-           panel.grid.minor=element_blank(),
-           panel.background = element_blank()) +
-      labs(title="",x="", y = "Elevational Range (m)") + # y = species in phylo order 
-      theme(plot.title = element_text(face="bold")) + # This makes panel header bold 
-      # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-      theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=8))
-print(p1)
-ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_09-17-20.pdf", height=6.35, width=2.8, units="in")
-# Same units as phylogeny for easy wrangling? 
+# Write out PCA rasters for later map generation:
+# writeRaster(tempPCA$map$PC1, "tempPC1.grd", overwrite=TRUE)
+# writeRaster(tempPCA$map$PC2, "tempPC2.grd", overwrite=TRUE)
+# writeRaster(precipPCA$map$PC1, "precipPC1.grd", overwrite=TRUE)
+# writeRaster(precipPCA$map$PC2, "precipPC2.grd", overwrite=TRUE)
 
-#####
-# TRIAL AND ERROR NOTES ON PLOTTING ELEV RANGES: 
-# geom_pointrante() plots the midpoint of your line segment IF the ymin and ymax are -/+ some number from the y variable
-# ymin and ymax are meant to represent standard deviation, so must be manipulating y variable somehow
-# If you do like I need to and plot ymin and ymax and entirely separate variables, the "midpoint" of geom_pointrange is off 
-# Example of geom_pointrange working correctly: 
-# ggplot(data=species.means) +
-#   aes(
-#    x = phylo_order, # reorder(phylo_order, -phylo_order),
-#    y = range,
-#    ymin = range-500, # BUT, if I specify ymin=elev_min and ymax=elev_max, points are all wonky 
-#    ymax = range+500
-#   ) +
-#   geom_pointrange()
 
-# Help on coord_flip and moving axis positions after coord_flip:
-# https://stackoverflow.com/questions/63863398/in-ggplot2-how-can-i-move-the-x-axis-on-top-in-this-case-then-rotate-the-axes-w
-# change geom_bar style; make thin w/ caps at ends
+# Look at distributions of BioClim variables 
+# This and other prelim qqPlots indicated some PC variables being off at tails; see HumBlood_Modeling.Rmd for transformations
+# p <- ggpairs(subset(final, select = c(elev, elev_position, mass, hb, hct, trbc, mcv, mch, mchc, tempPC1, tempPC2, precipPC1, precipPC2))) 
+# print(p)
+```
+
+
+WORLDCLIM CODEBOOK 
+```
+
+They are coded as follows:
+
+BIO1 = Annual Mean Temperature
+BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))
+BIO3 = Isothermality (BIO2/BIO7) (* 100)
+BIO4 = Temperature Seasonality (standard deviation *100)
+BIO5 = Max Temperature of Warmest Month
+BIO6 = Min Temperature of Coldest Month
+BIO7 = Temperature Annual Range (BIO5-BIO6)
+BIO8 = Mean Temperature of Wettest Quarter
+BIO9 = Mean Temperature of Driest Quarter (*transformed)
+BIO10 = Mean Temperature of Warmest Quarter
+BIO11 = Mean Temperature of Coldest Quarter
+BIO12 = Annual Precipitation
+BIO13 = Precipitation of Wettest Month
+BIO14 = Precipitation of Driest Month (*transformed)
+BIO15 = Precipitation Seasonality (Coefficient of Variation)
+BIO16 = Precipitation of Wettest Quarter
+BIO17 = Precipitation of Driest Quarter (*transformed)
+BIO18 = Precipitation of Warmest Quarter
+BIO19 = Precipitation of Coldest Quarter
 
 ```
 
-Helpful data summarizing tips: http://kbroman.org/datacarpentry_R_2016-06-01/03-dplyr.html
-
-
-
 # READ OUT FINAL DATASETS FOR DOWNSTREAM ANALYSES: 
-Since Patagona is a huge body size outlier, make a non-Patagona subset to be able to do some body size comparisons below
+Optional code for making a non-Patagona subset (because Patagona is a body size outlier)
 ```{r, message=FALSE, warning=FALSE}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_11-09-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_12-01-20.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
-final.nopgig <- final[-which(final$species == "Patagona gigas"),] # 161 Patagona observations 
-write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_11-09-20.csv")
+final.nopgig <- final[-which(final$species == "Patagona gigas"),]
+write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_12-01-20.csv")
 ```
 
 
