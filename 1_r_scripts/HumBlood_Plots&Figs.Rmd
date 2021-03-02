@@ -94,7 +94,7 @@ final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv"
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
-final.nopgig <- read.csv("HumBlood.final.nopgig_12-01-20.csv")
+final.nopgig <- read.csv("HumBlood.final.nopgig_03-01-21.csv")
 final.nopgig <- final.nopgig[ , !(colnames(final.nopgig) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
@@ -245,7 +245,7 @@ hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
 
 
 # PLOTS OF BLOOD CHARACTERISTICS WITH ELEVATION 
-Figure 2
+Figure 2 - 6-panel fig w/ relationship between predictors and elevation 
 ```{r}
 # Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
 
@@ -267,7 +267,7 @@ Figure 2
   labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="[Hb] g/dl") +
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") + 
+  theme(legend.position = "right") + 
   ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -289,7 +289,7 @@ ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb.pdf", height=7, width=9, uni
   labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="Hct (%)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") +
+  theme(legend.position = "right") +
   ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -311,7 +311,7 @@ ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct.pdf", height=7, width=9, un
      x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
     # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") +
+  theme(legend.position = "right") +
   ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -329,10 +329,10 @@ ggsave(p3, filename="p3_ScatterplotBasic_Elev_by_TRBC.pdf", height=7, width=9, u
 #  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
   geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="MCV (fl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") +
+  theme(legend.position = "right") +
   ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -356,7 +356,7 @@ ggsave(p4, filename="p4_ScatterplotBasic_Elev_by_MCV.pdf", height=7, width=9, un
   theme_classic() + 
   labs(x="Elevation (m)", y="MCH (pg)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") +
+  theme(legend.position = "right") +
   ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -377,7 +377,7 @@ ggsave(p5, filename="p5_ScatterplotBasic_Elev_by_MCH.pdf", height=7, width=9, un
   theme_classic() + 
   labs(x="Elevation (m)", y="MCHC (g/dl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "none") +
+  theme(legend.position = "right") +
   ggtitle("F") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -390,42 +390,353 @@ ggsave(p6, filename="p6_ScatterplotBasic_Elev_by_MCHC.pdf", height=7, width=9, u
 
 library(patchwork)
 # Combine all plots to make one 6-panel figure:
-Fig2_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2)
-ggsave(Fig2_BloodVElev_6panel, filename = "Fig2_BloodVElev_6panel.pdf", bg="transparent", height=8, width=7, units="in")
+# Fig2_BloodVElev_6panel <- ((p1 + p2) / (p3 + p4) / (p5 + p6) +  # the / literally means put p14 on top of p15
+#                                   plot_layout(guides = "collect")) # "collates" and combines one common legend 
+#                                   # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
+# plot(Fig2_BloodVElev_6panel)
+# ggsave(Fig2_BloodVElev_6panel, filename = "Fig2_BloodVElev_6panel_03-01-21.pdf", bg="transparent", height=7, width=7, units="in")
+# This looks ok, but horizontal format (below) is better
 
-# To really make this better, need to adjust individual dimensions of panels - cut width by 1"
-# Figure out how to add legend while keeping plot length the same in panel D (see comment below)
-# Need to increase space on right-hand side of MCV plot so legend is offset more and doesn't take up plot space
-# e.g. you want all plots to take up the same amount of space 
-# Then I went ahead and took legend off altogether; need to figure out how to add this back in
-# Need to adjust individual y-axes 
+# Alternative layout option = BETTER, USE THIS ONE: 
+Fig2_BloodVElev_6panel_v2 <- (p1 + p2 + p3 + p4 + p5 + p6 + plot_layout(guides = "collect"))
+plot(Fig2_BloodVElev_6panel_v2)
+ggsave(Fig2_BloodVElev_6panel_v2, filename = "Fig2_BloodVElev_6panel_v2_03-01-21.pdf", bg="transparent", height=7, width=11, units="in")
+# Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
 
+# Fig2_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2) # Old method 
 ```
 
 Use patchwork to arrange plots: https://gotellilab.github.io/GotelliLabMeetingHacks/NickGotelli/ggplotPatchwork.html
 Many say this is a better alternative to grid.arrange() 
+
+Tutorial to using patchwork to make plots: https://patchwork.data-imaginist.com/articles/guides/layout.html
+
+
+# PLOTS FOR RELATIONSHIPS AMONG BLOOD PARAMETERS
+Quick workup of predictors: 
+```{r}
+# full dataset
+p <- ggpairs(subset(final, select = c(elev, mass, hb, hct, trbc, mcv, mch, mchc))) 
+print(p)
+```
+
+Mock up of Figure 3, relationships among blood parameters 
+See Hawkey et al. 1991 for inspiration.
+```{r}
+library(viridis)
+
+# Panel A: RBC and MCV - redo of plot in Hawkey et al. 1991
+(p12 <- ggplot(final, aes(x=mcv, y=trbc)) +
+    #  scale_colour_magma(discrete=FALSE) +
+# p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=0.8, colour="darkred") +
+    # scale_color_manual(values=hum_colors) +
+    # stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
+    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
+    ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+)
+ggsave(p12, filename="p12_RBC_vs_MCV_Scatterplot.pdf", height=7, width=9, units="in") 
+
+# Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
+# Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
+# Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
+
+
+# Panel B: MCH and MCV - redo of plot in Hawksey et al. 1991
+(p13 <- ggplot(final, aes(x=mcv, y=mch)) +
+# p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=0.8, colour="darkred") +
+    # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
+    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y="MCH (pg)", 
+         x="MCV (fl)") + # fix RBC title/notation
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
+    ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.0,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+)
+ggsave(p13, filename="p13_RBC_vs_MCH_Scatterplot.pdf", height=7, width=9, units="in") 
+
+library(patchwork)
+
+# Combine plots to make one 2-panel figure:
+Fig3_BloodComparison_2panel <- (p12 / p13 +  # the / literally means put p14 on top of p15
+                                  plot_layout(guides = "collect")) # "collates" and combines one common legend 
+                                  # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
+plot(Fig3_BloodComparison_2panel)
+# NOTE: THERE IS NO LEGEND IN THIS FIGURE, SO NO LEGEND APPEARS WHEN YOU PLOT_LAYOUT "COLLECT"
+
+ggsave(Fig3_BloodComparison_2panel, filename = "Fig3_BloodComparison_2panel_03-01-21.pdf", bg="transparent", height=6, width=5, units="in")
+
+# Old method (but I was having trouble getting common legend
+# Fig3_BloodComparison_2panel <- grid.arrange(p12,
+#                                            p13,
+#                                            ncol=1))
+```
+
+
+Fig 3 but colored by elevation 
+```{R}
+# Panel A: RBC and MCV - redo of plot in Hawkey et al. 1991
+(p14 <- ggplot(final, aes(x=mcv, y=trbc, colour=elev)) +
+      scale_colour_viridis(option="magma", discrete=FALSE) +
+     # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=0.8) +
+    # scale_color_manual(values=hum_colors) +
+    # stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
+    #geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
+    ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+)
+ggsave(p14, filename="p14_RBC_vs_MCV_Scatterplot_ColoredByElev.pdf", height=7, width=9, units="in") 
+
+# Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
+# Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
+# Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
+
+
+# Panel B: MCH and MCV - redo of plot in Hawksey et al. 1991
+(p15 <- ggplot(final, aes(x=mcv, y=mch, colour=elev)) +
+    scale_colour_viridis(option="magma", discrete=FALSE) +
+    # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=0.8) +
+    # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
+    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y="MCH (pg)", 
+         x="MCV (fl)") + # fix RBC title/notation
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
+    ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.0,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+)
+ggsave(p15, filename="p15_RBC_vs_MCH_Scatterplot_ColoredByElev.pdf", height=7, width=9, units="in") 
+
+library(patchwork)
+
+# Combine plots to make one 2-panel figure:
+Fig3_BloodComparison_2panel_v2 <- (p14 / p15 +  # the / literally means put p14 on top of p15
+                                  plot_layout(guides = "collect")) # "collates" and combines one common legend 
+                                  # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
+plot(Fig3_BloodComparison_2panel_v2)
+
+ggsave(Fig3_BloodComparison_2panel_v2, filename = "Fig3_BloodComparison_2panel_ColoredByElev_03-01-21.pdf", bg="transparent", height=6, width=5, units="in")
+
+# Old method for combining plots, but I was having trouble getting a common legend
+# Fig3_BloodComparison_2panel_v2 <- grid.arrange(p14,
+#                                                p15,
+#                                                ncol=1)
+
+```
+
+
+# PLOTS OF BLOOD CHARACTERISTICS WITH ELEVATION_POSITION 
+****THIS IS FIG. 2 redone w/ elev position! 
+```{r}
+# Scatterplot: Hb v. elev 
+(p16 <- ggplot(final, aes(x=elev_position, y=hb, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="[Hb] g/dl") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p16, filename="p16_ScatterplotBasic_ElevPos_by_Hb.pdf", height=7, width=9, units="in")
+# The 166 rows of missing values come from many NA Hb values; don't worry about these 
+
+# Scatterplot: Hct v. elev
+(p17 <- ggplot(final, aes(x=elev_position, y=hct, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  # scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="Hct (%)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p17, filename="p17_ScatterplotBasic_ElevPosition_by_Hct.pdf", height=7, width=9, units="in")
+
+# Scatterplot: TRBC v. elev
+(p18 <- ggplot(final, aes(x=elev_position, y=trbc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+   labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p18, filename="p18_ScatterplotBasic_ElevPosition_by_TRBC.pdf", height=7, width=9, units="in")
+
+# Scatterplot: mcv v. elev
+(p19 <- ggplot(final, aes(x=elev_position, y=mcv, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation Position", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCV (fl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p19, filename="p19_ScatterplotBasic_ElevPosition_by_MCV.pdf", height=7, width=9, units="in")
+
+# Scatterplot: MCH v. elev_pos
+(p20 <- ggplot(final, aes(x=elev_position, y=mch, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation Position", y="MCH (pg)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p20, filename="p20_ScatterplotBasic_ElevPosition_by_MCH.pdf", height=7, width=9, units="in")
+
+# Scatterplot: MCHC v. elev_pos
+(p21 <- ggplot(final, aes(x=elev_position, y=mchc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation Position", y="MCHC (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  ggtitle("F") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.2,0.2,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p21, filename="p21_ScatterplotBasic_ElevPosition_by_MCHC.pdf", height=7, width=9, units="in")
+
+
+library(patchwork)
+# Combine all plots to make one 6-panel figure:
+# Fig2_BloodVElev_6panel <- ((p1 + p2) / (p3 + p4) / (p5 + p6) +  # the / literally means put p14 on top of p15
+#                                   plot_layout(guides = "collect")) # "collates" and combines one common legend 
+#                                   # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
+# plot(Fig2_BloodVElev_6panel)
+# ggsave(Fig2_BloodVElev_6panel, filename = "Fig2_BloodVElev_6panel_03-01-21.pdf", bg="transparent", height=7, width=7, units="in")
+# This looks ok, but horizontal format (below) is better
+
+# Alternative layout option = BETTER, USE THIS ONE: 
+Fig_BloodVElevPosition_6panel <- (p16 + p17 + p18 + p19 + p20 + p21 + plot_layout(guides = "collect"))
+plot(Fig_BloodVElevPosition_6panel)
+ggsave(Fig_BloodVElevPosition_6panel, filename = "Fig_BloodVElevPosition_6panel_03-01-21.pdf", bg="transparent", height=7, width=11, units="in")
+# Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
+```
+
+
+
+
+
+
 
 
 # Trial with species mean values 
 If you want to do this, need to read in species mean value dataset from modeling rmd file 
 ```{r}
 # Scatterplot: Hb v. elev 
-(p <- ggplot(species.means, aes(x=mean_mass, y=mean_hb, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.5, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = peru_chimborazo) +
- # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # Don't jitter; creates the appearance of duplicate points
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x="Elevation (m)", y="[Hb] g/dl") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
+# (p <- ggplot(species.means, aes(x=mean_mass, y=mean_hb, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+#   geom_point(size=1.5, alpha=0.8) +
+#   #scale_colour_viridis(discrete=TRUE) + 
+#   scale_color_manual(values = hum_colors) +
+#  # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # Don't jitter; creates the appearance of duplicate points
+#   geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+#   theme_classic() + 
+#   labs(x="Mass (g)", y="[Hb] g/dl") +
+#        # theme(axis.text.x = element_text(hjust = 1)) +
+#   theme(legend.position = "right") + 
+#   ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+#   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+#          plot.title = element_text(face="bold")) + # This makes panel header bold 
+#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+#   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+#  )
 #ggsave(p, filename="p1_ScatterplotBasic_Elev_by_Hb.pdf", height=7, width=9, units="in")
 ```
 
@@ -684,10 +995,6 @@ ggsave(p11, filename="p11_Hb_vs_Elev_Scatterplot_PO2GeneralistSpecialistONLY.pdf
 # purple orchid: #853FCD; R133, G63, B205
 
 
-
-
-
-
 # Elev and Hb, faceted by species 
 (p2 <- ggplot(final, aes(x=elev, y=hb)) + 
        facet_wrap(~species) +   # ok, way too many species right now to see any sort of clear pattern
@@ -704,9 +1011,6 @@ ggsave(p11, filename="p11_Hb_vs_Elev_Scatterplot_PO2GeneralistSpecialistONLY.pdf
        theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
         )
 #ggsave(p2, filename="m1.p1_TbMin_Vs_TaMin_Scatterplot_Simple.pdf", height=7, width=9, units="in")
-
-
-
 
 # Boxplot of Hb v. sex w/ elevation
 boxplot (hb ~ sex, data=final, xlab="Elevation (m)", ylab="[Hb] (g/dl)", boxwex=0.3, ylim=c(14,26))
@@ -792,73 +1096,8 @@ print(p)
 
 
 
-# PLOTS FOR RELATIONSHIPS BETWEEN BLOOD PARAMETERS
-```{r}
-library(viridis)
-
-# RBC and MCV - redo of plot in Hawksey et al. 1991
-(p12 <- ggplot(final, aes(x=mcv, y=trbc)) +
-# p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(size=2, alpha=0.8, colour="darkred") +
- #   scale_color_manual(values=hum_colors) +
-  #   scale_color_viridis(discrete=TRUE) +
-  #  stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
-  #  geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y="RBC x 10^6", x="MCV (fl)") + # fix RBC title/notation
-    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-#    scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-    theme_classic() +
-    theme(legend.position = "none") + # Note: orange = spring, blue = winter 
-   # ggtitle("(a)") + # Assign panel number/header
-  #  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-  #        plot.title = element_text(face="bold")) + # This makes panel header bold 
-    # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-)
-ggsave(p12, filename="p12_RBC_vs_MCV_Scatterplot.pdf", height=7, width=9, units="in") 
-
-# Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
-# Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
-# Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
-
-
-# MCH and MCV - redo of plot in Hawksey et al. 1991
-(p13 <- ggplot(final, aes(x=mcv, y=mch)) +
-# p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(size=2, alpha=0.8, colour="darkred") +
-#    stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
-  # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y="MCH (pg)", x="MCV (fl)") + # fix RBC title/notation
-    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-#    scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-    theme_classic() +
-    theme(legend.position = "none") + # Note: orange = spring, blue = winter 
-   # ggtitle("(a)") + # Assign panel number/header
-  #  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-  #        plot.title = element_text(face="bold")) + # This makes panel header bold 
-    # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-)
-ggsave(p13, filename="p13_RBC_vs_MCH_Scatterplot.pdf", height=7, width=9, units="in") 
-
-library(patchwork)
-# Combine all plots to make one 6-panel figure:
-Fig_BloodComparison_2panel <- grid.arrange(p12,
-                                           p13,
-                                           ncol=2)
-# To really make this better, need to adjust individual dimensions of panels
-# Need to increase space on right-hand side of MCV plot so legend is offset more and doesn't take up plot space
-# e.g. you want all plots to take up the same amount of space 
-# Then I went ahead and took legend off altogether; need to figure out how to add this back in
-# Need to adjust individual y-axes 
-# May help to scale x-axis to max value is right-hand most value, make elev increase in increments of 500?
-ggsave(Fig_BloodComparison_2panel, filename = "Fig_BloodComparison_2panel.pdf", bg="transparent", height=5, width=12, units="in")
-
-```
-
-
-
 # Plot for Chris Brown Bag: 
+If you want to plot this, read in final.hct from modeling file
 ```{r}
 # Scatterplot: Hct v. elev
 (bbag_plot <- ggplot(final.hct, aes(x=elev_position, y=hct, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
