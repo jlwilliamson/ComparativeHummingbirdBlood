@@ -106,7 +106,7 @@ source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/
 # Don't need to load if already loaded from another script 
 # Unlike tree file, you want all categorical variables to be factors for modeling
 # final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_08-26-20.csv", stringsAsFactors = TRUE)
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_12-01-20.csv", stringsAsFactors = TRUE)
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
 
@@ -156,8 +156,8 @@ final$month <- as.factor(final$month)
 final$locality <- as.factor(final$locality)
 final$department <- as.factor(final$department)
 final$Clade <- as.factor(final$Clade)
-final$range_class <- as.factor(final$range_class)
-final$po2_class <- as.factor(final$po2_class)
+#final$range_class <- as.factor(final$range_class)
+#final$po2_class <- as.factor(final$po2_class)
 ```
 
 
@@ -308,32 +308,32 @@ i.e. if we just used na.omit to be able to run models smoothly, we'd lose hundre
 ```{R}
 # NOTE: If we decide to move forward with wing loading data, include wl data in each of these subsets.
 
-# Hb subset - 991 observations
+# Hb subset - 988 observations
 final.hb <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hb, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.hb <- na.omit(final.hb)
 str(final.hb) # looks good, nothing to coerce 
 
-# Hct subset - 1092 observations
+# Hct subset - 1086 observations
 final.hct <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hct, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.hct <- na.omit(final.hct)
 str(final.hct) # looks good, nothing to coerce 
 
-# trbc subset - 754 observations
+# trbc subset - 748 observations
 final.trbc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, trbc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.trbc <- na.omit(final.trbc)
 str(final.trbc) # looks good, nothing to coerce
 
-# mcv subset - 738 observations
+# mcv subset - 732 observations
 final.mcv <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z, mcv.log)) 
 final.mcv <- na.omit(final.mcv)
 str(final.mcv) # looks good, nothing to coerce 
 
-# mch subset - 706 observations
+# mch subset - 703 observations
 final.mch <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mch, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z, mch.log)) 
 final.mch <- na.omit(final.mch)
 str(final.mch) # looks good, nothing to coerce 
 
-# mchc subset - 927 observations
+# mchc subset - 924 observations
 final.mchc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mchc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.mchc <- na.omit(final.mchc)
 str(final.mchc) # looks good, nothing to coerce 
@@ -416,14 +416,19 @@ names(just.hb) <- hb.contmap$species # Add species names from the hb.contmap fil
 View(just.hb); class(just.hb); typeof(just.hb) # Check data format and structure 
 
 # Create hemoglobin continuous trait phylo object 
-hb.cont.tree <- contMap(tree.hb, just.hb, plot=TRUE) 
+hb.cont.tree <- contMap(tree.hb, just.hb, plot=TRUE, outline=FALSE) 
+# hb.cont.tree <- setMap(hb.cont.tree, colors=c("#280a52","#e9612c","#f7d03d")) # Set colors: purple, green, yellow
+#n <- length(hb.cont.tree$cols); n # Find length of colors in contmap 
 
-# Save file to pdf and adjust aesthetics 
-pdf(file="hemoglobin.contmap.pdf", width=6, height=10)
-plot(hb.cont.tree, lwd=3, fsize=0.8) # setting xlim changes actual plot dimensions, NOT trait value scale 
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="hemoglobin.contmap.pdf", width=6, height=6)
+#hb.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(hb.cont.tree, just.hb, res=200, fsize=0.4, lwd=2, leg.txt="Mean [Hb]", outline=FALSE) # Manually plot using phytools
+#par(mar=c(5.1, 4.1, 0, 2.1)) ## reset margins to default
 # Use outline=FALSE to remove black outlines from branches 
+#title("[Hb]", xpd=TRUE, ) #Add a title manually 
+#plot(hb.cont.tree, lwd=4, fsize=0.5) # setting xlim changes actual plot dimensions, NOT trait value scale 
 dev.off()
-#errorbar.contMap(obj)
 
 # Quick test with medians - Chauncey pointed out that medians might be more appropriate and less skewed towards outliers. 
 # This quick test reveals essentially no difference between mean and median values; convinces me that there really is no signal.
@@ -439,6 +444,7 @@ dev.off()
 # P. ruber: lowest value in dataset and n=1
 # Others? 
 
+
 ###
 
 # HCT 
@@ -446,15 +452,21 @@ hct.contmap <- final.hct %>% group_by(species) %>% summarise(hct = mean(hct))
 just.hct <- hct.contmap$hct
 names(just.hct) <- hct.contmap$species 
 View(just.hct); class(just.hct); typeof(just.hct) 
-hct.cont.tree <- contMap(tree.hct, just.hct, plot=TRUE) # Make contmap tree 
-pdf(file="hematocrit.contmap.pdf", width=6, height=10) # Write plot to pdf 
-plot(hct.cont.tree, lwd=3, fsize=0.8) 
+
+# Make contmap object
+hct.cont.tree <- contMap(tree.hct, just.hct, plot=TRUE, outline=FALSE) 
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="hematocrit.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(hct.cont.tree, just.hct, res=200, fsize=0.4, lwd=2, leg.txt="Mean Hct", outline=FALSE) # Manually plot using phytools
 dev.off()
 
-# If removing "sampling outliers", consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hct dataset: 
 # P. stuarti: highest value in dataset and n=1
 # P. ruber: lowest value in dataset and n=1
 # Others? 
+
 
 ###
 
@@ -463,15 +475,21 @@ trbc.contmap <- final.trbc %>% group_by(species) %>% summarise(trbc = mean(trbc)
 just.trbc <- trbc.contmap$trbc
 names(just.trbc) <- trbc.contmap$species 
 View(just.trbc); class(just.trbc); typeof(just.trbc) 
-trbc.cont.tree <- contMap(tree.trbc, just.trbc, plot=TRUE) # Make contmap tree 
-pdf(file="trbc.contmap.pdf", width=6, height=10) # Write plot to pdf 
-plot(trbc.cont.tree, lwd=3, fsize=0.8) 
+
+# Make contmap object
+trbc.cont.tree <- contMap(tree.trbc, just.trbc, plot=TRUE, outline=FALSE) 
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="trbc.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(trbc.cont.tree, just.trbc, res=200, fsize=0.4, lwd=2, leg.txt="Mean TRBC", outline=FALSE) # Manually plot using phytools
 dev.off()
 
 # If removing "sampling outliers", consider dropping from Hb dataset: 
 # P. atrimentalis: lowest value in dataset and n=1
 # Heliomaster longirostris: highest value in dataset and n=1
 # Others? (Campylopterus villavicensio has 2nd highest value and n=1 sampling)
+
 
 ###
 
@@ -480,9 +498,14 @@ mcv.contmap <- final.mcv %>% group_by(species) %>% summarise(mcv = mean(mcv))
 just.mcv <- mcv.contmap$mcv
 names(just.mcv) <- mcv.contmap$species 
 View(just.mcv); class(just.mcv); typeof(just.mcv) 
-mcv.cont.tree <- contMap(tree.mcv, just.mcv, plot=TRUE) # Make contmap tree 
-pdf(file="mcv.contmap.pdf", width=6, height=10) # Write plot to pdf 
-plot(mcv.cont.tree, lwd=3, fsize=0.8) 
+
+# Make contmap object
+mcv.cont.tree <- contMap(tree.mcv, just.mcv, plot=TRUE, outline=FALSE) 
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="mcv.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(mcv.cont.tree, just.mcv, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCV", outline=FALSE) # Manually plot using phytools
 dev.off()
 
 # If removing "sampling outliers", consider dropping from Hb dataset: 
@@ -498,9 +521,14 @@ mch.contmap <- final.mch %>% group_by(species) %>% summarise(mch = mean(mch))
 just.mch <- mch.contmap$mch
 names(just.mch) <- mch.contmap$species 
 View(just.mch); class(just.mch); typeof(just.mch) 
-mch.cont.tree <- contMap(tree.mch, just.mch, plot=TRUE) # Make contmap tree 
-pdf(file="mch.contmap.pdf", width=6, height=10) # Write plot to pdf 
-plot(mch.cont.tree, lwd=3, fsize=0.8) 
+
+# Make contmap object
+mch.cont.tree <- contMap(tree.mch, just.mch, plot=TRUE, outline=FALSE)
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="mch.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(mch.cont.tree, just.mch, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCH", outline=FALSE) # Manually plot using phytools
 dev.off()
 
 # If removing "sampling outliers", consider dropping from Hb dataset: 
@@ -516,9 +544,14 @@ mchc.contmap <- final.mchc %>% group_by(species) %>% summarise(mchc = mean(mchc)
 just.mchc <- mchc.contmap$mchc
 names(just.mchc) <- mchc.contmap$species 
 View(just.mchc); class(just.mchc); typeof(just.mchc) 
-mchc.cont.tree <- contMap(tree.mchc, just.mchc, plot=TRUE) # Make contmap tree 
-pdf(file="mchc.contmap.pdf", width=6, height=10) # Write plot to pdf 
-plot(mchc.cont.tree, lwd=3, fsize=0.8) 
+
+# Make contmap object
+mchc.cont.tree <- contMap(tree.mchc, just.mchc, plot=TRUE, outline=FALSE) 
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="mchc.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(mchc.cont.tree, just.mchc, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCHC", outline=FALSE) # Manually plot using phytools
 dev.off()
 
 # If removing "sampling outliers", consider dropping from Hb dataset: 
@@ -527,12 +560,18 @@ dev.off()
 # Similarly, Klais is lowest and has n=3, so leave. 
 
 # length value in legend = how many millions of years the legend bar represents (or whatever units are on tree edge lengths)
+
+# Lamely, moosh all these together into an Illustrator figure to make Figure S1
 ```
 
 Helpful continuous trait mapping tutorials: 
 Phytoosl contMap() tutorial: http://www.phytools.org/***SanJuan2016/ex/15/Plotting-methods.html
 
 Info on what trait value axis means, how to change colors of branches, and how to change "trait value" header in legend axis title: http://blog.phytools.org/2015/06/customizing-your-contmap-style.html
+
+This is a good one for plotting multiple phylogenies: https://qcbs.ca/wp-content/uploads/2018/03/phylo_plot_02_03_2018.html
+
+Changing color ramp in contmap: http://blog.phytools.org/2014/05/changing-color-ramp-in-contmap-or.html
 
 
 # Tests of phylogenetic signal 

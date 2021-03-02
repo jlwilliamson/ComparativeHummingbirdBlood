@@ -136,6 +136,18 @@ final$Clade <- factor(final$Clade
 # purple - 9E6EAE (hermits)
 
 # HUMMINGBIRD COLORS 
+hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
+                 "#9E9285", # brown (Brilliant)
+                 "#EE4024", # red (Patagona)
+                 "#F4CD0B", # Gold (Bee)
+                 "#E786B7", # pink (Mountain-gem)
+                 "#97B25B", # green (Emerald)  
+                 "#F79E0F", # orange (Mango)
+                 "#03446B", # navy blue (Topaz)
+                 "#916EF9" # purple (Hermit)
+                    )
+
+# Old Hum colors 
 # hum_colors <- c( "#4FBBB6", # Turquoise (Coquette)
 #                  "#A5A5AC", # gray (Brilliant)
 #                  "#EE4024", # red (Patagona)
@@ -146,18 +158,6 @@ final$Clade <- factor(final$Clade
 #                  "#00A5CB", # blue (Topaz)
 #                  "#9E6EAE" # purple (Hermit)
 #                             )
-
-# revised 
-hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
-                 "#9E9285", # brown (Brilliant)
-                 "#EE4024", # red (Patagona)
-                 "#F4CD0B", # Gold (Bee)
-                 "#E786B7", # pink (Mountain-gem)
-                 "#97B25B", # green (Emerald)  
-                 "#F79E0F", # orange (Mango)
-                 "#03446B", # navy blue (Topaz)
-                 "#916EF9" # purple (Hermit)
-                            )
 
 # Oreotrochilus chimborazo color palette: 
 # Deep purple: #6E1EDC
