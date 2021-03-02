@@ -2,7 +2,10 @@
 title: "Comparative Hummingbird Blood - Phylogeny"
 author: "Jessie Williamson"
 date: "7/19/2020"
-output: html_document
+output:
+  md_document:
+    variant: markdown_github
+
 ---
 
 #### 
@@ -1289,6 +1292,14 @@ tree.mchc$tip.label # 73 tips
 ```
 
 
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
+
+###########
+
+## END 
 
 
 
@@ -1316,3 +1327,6 @@ CUT NOTES:
 
 # For Oreotrochilus, I calculated divergence times from Sornoza-Molina et al. 2018, estimated at 0.145. 
 # Then I adjusted the branch length leading to O. estella and O. melanogaster until tips aligned. 
+
+
+

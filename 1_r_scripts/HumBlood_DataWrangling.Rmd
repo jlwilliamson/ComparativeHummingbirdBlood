@@ -87,7 +87,7 @@ library(phytools)
 
 # Set up directory structure with here() 
 ```{R, message=FALSE, warning=FALSE}
-# rm(list=ls(all=TRUE)) # clear workspace 
+rm(list=ls(all=TRUE)) # clear workspace 
 # setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 here::here() # This will enable me to build a path to top level of my project file every time I use it. 
 ```
@@ -580,7 +580,7 @@ full <- full[-which(full$trbc < 1.8 | full$trbc > 10.2),] # -7 observations
 # "assessment of abnormal values of MCV, MCH, and MCHC has not been properly evaluted in birds" - so outliers are up to us
 
 # for MCV: drop any value <50 or >200
-full <- full[-which(full$mcv < 50 | test$mcv > 150),] # 29 observations 
+full <- full[-which(full$mcv < 50 | full$mcv > 150),] # 29 observations 
 # Cambpell & Ellis note that 308 MCV is "large" and indicative of younger cells while 128 is smaller, suggests older cells
 # I made the upper limit cut-off 150 instead of 200 after looking at distributions again; makes hist and qqPlots look better
 
@@ -599,11 +599,11 @@ sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
 write.csv(sp.count.full, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood_species_list.csv")
 
 # The plots/distributions above certainly look a LOT better after removing outliers
-# Total outlier points dropped: 60 of 1,217
-# 1,157 total data points for analysis
+# Total outlier points dropped: 66 of 1,217
+# 1,151 total data points for analysis
 ```
 
-Note about outlier removal: Since dropping extreme values can result in more lost data (though I'd argue that 60 total observations isn't much, an alternative approach would be to only eliminate outliers for each response variable data subset, thereby retaining more subset-specific data; i.e. by just dropping MCV outliers in MCV dataset, I'd then keep normal Hb values associated with outlier MCV values)
+Note about outlier removal: Since dropping extreme values can result in more lost data (though I'd argue that 66 total observations isn't much, an alternative approach would be to only eliminate outliers for each response variable data subset, thereby retaining more subset-specific data; i.e. by just dropping MCV outliers in MCV dataset, I'd then keep normal Hb values associated with outlier MCV values)
 
 
 # Assess age-based outliers
@@ -1203,8 +1203,8 @@ final$age <- as.factor(final$age)
 final$month <- as.factor(final$month)
 final$locality <- as.factor(final$locality)
 final$department <- as.factor(final$department)
-final$range_class <- as.factor(final$range_class)
-final$po2_class <- as.factor(final$po2_class)
+#final$range_class <- as.factor(final$range_class)
+#final$po2_class <- as.factor(final$po2_class)
 final$Clade <- as.factor(final$Clade)
 
 # Looks good! Should be ready for modeling.
@@ -1638,7 +1638,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-# write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_11-30-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_03-01-21.csv")
 ```
 
 
@@ -1723,11 +1723,11 @@ BIO19 = Precipitation of Coldest Quarter
 Optional code for making a non-Patagona subset (because Patagona is a body size outlier)
 ```{r, message=FALSE, warning=FALSE}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_12-01-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
 final.nopgig <- final[-which(final$species == "Patagona gigas"),]
-write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_12-01-20.csv")
+write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_03-01-21.csv")
 ```
 
 

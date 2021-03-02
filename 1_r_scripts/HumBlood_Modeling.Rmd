@@ -1,90 +1,22 @@
 ---
 title: "Comparative Hummingbird Blood: Modeling"
 author: "Jessie Williamson"
-date: "7/21/2020"
-output: html_document
+date: "11/09/2020"
+output:
+  md_document:
+    variant: markdown_github
+
 ---
 
 This script includes: Reading in pre-processed data from "HumBlood_DataWrangling.Rmd", standardizing predictors, making data subsets that match subsetted phylogenies (so there are no NAs in any dataset for modeling), and then running, checking, plotting sets of Bayesian phylogenetic mixed models. 
 
 #######
 
-# QUESTIONS 
-
-**1) How do blood parameters vary with abiotic aspects of the environment?** 
-Predictors: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index (PC1 of 19 BioClim variables)
-4) aridity index (PC1 of 19 BioClim variables)
-(Dropping latitude as a predictor)
-
-**2) How to blood parameters vary with aspects of species biology?** 
-Predictors: 
-5) body mass
-6) hemoglobin genotype (beta13-beta83 genotype) 
-
-**3) Are patterns in blood phylogenetically constrained?**
-
-**4) What relationships exist among blood parameters?**
-6 total: [Hb], Hct, TRBC, MCV, MCH, MCHC
-
-
-# DATASET 
-Dataset includes blood data for 77 species of hummingbirds from Chile and Peru. Sampling was conducted from 2006-2020 by students, affiliates, researchers, and professors at the Museum of Southwestern Biology at the University of New Mexico. All data are linked to vouchered specimens*.
-*Note: Because some tissues and specimens haven't been exported from Peru, and because Chile collection isn't yet catalogued, not all are archived in Arctos. 
-
-# APPROACH 
-We will build 6 sets of phylogenetic mixed models in brms (x 10 models per set)
-
-Response variables: 
-1) Hb
-2) Hct
-3) TRBC
-4) MCV
-5) MCH
-6) MCHC
-
-Predictor set for each set of models: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index
-4) precip index
-5) latitude 
-6) mass
-7) Hb genotype    
-8) intraspecific variation: elevation
-9) intraspecific variation: elevation position
-10) intraspecific variation: latitude
-11) intraspecific variation: mass
-12) intraspecific vatiation: precip
-13) intraspecific variation: temp 
-+ (1|species)
-+ (1|phylogeny)
-
-For each response, we will include: 
-1) Null model (intercept-only)
-2) Random effects-only model (intercept + phylogenetic random effect + species random effect)
-3) Full model with no random effects (just predictors) 
-4) Full model with just phylo random effect
-5) Full model with just species random effect 
-6) Full model with phylo and species random effects 
-7) Reduced model with no random effects (just predictors whose CIs do NOT overlap zero)
-8) Reduced model with just phylo random effect 
-9) Reduced model with just sepcies random effect 
-10) Reduced model with phylogenetic and species random effects 
-
-We'll use LOOIC and WAIC to compare model sets. 
-
 
 ```{R, echo=FALSE}
-# I set some GLOBAL R chunk options here.
-#   (to hide this message add "echo=FALSE" to the code chunk options)
-
+# GLOBAL R chunk options here (hide message w/ echo=FALSE)
 knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
 knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
-
-#knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
 knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
 ```
 
@@ -141,6 +73,7 @@ library(bayesplot)
 library(rstan)
 library(Rcpp) # required for brms
 library(brms)
+library(rcompanion) # for Tukey's Ladder of Powers Transformation
 
 # To run each time you load rstan
 options(mc.cores = parallel::detectCores()) # for core setup 
@@ -165,34 +98,17 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 # load in data 
 ```{R}
 # Load functions 
-source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
-source("Rfunctions.R") # Nora's functions
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
+  # Erik's ADA functions for clean & collated lm diag plots
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
 
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
 # Unlike tree file, you want all categorical variables to be factors for modeling
 # final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_08-26-20.csv", stringsAsFactors = TRUE)
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_10-27-20.csv", stringsAsFactors = TRUE)
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_12-01-20.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
-
-# final.hb <- read.csv("HumBlood_final.hb.csv", stringsAsFactors = TRUE)
-# final.hb <- final.hb[ , !(colnames(final.hb) %in% c("X"))] # drop weird X column 
-# 
-# final.hct <- read.csv("HumBlood_final.hct.csv", stringsAsFactors = TRUE)
-# final.hct <- final.hct[ , !(colnames(final.hct) %in% c("X"))] # drop weird X column 
-# 
-# final.trbc <- read.csv("HumBlood_final.trbc.csv", stringsAsFactors = TRUE)
-# final.trbc <- final.trbc[ , !(colnames(final.trbc) %in% c("X"))] # drop weird X column 
-# 
-# final.mcv <- read.csv("HumBlood_final.mcv.csv", stringsAsFactors = TRUE)
-# final.mcv <- final.mcv[ , !(colnames(final.mcv) %in% c("X"))] # drop weird X column 
-# 
-# final.mch <- read.csv("HumBlood_final.mch.csv", stringsAsFactors = TRUE)
-# final.mch <- final.mch[ , !(colnames(final.mch) %in% c("X"))] # drop weird X column 
-# 
-# final.mchc <- read.csv("HumBlood_final.mchc.csv", stringsAsFactors = TRUE)
-# final.mchc <- final.mchc[ , !(colnames(final.mchc) %in% c("X"))] # drop weird X column 
 
 # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
 tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
@@ -224,23 +140,9 @@ str(final)
 
 
 # PREP DATA FOR MODELING
-Further clean for modeling, impute missing mass values, and generate response variable-specific subets that you'll read into the phylogeny file to create trees needed for each model set. 
+Further clean for modeling: transform variables, calculate intraspecific variation, generate response variable-specific subsets conduct tests of phylogenetic signal.  
 
-# Subset for modeling
-```{r}
-# Drop variables you won't need for modeling, which reduces 'clunk' in dataset and problems associated w/ NA values 
-# final <- subset(final, select = -c(prep_num, # 2.64% missing values 
-#                                    cat_owner,
-#                                    elev_min,
-#                                    elev_max,
-#                                    elev_midpt,
-#                                    elev_range
-#                                     ) )
-# Might be able to include more things to drop here 
-```
-
-
-# Make Model-specific subsets that would be dropped from big dataset with na.omit 
+# Coerce structure and assess normality of variables; transform as necessary 
 ```{r}
 # Since we confirmed above that the only missing data is due to blood characteristics at this point, 
 # We can be sure that na.omit is only removing missing blood values for each response variable. 
@@ -256,9 +158,11 @@ final$department <- as.factor(final$department)
 final$Clade <- as.factor(final$Clade)
 final$range_class <- as.factor(final$range_class)
 final$po2_class <- as.factor(final$po2_class)
+```
 
 
 # Calculate intraspecific variation 
+```{R}
 # Do this before standardizing so calculations are done on raw values and standardizing happens AFTERWARDS
 # (Otherwise you'll be using standardized values to calculate raw metrics, if that makes sense)
 # Also because log-transforming doesn't alter some values based on others; standardizing data does 
@@ -276,7 +180,104 @@ final$intravar.elev.pos <- final$elev_position - final$spec.mean.elev.pos
 final$intravar.mass <- final$mass - final$spec.mean.mass
 final$intravar.temp <- final$tempPC1 - final$spec.mean.temp
 final$intravar.precip <- final$precipPC1 - final$spec.mean.precip
+```
 
+
+# Check normality and distributions; transform non-normal variables as necessary 
+```{r}
+# Predictor dataset - take a look at distributions
+p <- ggpairs(subset(final, select = c(hb, hct, trbc, mcv, mch, mchc, mass, wl, elev, elev_position, tempPC1, precipPC1))) 
+print(p)
+
+# FIRST: RESPONSE VARIABLES 
+# Hb, Hct, and TRBC look fantastic - no need to transform 
+
+# MCV: quick comparison of untransformed and transformed MCV suggests that MCV fits MUCH BETTER when log-transformed 
+final$mcv.log <- log10(final$mcv) # Distribution and tails look fantastic after log transformation 
+plotNormalHistogram(final$mcv) 
+plotNormalHistogram(final$mcv.log) 
+qqPlot(final$mcv) 
+qqPlot(final$mcv.log) 
+
+# MCH: quick comparison of untransformed and transformed MCH suggests that MCH fits MUCH BETTER when log-transformed 
+final$mch.log <- log10(final$mch) # Fantastic after log-transform 
+plotNormalHistogram(final$mch) 
+plotNormalHistogram(final$mch.log) 
+qqPlot(final$mch) 
+qqPlot(final$mch.log) 
+
+# MCHC: Distribution has somewhat heavy tails. Log transforming shifts "fit" around tails and doesn't advance goal of normality. 
+# I think this would be better adjusted with priors to account for heavy/long tails. 
+
+
+# SECOND: PREDICTORS 
+
+# MASS: Better after log transformation but still really off at right tail
+final$mass.log <- log10(final$mass) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(final$mass.log) 
+qqPlot(final$mass.log) 
+
+# TEMPPC1: log-transforming doesn't help! Heavy tails, transforming (even w/ Tukey's ladder of powers = not good)
+# full$wl.tuk <- transformTukey(full$wl, plotit=TRUE)
+# test$tempPC1.tuk <- transformTukey(test$tempPC1, plotit=TRUE) # Right hand tail a bit iffy but w/ log transformation it's largely w/in confidence interval
+# plotNormalHistogram(test$tempPC1) 
+# plotNormalHistogram(test$tempPC1.tuk) 
+# qqPlot(test$tempPC1) 
+# qqPlot(test$tempPC1.tuk) 
+
+# TEMPPC2: log and tukey's don't help, produce weird NA and NaN values = no good 
+# test$precipPC1.tuk <- transformTukey(test$precipPC1, plotit=TRUE) # Right hand tail a bit iffy but w/ log transformation it's largely w/in confidence interval
+# plotNormalHistogram(test$precipPC1) 
+# plotNormalHistogram(test$precipPC1.tuk) 
+# qqPlot(test$precipPC1) 
+# qqPlot(test$precipPC1.tuk) 
+
+
+# WING LOADING: original wing loading distribution is delightfully normal, but when each of these means are "spread" across 
+# our big dataset so that they can be used for modeling, the distribution becomes wonky. 
+# It would be best to get original wing loading data from Chris and to be able to use these individual-level vs. mean values.
+ 
+# Raw data checks from 'wload': Data normally distributed, look good in original data (histogram, qqPlot, shapiro test checks):
+plotNormalHistogram(wload$wl) 
+qqPlot(wload$wl)
+shapiro.test(final$hb) # passes normality test, p > 0.05 
+
+# but...when we "spread" mean values across individual dataset, bad stuff happens to normality: 
+plotNormalHistogram(full$wl)  
+qqPlot(final$wl) # weird data spread caused by "smearing" species means across individual-level data 
+shapiro.test(full$wl) # fails normality, p < 0.05
+
+# I played around w/ log transformations for wl; untransformed data fit much better 
+# final$wl.log <- log10(final$wl)
+# hist(final$wl)
+# hist(final$wl.log)
+# qqPlot(final$wl)
+# qqPlot(final$wl.log)
+
+# So, ideally need to transform wing data in 'final', BUT: 
+# Cube, log, and square root transformations look about the same, fit poorly, and aren't normal; ditch these 
+# Tukey's Ladder of Powers transformation is *marginally* better, but hardly 
+# Tukey's Ladder of Powers: performs iterative Shapiro–Wilk tests, finds lambda value that maximizes W statistic from tests.  
+# AKA, it finds power transformation that makes data fit normal distribution as closely as possible. 
+full$wl.tuk <- transformTukey(full$wl, plotit=TRUE)
+plotNormalHistogram(full$wl.tuk) 
+qqPlot(full$wl.tuk)
+shapiro.test(full$wl.tuk) # still fails Shapiro-Wilk, but bigger indicator is poor qqPlot fit (tails look terrible)
+
+# Ideally, get individual-level wing loading data and substitute with species means were necessary 
+
+#####
+
+# Predictor dataset after transformations - take a look at distributions
+p <- ggpairs(subset(final, select = c(hb, hct, trbc, mcv.log, mch.log, mchc, mass.log, wl, elev, elev_position, tempPC1, precipPC1)))
+print(p)
+```
+
+More on Tukey's Ladder of Powers transformation here: https://rcompanion.org/handbook/I_12.html#:~:text=For%20left%2Dskewed%20data%E2%80%94tail,log%20(constant%20%E2%80%93%20x).
+
+
+# Standardize predictors 
+```{R}
 # Standardize continuous PREDICTOR variables to mean of 0 and standard deviation of 1:
 # Remember: responses don't get standardized 
 # NOTE: Standardizing is really only necessary because of elev as predictor, which throws off scale a ton 
@@ -285,43 +286,55 @@ final$elev.z <- standardize(final$elev)
 final$temp.z <- standardize(final$tempPC1)
 final$precip.z <- standardize(final$precipPC1)
 final$mass.z <- standardize(final$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
-final$elev.position.z <- standardize(final$elev_position)
-final$intravar.elev.z <- standardize(final$intravar.elev) # Now standardize intraspecific variation 
+final$elev.pos.z <- standardize(final$elev_position)
+final$wl.z <- standardize(final$wl) 
+
+# Now standardize intraspecific variation 
+final$intravar.elev.z <- standardize(final$intravar.elev) 
 final$intravar.elev.pos.z <- standardize(final$intravar.elev.pos)
 final$intravar.mass.z <- standardize(final$intravar.mass)
 final$intravar.temp.z <- standardize(final$intravar.temp)
 final$intravar.precip.z <- standardize(final$intravar.precip)
 
+# Predictor after transformations and standardization - take a look at distributions
+p <- ggpairs(subset(final, select = c(mass.z, wl.z, elev.z, elev.pos.z, temp.z, precip.z, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)))
+print(p)
+```
 
-### DATA SUBSETS: 
 
-# Hb subset - 1085 observations
-final.hb <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hb, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# Make data subsets that would be dropped from big dataset with na.omit 
+We're generating subsets now to be able to retain the max amount of data for each 
+i.e. if we just used na.omit to be able to run models smoothly, we'd lose hundreds of Hb measurements that didn't also have MCV values, for example. 
+```{R}
+# NOTE: If we decide to move forward with wing loading data, include wl data in each of these subsets.
+
+# Hb subset - 991 observations
+final.hb <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hb, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.hb <- na.omit(final.hb)
 str(final.hb) # looks good, nothing to coerce 
 
-# Hct subset - 1138 observations
-final.hct <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hct, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# Hct subset - 1092 observations
+final.hct <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hct, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.hct <- na.omit(final.hct)
 str(final.hct) # looks good, nothing to coerce 
 
-# trbc subset - 789 observations
-final.trbc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, trbc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# trbc subset - 754 observations
+final.trbc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, trbc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.trbc <- na.omit(final.trbc)
 str(final.trbc) # looks good, nothing to coerce
 
-# mcv subset - 773 observations
-final.mcv <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# mcv subset - 738 observations
+final.mcv <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z, mcv.log)) 
 final.mcv <- na.omit(final.mcv)
 str(final.mcv) # looks good, nothing to coerce 
 
-# mch subset - 744 observations
-final.mch <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mch, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# mch subset - 706 observations
+final.mch <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mch, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z, mch.log)) 
 final.mch <- na.omit(final.mch)
 str(final.mch) # looks good, nothing to coerce 
 
-# mchc subset - 976 observations
-final.mchc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mchc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.position.z, temp.z, precip.z, b13, b83, genotype, intravar.elev, intravar.elev.pos, intravar.mass, intravar.temp, intravar.precip)) 
+# mchc subset - 927 observations
+final.mchc <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mchc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.elev.z, intravar.elev.pos.z, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
 final.mchc <- na.omit(final.mchc)
 str(final.mchc) # looks good, nothing to coerce 
 
@@ -388,9 +401,7 @@ summary(tree.trbc$tip.label %in% final.trbc$species) # yes
 
 
 # Check contMaps for trait and sampling outliers
-NOTE: We may cut this chunk since we might not be removing these sampling value "outliers". 
-
-Before moving on with pre-modeling verification steps and modeling itself, work up continuous trait maps for each of the 6 blood parameters to take a look at spread of values. Based on preliminary modeling efforts, we expect low phylogenetic signal (i.e. similar branch colors) aross the board. But, in a few cases, extreme values may be driven by low sampling (i.e. n=1 or n<3). We want to carefully consider and possibly exclude these cases. 
+Before moving on with pre-modeling verification and modeling itself, work up continuous trait maps for each of the 6 blood parameters to take a look at phylo signal and spread of values. Based on preliminary modeling efforts, we expect low phylogenetic signal (i.e. similar branch colors) aross the board. But, in a few cases, extreme values may be driven by low sampling (i.e. n=1 or n<3). We have decided to remove the phylogenetic component to models because signal is nonexistant, but another approach might be to carefully consider and possibly exclude "sampling outlier" cases. 
 ```{r}
 # NOTE: See Lisa's tutorial on this, called amphibian_PhyloMethods_Mar2020.R" - more helpful than Phytools tutorials! 
 # IMPORTANT: don't forget to attach species names to the trait! 
@@ -414,7 +425,16 @@ plot(hb.cont.tree, lwd=3, fsize=0.8) # setting xlim changes actual plot dimensio
 dev.off()
 #errorbar.contMap(obj)
 
-# Based on this, consider dropping from Hb dataset: 
+# Quick test with medians - Chauncey pointed out that medians might be more appropriate and less skewed towards outliers. 
+# This quick test reveals essentially no difference between mean and median values; convinces me that there really is no signal.
+# (though this doesn't eliminate 'sampling outlier' issue, as values for n=1 will be same regardless of mean or median)
+# hb.contmap.median <- final.hb %>% group_by(species) %>% summarise(hb = median(hb)) # HB 
+# just.hb.median <- hb.contmap.median$hb # Take mean hb values only 
+# names(just.hb.median) <- hb.contmap.median$species # Add species names from the hb.contmap file (to match w/ Hb); don't use rownames()! 
+# View(just.hb.median); class(just.hb.median); typeof(just.hb.median) # Check data format and structure
+# hb.cont.tree.median <- contMap(tree.hb, just.hb.median, plot=TRUE) # Create hemoglobin continuous trait phylo object 
+
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # A. franciae: highest value in dataset and n=1
 # P. ruber: lowest value in dataset and n=1
 # Others? 
@@ -431,7 +451,7 @@ pdf(file="hematocrit.contmap.pdf", width=6, height=10) # Write plot to pdf
 plot(hct.cont.tree, lwd=3, fsize=0.8) 
 dev.off()
 
-# Based on this, consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # P. stuarti: highest value in dataset and n=1
 # P. ruber: lowest value in dataset and n=1
 # Others? 
@@ -448,7 +468,7 @@ pdf(file="trbc.contmap.pdf", width=6, height=10) # Write plot to pdf
 plot(trbc.cont.tree, lwd=3, fsize=0.8) 
 dev.off()
 
-# Based on this, consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # P. atrimentalis: lowest value in dataset and n=1
 # Heliomaster longirostris: highest value in dataset and n=1
 # Others? (Campylopterus villavicensio has 2nd highest value and n=1 sampling)
@@ -465,7 +485,7 @@ pdf(file="mcv.contmap.pdf", width=6, height=10) # Write plot to pdf
 plot(mcv.cont.tree, lwd=3, fsize=0.8) 
 dev.off()
 
-# Based on this, consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # P. atrimentalis: lowest value in dataset and n=1
 # Heliomaster longirostris: highest in dataset and n=1
 # Campylopterus villavicensio has 2nd highest value and also has n=1 sampling
@@ -483,7 +503,7 @@ pdf(file="mch.contmap.pdf", width=6, height=10) # Write plot to pdf
 plot(mch.cont.tree, lwd=3, fsize=0.8) 
 dev.off()
 
-# Based on this, consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # C. villavicensio: lowest value in dataset and n=1
 # L. taczanowski = second lowest value and also n=1
 # H. rubinoides: highest in dataset and n=1
@@ -501,7 +521,7 @@ pdf(file="mchc.contmap.pdf", width=6, height=10) # Write plot to pdf
 plot(mchc.cont.tree, lwd=3, fsize=0.8) 
 dev.off()
 
-# Based on this, consider dropping from Hb dataset: 
+# If removing "sampling outliers", consider dropping from Hb dataset: 
 # A. franciae: highest value in dataset and n=1
 # A. viridicauda is 2nd highest but has n=8, so leave
 # Similarly, Klais is lowest and has n=3, so leave. 
@@ -515,11 +535,51 @@ Phytoosl contMap() tutorial: http://www.phytools.org/***SanJuan2016/ex/15/Plotti
 Info on what trait value axis means, how to change colors of branches, and how to change "trait value" header in legend axis title: http://blog.phytools.org/2015/06/customizing-your-contmap-style.html
 
 
+# Tests of phylogenetic signal 
+Although preliminary modeling results and contmaps show low phylogenetic signal, we conduct formal tests of phylogenetic signal here. Phylo signal will tell us whether close relatives are more similar than random pairs of species. 
+```{r}
+# Compute two metrics of phylogenetic signal: Blomberg's K and Pagel's lamda 
+# Pagel's lambda: 0 = no phylo singal in the trait and 1 = phylo signal in the trait
+# Blomberg's K: computed w/ p-val by comparing real data to null distribution obtained by random permuations. 
+    # Values of K range from 0 to inf; K=1 = Brownian motion evol; k>1 = spp more similar than expected under random drift; 
+    # k<1 = spp less similar than expected under random drift. The larger the K, the stronger the phylo signal. 
+    # Generally, only K-values with significant p-vals indicate phylo signal
+
+# For comparison with our data, let's quickly simulate data with no phylogenetic signal
+x <- rnorm(100); names(x) <- tree$tip.label
+phylosig(tree, x, test=TRUE) # K = 0.196, p = 0.622 = no signal 
+phylosig(tree, x, method="lambda",test=TRUE) # lamda = < 0, p > 1 = no signal
+
+# Compute Blomberg's K for 6 blood traits
+# x must be a vector of a continuously distributed trait; I'll use vectors of mean values I created for contmaps (i.e. 'just.hb')
+# w/ phylosig(), default is method="K" and nsim=1000
+
+# Compute K and conduct a test of the null hypothesis of no phylogenetic signal 
+phylosig(tree=tree.hb, x=just.hb, method="K", test=TRUE) # K=0.144, p=0.829
+phylosig(tree=tree.hct, x=just.hct, method="K", test=TRUE) # K=0.172, p=0.732
+phylosig(tree=tree.trbc, x=just.trbc, method="K", test=TRUE) # K=0.156, p=0.799
+phylosig(tree=tree.mcv, x=just.mcv, method="K", test=TRUE) # K=0.213, p=0.56
+phylosig(tree=tree.mch, x=just.mch, method="K", test=TRUE) # K=0.265, p=0.379
+phylosig(tree=tree.mchc, x=just.mchc, method="K", test=TRUE) # K=0.209, p=0.604 
+
+# Compute Pagel's lambda using maximum likelihood
+phylosig(tree=tree.hb, x=just.hb, method="lambda", test=TRUE) # lambda=<0, p=1
+phylosig(tree=tree.hct, x=just.hct, method="lambda", test=TRUE) # lambda=<0, p=1
+phylosig(tree=tree.trbc, x=just.trbc, method="lambda", test=TRUE) # lambda=<0, p=1
+phylosig(tree=tree.mcv, x=just.mcv, method="lambda", test=TRUE) # lambda=<0, p=1
+phylosig(tree=tree.mch, x=just.mch, method="lambda", test=TRUE) # lambda=<0, p=1
+phylosig(tree=tree.mchc, x=just.mchc, method="lambda", test=TRUE) # lambda=<0, p=1 
+
+# --> NO PHYLO SIGNAL IN OUR DATA! 
+```
+
+Info on computing phylogenetic signal w/ Phylosig: http://blog.phytools.org/2011/03/computing-phylogenetic-signal.html
+
 
 # Check for correlations among continuous predictors 
 ```{r}
 # Correlation matrix 
-cor(final.hb[,c("elev", "elev_position", "tempPC1", "precipPC1", "lat", "mass", "intravar.elev", "intravar.elev.pos", "intravar.lat", "intravar.mass", "intravar.temp", "intravar.precip")])
+cor(final[,c("elev.z", "elev.pos.z", "temp.z", "precip.z", "mass.z", "intravar.elev.z", "intravar.elev.pos.z", "intravar.mass.z", "intravar.temp.z", "intravar.precip.z", "wl.z")])
 
 # elevation and elev_position are highly correlated (0.87) - choose to keep one and drop the other? 
 # Hard to keep these both in the same model since elev_position is derived from elev 
@@ -569,8 +629,7 @@ See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vigne
 #A <- ape::vcv(tree.hb)
 
 # See what prior choices are being made for us. 
-get_prior(hb ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + intravar.elev + intravar.elev.pos + intravar.mass +  intravar.precip + intravar.temp + (1|species), data = final.hb) # removed + (1|gr(phylo, cov=A)) 
-# I see why the tutorial calls one "phlyo" and one species; it's because you can't have both 
+get_prior(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + intravar.elev.z + intravar.elev.pos.z + intravar.mass.z +  intravar.precip.z + intravar.temp.z + (1|species), data = final.hb) # removed + (1|gr(phylo, cov=A)) 
 
 # Overwrite those (not so) terrible choices with some slightly informed priors.
 # Otherwise known as 'let the data drive the model'. 
@@ -608,7 +667,7 @@ hb.m1 <- brm(
   # )
 )
 save(hb.m1, file="hb.m1_Intercept-Only.RData") # save model
-load("hb.m1_Intercept-Only.Rdata") # If loading from pre-saved file and not re-running
+#load("hb.m1_Intercept-Only.Rdata") # If loading from pre-saved file and not re-running
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECTS)
@@ -632,13 +691,13 @@ hb.m2 <- brm(
   # )
 )
 save(hb.m2, file="hb.m2_RandomEffectsOnly.RData") # save model
-load("hb.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+# load("hb.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
 hb.m3 <- brm(
-  formula = bf(hb ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.mass + intravar.temp + intravar.precip),
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z),
   data = final.hb,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -658,39 +717,13 @@ hb.m3 <- brm(
 )
 save(hb.m3, file="hb.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-load("hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+# load("hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-
-# # MODEL 4: FULL MODEL WITH ONLY PHYLO RANDOM EFFECT
-# hb.m4 <- brm(
-#   formula = bf(hb ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-#                intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-#                + (1|gr(phylo, cov=A))),
-#   data = final.hb,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-#   iter = 10000, # nora had 20000, EBL used 10000
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-#   # prior = c(
-#   #   prior(normal(0, 10), "b"),
-#   #   prior(normal(3, 20, 5), "Intercept"),
-#   #   prior(student_t(3, 0, 5), "sd"),
-#   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-#   # )
-# )
-# save(hb.m4, file="hb.m4_FullModel_PhyloREOnly.RData") # save model 
-# #  ~3 mins run time 
-# load("hb.m4_FullModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 5: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
 hb.m5 <- brm(
-  formula = bf(hb ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.mass + intravar.temp + intravar.precip 
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z 
                + (1|species)),
   data = final.hb,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
@@ -711,34 +744,7 @@ hb.m5 <- brm(
 )
 save(hb.m5, file="hb.m5_FullModel_SpeciesREOnly.RData") # save model
 # ~3 mins
-load("hb.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
-
-
-# # MODEL 6: FULL MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-# hb.m6 <- brm(
-#   formula = bf(hb ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-#                intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-#                + (1|gr(phylo, cov = A)) + (1|species)),
-#   data = final.hb,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-#   iter = 4000, # nora had 20000, EBL used 10000
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-#   # prior = c(
-#   #   prior(normal(0, 10), "b"),
-#   #   prior(normal(3, 20, 5), "Intercept"),
-#   #   prior(student_t(3, 0, 5), "sd"),
-#   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-#   # )
-# )
-# save(hb.m6, file="hb.m6_FullModel_Phylo&SpeciesRE.RData") # save model
-# # ~ 3 mins run time 
-# load("hb.m6_FullModel_Phylo&SpeciesRE.RData") # If loading from pre-saved file and not re-running
+# load("hb.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
@@ -801,8 +807,8 @@ ranef(hb.m5, groups="species") #, probs = 0.95)
 color_scheme_set("blue") # nice default
 hb.m3.p1 <- mcmc_plot(hb.m3, pars=c("b_elev.z", "b_elev.position.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z", "b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -811,32 +817,15 @@ scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Prec
 hb.m3.p1
 ggsave(hb.m3.p1, filename = "hb.m3.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hb.m3)
-# Predictors whose 95% CIs do NOT overlap zero: elev.z, mass.z, genotype (Gly-Ser)
-# Reduced hb.m3 will be: elev.z + mass.z + genotype
-
-# Model 4
-# # color_scheme_set("teal") # nice default
-# hb.m4.p1 <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-#                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-#                                     "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-#                                     "b_intravar.temp", "b_intravar.precip"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [Hb]", title = "hb.m4: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) 
-# hb.m4.p1
-# ggsave(hb.m4.p1, filename = "hb.m4.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# summary(hb.m4)
-# Predictors whose 95% CIs do NOT overlap zero: elev.z
-# Reduced hb.m4 will be: elev.z
+# Predictors whose 95% CIs do NOT overlap zero: elev.z, elev.pos.z
+# Reduced hb.m3 will be: elev.z, elev.pos.z
 
 # Model 5
 #color_scheme_set("red") # nice default
-hb.m5.p1 <- mcmc_plot(hb.m5, pars=c("b_elev.z", "b_elev.position.z","b_mass.z","b_temp.z","b_precip.z",
+hb.m5.p1 <- mcmc_plot(hb.m5, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z", "b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -845,31 +834,14 @@ scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Prec
 hb.m5.p1
 ggsave(hb.m5.p1, filename = "hb.m5.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hb.m5)
-# Predictors whose 95% CIs do NOT overlap zero: elev.position.z
+# Predictors whose 95% CIs do NOT overlap zero: elev.pos.z
 # Reduced hb.m5 will be: elev.position.z
-
-# # Model 6
-# #color_scheme_set("gray") # nice default
-# hb.m6.p1 <- mcmc_plot(hb.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-#                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-#                                     "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-#                                     "b_intravar.temp", "b_intravar.precip"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [Hb]", title = "hb.m6: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-# hb.m6.p1
-# ggsave(hb.m6.p1, filename = "hb.m6.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# Reduced hb.m6 will be: NA - can't reduced .m6 further 
 
 ####
 
 # Summary of reducing models: 
-# m7 (reduced m3) will be: elev.position.z + genotype
-# m8 (reduced m4) will be: elev.z
-# m9 (reduced m5) will be: elev.position.z
-# m10 (reduced m6) will be: NA - m6 can't be further reduced as all 95% CIs of predictors overlap zero 
+# m7 (reduced m3) will be: elev.z, elev.pos.z
+# m8 (reduced m4) will be: elev.pos.z
 ```
 
 
@@ -880,9 +852,7 @@ sink("hb_brms_model_summaries.txt",append = TRUE)
 summary(hb.m1, waic=TRUE)
 summary(hb.m2, waic=TRUE)
 summary(hb.m3, waic=TRUE)
-#summary(hb.m4, waic=TRUE)
 summary(hb.m5, waic=TRUE)
-#summary(hb.m6, waic=TRUE)
 sink()
 # print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -890,9 +860,7 @@ sink()
 hb.m1.waic <- waic(hb.m1)
 hb.m2.waic <- waic(hb.m2)
 hb.m3.waic <- waic(hb.m3)
-#hb.m4.waic <- waic(hb.m4)
 hb.m5.waic <- waic(hb.m5)
-#hb.m6.waic <- waic(hb.m6)
 hb.waics <- cbind(hb.m1.waic, hb.m2.waic, hb.m3.waic, hb.m5.waic); hb.waics
 write.csv(hb.waics, "hb_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 
@@ -900,9 +868,7 @@ write.csv(hb.waics, "hb_brms_models_waics.csv") # totally unintelligible cumbers
 bayes_R2(hb.m1)
 bayes_R2(hb.m2) # 0.13
 bayes_R2(hb.m3) # 0.15
-#bayes_R2(hb.m4) # 0.21
 bayes_R2(hb.m5) # 0.227
-#bayes_R2(hb.m6) # 0.229
 ```
 
 
@@ -910,29 +876,6 @@ bayes_R2(hb.m5) # 0.227
 Calculated from Burkner's phylo  brms tutorial: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
 Note from Burkner: Note that the phylogenetic signal is just a synonym of the intra-class correlation (ICC) used in the context phylogenetic analysis.
 ```{R}
-# Big models that have phylogenetic grouping variable: m2, m4, m6
-# Reduced models that have phylogenetic grouping variable: m8, m10
-
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m2 phylo signal   
-# hyp.hb.m2 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-# (hyp.hb.m2 <- hypothesis(hb.m2, hyp.hb.m2, class = NULL))
-# plot(hyp.hb.m2)
-# # Phylo signal = 0 
-# 
-# # m4 phylo signal   
-# hyp.hb.m4 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-# (hyp.hb.m4 <- hypothesis(hb.m4, hyp.hb.m4, class = NULL))
-# plot(hyp.hb.m4)
-# # Phylo signal = 0.01 = ~1%
-# 
-# # m6 phylo signal   
-# hyp.hb.m6 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-# (hyp.hb.m6 <- hypothesis(hb.m6, hyp.hb.m6, class = NULL))
-# plot(hyp.hb.m6)
-# k = 0.0 
-
 
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
@@ -948,12 +891,6 @@ hyp.sp.hb.m5 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) =
 (hyp.sp.hb.m5 <- hypothesis(hb.m5, hyp.sp.hb.m5, class = NULL))
 plot(hyp.sp.hb.m5)
 # ~14% variance explained by species 
-
-# m6 
-# hyp.sp.hb.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-# (hyp.sp.hb.m6 <- hypothesis(hb.m6, hyp.sp.hb.m6, class = NULL))
-# plot(hyp.sp.hb.m6)
-# ~9% variance explained by species 
 ```
 
 
@@ -961,7 +898,7 @@ plot(hyp.sp.hb.m5)
 ```{r}
 # MODEL 7: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
 hb.m7 <- brm(
-  formula = bf(hb ~ 1 + elev.z + mass.z + genotype),
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z),
   data = final.hb,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -974,30 +911,11 @@ hb.m7 <- brm(
   sample_prior = TRUE # default priors 
 )
 save(hb.m7, file="hb.m7_ReducedModel_PredictorsOnly.RData") # save model
-load("hb.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
-
-
-# MODEL 8: REDUCED MODEL WITH ONLY PHYLO RANDOM EFFECT
-# hb.m8 <- brm(
-#   formula = bf(hb ~ 1 + elev.z + (1|gr(phylo, cov=A))),
-#   data = final.hb,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-#   iter = 10000, 
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-# )
-# save(hb.m8, file="hb.m8_ReducedModel_PhyloREOnly.RData") # save model
-# load("hb.m8_ReducedModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
-
+#load("hb.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 9: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 hb.m9 <- brm(
-  formula = bf(hb ~ 1 + elev.position.z + (1|species)),
+  formula = bf(hb ~ 1 + elev.pos.z + (1|species)),
   data = final.hb,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -1010,27 +928,7 @@ hb.m9 <- brm(
   sample_prior = TRUE # default priors 
 )
 save(hb.m9, file="hb.m9_ReducedModel_SpeciesREOnly.RData") # save model
-load("hb.m9_ReducedModel_SpeciesREOnly.RData") 
-
-##### NO MODEL 10 FOR HB BECAUSE FULL MODEL CAN'T BE REDUCED 
-# MODEL 10: REDUCED MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-# hb.m10 <- brm(
-#   formula = bf(hb ~ 1 + elev.z + elev.position.z + temp.z + precip.z +
-#                      intravar.lat + intravar.mass + intravar.tempPC1 + 
-#                      intravar.precipPC1 + (1|gr(phylo, cov = A)) + (1|species)),
-#   data = final.hb,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-#   iter = 4000, # nora had 20000, EBL used 10000
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-# )
-# save(hb.m10, file="hb.m10_ReducedModel_Phylo&SpeciesRE.RData") # save model
-#load("hb.m10_ReducedModel_Phylo&SpeciesRE.RData") # If loading from pre-saved file and not re-running
+# load("hb.m9_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -1089,33 +987,19 @@ ranef(hb.m8, groups="species") #, probs = 0.95)
 
 # Model 7 
 color_scheme_set("blue") # nice default
-hb.m7.p1 <- mcmc_plot(hb.m7, pars=c("b_elev.z", "b_mass.z", "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+hb.m7.p1 <- mcmc_plot(hb.m7, pars=c("b_elev.z", "b_elev.pos.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "hb.m7: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elev", "Mass", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))  
+scale_y_discrete(labels=c("Elev", "Elevation Position"))  
 hb.m7.p1
 ggsave(hb.m7.p1, filename = "hb.m7.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hb.m7)
 
-
-# # Model 8
-# # color_scheme_set("teal") # nice default
-# hb.m8.p1 <- mcmc_plot(hb.m8, pars=c("b_elev.z"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [Hb]", title = "hb.m8: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation")) 
-# hb.m8.p1
-# ggsave(hb.m8.p1, filename = "hb.m8.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# summary(hb.m8)
-
-
 # Model 9
 #color_scheme_set("red") # nice default
-hb.m9.p1 <- mcmc_plot(hb.m9, pars=c("b_elev.position.z"),
+hb.m9.p1 <- mcmc_plot(hb.m9, pars=c("b_elev.pos.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -1124,9 +1008,6 @@ scale_y_discrete(labels=c("Elevation Position"))
 hb.m9.p1
 ggsave(hb.m9.p1, filename = "hb.m9.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hb.m9)
-
-# No model 10 because model 6 couldn't be further reduced 
-
 ```
 
 
@@ -1135,25 +1016,19 @@ summary(hb.m9)
 # Print model summaries 
 sink("hb_reduced_brms_model_summaries.txt",append = TRUE)
 summary(hb.m7, waic=TRUE)
-#summary(hb.m8, waic=TRUE)
 summary(hb.m9, waic=TRUE)
-# summary(hb.m10, waic=TRUE)
 sink()
 # print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
 hb.m7.waic <- waic(hb.m7)
-#hb.m8.waic <- waic(hb.m8)
 hb.m9.waic <- waic(hb.m9)
-# hb.m10.waic <- waic(hb.m10)
 hb.waics.red <- cbind(hb.m7.waic, hb.m9.waic); hb.waics.red
 write.csv(hb.waics.red, "hb_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 
 # Calculate Bayesian R^2:
 bayes_R2(hb.m7) # 0.12
-#bayes_R2(hb.m8) # 0.20
 bayes_R2(hb.m9) # 0.20
-
 ```
 
 
@@ -1164,20 +1039,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 # Big models that have phylogenetic grouping variable: m2, m4, m6
 # Reduced models that have phylogenetic grouping variable: m8, m10
 
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m8 phylo signal   
-# hyp.hb.m8 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-# (hyp.hb.m8 <- hypothesis(hb.m8, hyp.hb.m8, class = NULL))
-# plot(hyp.hb.m8)
-# # Phylo signal = 0.01 = ~1%
-
-# m10 phylo signal   
-# hyp.hb.m10 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-# (hyp.hb.m10 <- hypothesis(hb.m10, hyp.hb.m10, class = NULL))
-# plot(hyp.hb.m10)
-# Phylo signal = 0 
-
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
 
@@ -1185,9 +1046,7 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 hyp.sp.hb.m9 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.hb.m9 <- hypothesis(hb.m9, hyp.sp.hb.m9, class = NULL))
 plot(hyp.sp.hb.m9)
-# ~12% variance explained by species 
-
-# m10 - no m10
+# ~13% variance explained by species 
 ```
 
 
@@ -1208,18 +1067,21 @@ sink()
 # Model comparisons:
 #       elpd_diff se_diff
 # hb.m5    0.0       0.0 
-# hb.m9   -5.3       4.8 
-# hb.m3  -33.4       8.0 
-# hb.m7  -42.2       9.7 
-# hb.m2  -50.3      11.0 
-# hb.m1 -105.6      14.9 
-
+# hb.m9   -4.6       4.7 
+# hb.m3  -34.4       8.2 
+# hb.m7  -37.9       9.6 
+# hb.m2  -49.0      10.9 
+# hb.m1 -105.3      15.0 
 ```
 
 Quick summary of top 3 models in order of ranking: 
 1) Model 5: Full model + (1|species) **significantly better than other models 
 2) Model 9: Elevation position + (1|species) 
 3) Model 3: Full model w/ predictors only  
+
+**All models fit substantially better than the intercept-only model (m1) and the random-effects only model (m2)
+
+
 
 
 ##### HCT MODEL SET #######
@@ -1228,18 +1090,6 @@ Quick summary of top 3 models in order of ranking:
 # [HCT] MODELS - Set up & run models 
 See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
 ```{r}
-# Copy species column and name it 'phylo' for estimation of phylo variance 
-final.hct$phylo <- final.hct$species
-
-# Note:
-# The variables 'phylo' and 'species' are identical (both = species identifiers). However, we model phylo covariance only
-# for 'phylo' and thus the 'species' variable accounts for any effect independent of the phylo relationship between species
-# (e.g., enviro or niche effects). We can obtain model summaries as well as estimates of the phylogenetic signal.
-
-## set up tree structure for brms models
-# This used to be ape::vcv.phylo, but looks like vcv.phylo has been replaced with vcv()
-A <- ape::vcv(tree.hct)
-
 # See what prior choices are being made for us. 
 get_prior(hct ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + intravar.elev + intravar.elev.pos + intravar.mass + intravar.lat + intravar.precip + intravar.temp + (1|gr(phylo, cov=A)) + (1|species), data = final.hct)
 # I see why the tutorial calls one "phlyo" and one species; it's because you can't have both 
@@ -1279,15 +1129,15 @@ hct.m1 <- brm(
   # )
 )
 save(hct.m1, file="hct.m1_Intercept-Only.RData") # save model
-load("hct.m1_Intercept-Only.Rdata") 
+# load("hct.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + PHYLO & SPECIES RANDOM EFFECTS)
 hct.m2 <- brm(
-  formula = bf(hct ~ 1 + (1|gr(phylo, cov=A)) + (1|species)),
+  formula = bf(hct ~ 1 + (1|species)),
   data = final.hct,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
+#  data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
   thin = 10,
@@ -1303,13 +1153,13 @@ hct.m2 <- brm(
   # )
 )
 save(hct.m2, file="hct.m2_RandomEffectsOnly.RData") # save model
-load("hct.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+#load("hct.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
 hct.m3 <- brm(
-  formula = bf(hct ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip),
+  formula = bf(hct ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z),
   data = final.hct,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -1329,39 +1179,13 @@ hct.m3 <- brm(
 )
 save(hct.m3, file="hct.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-load("hct.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+# load("hct.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-
-# MODEL 4: FULL MODEL WITH ONLY PHYLO RANDOM EFFECT
-hct.m4 <- brm(
-  formula = bf(hct ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-               + (1|gr(phylo, cov=A))),
-  data = final.hct,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors 
-  # prior = c(
-  #   prior(normal(0, 10), "b"),
-  #   prior(normal(3, 20, 5), "Intercept"),
-  #   prior(student_t(3, 0, 5), "sd"),
-  #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-  # )
-)
-save(hct.m4, file="hct.m4_FullModel_PhyloREOnly.RData") # save model 
-#  ~3 mins run time 
-load("hct.m4_FullModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 5: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
 hct.m5 <- brm(
-  formula = bf(hct ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
+  formula = bf(hct ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z 
                + (1|species)),
   data = final.hct,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
@@ -1382,34 +1206,7 @@ hct.m5 <- brm(
 )
 save(hct.m5, file="hct.m5_FullModel_SpeciesREOnly.RData") # save model
 # ~3 mins
-load("hct.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
-
-
-# MODEL 6: FULL MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-hct.m6 <- brm(
-  formula = bf(hct ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-               + (1|gr(phylo, cov = A)) + (1|species)),
-  data = final.hct,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 4000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors 
-  # prior = c(
-  #   prior(normal(0, 10), "b"),
-  #   prior(normal(3, 20, 5), "Intercept"),
-  #   prior(student_t(3, 0, 5), "sd"),
-  #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-  # )
-)
-save(hct.m6, file="hct.m6_FullModel_Phylo&SpeciesRE.RData") # save model
-# ~ 3 mins run time 
-load("hct.m6_FullModel_Phylo&SpeciesRE.RData") # If loading from pre-saved file and not re-running
+# load("hct.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
@@ -1424,14 +1221,14 @@ Explanation of what mcmc_plot output below means: https://cran.r-project.org/web
 # Check trace plots for convergence
 # Beginning will look crappy because of burn-in, but we want output to look like a "fuzzy caterpillar", aka noise is good
 # Any plateaus/flat horizontal lines are bad, suggest we're sampling the same spot in the distribution repeatedly 
-mcmc_plot(hct.m6, type = "trace") 
-plot(hct.m6, N = 2, ask = FALSE)
+mcmc_plot(hct.m5, type = "trace") 
+plot(hct.m5, N = 2, ask = FALSE)
 
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hct.m6, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hct.m6, type = "stat", stat = 'median', nsamples = 100)
+pp_check(hct.m5, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
+pp_check(hct.m5, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -1439,15 +1236,15 @@ pp_check(hct.m6, type = "stat", stat = 'median', nsamples = 100)
 # you'd see a bright red bar if something is out of whack
 # Pale bars = you want all heading towards zero to show they're not correlating w/ each other across the chains 
 # fine to be pos and neg, jumping around to get to zero
-mcmc_plot(hct.m6, type = "acf_bar")
+mcmc_plot(hct.m5, type = "acf_bar")
 
 # plot conditional effects for full model (note: you do this separately below)
 # Note: this used to be called marginal_effects, but that's now deprecated; replaced w/ conditional_effects
 # nu = degrees of freedom
-plot(conditional_effects(hct.m6), points = TRUE) 
+plot(conditional_effects(hct.m5), points = TRUE) 
 
 # Quick plot of estimates and 95% CIs (default is 95% CI:
-mcmc_plot(hct.m3)  # adjust prob to get 95% CI
+mcmc_plot(hct.m5)  # adjust prob to get 95% CI
 
 # Changes the fixed effects (i.e. random variable) to odd's ratio 
 exp(fixef(hct.test)[,-2])
@@ -1470,106 +1267,45 @@ ranef(hct.test, groups="species") #, probs = 0.95)
 
 # Model 3 
 color_scheme_set("blue") # nice default
-hct.m3.p1 <- mcmc_plot(hct.m3, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
+hct.m3.p1 <- mcmc_plot(hct.m3, pars=c("b_elev.z", "b_elev.pos.z", "b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z", "b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [hct]", title = "hct.m3: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))  
+scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))  
 hct.m3.p1
 ggsave(hct.m3.p1, filename = "hct.m3.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hct.m3)
 # Predictors whose 95% CIs do NOT overlap zero: elev.position.z 
 # Reduced hct.m3 will be: elev.position.z 
 
-# Model 4
-# color_scheme_set("teal") # nice default
-hct.m4.p1 <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [hct]", title = "hct.m4: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) 
-hct.m4.p1
-ggsave(hct.m4.p1, filename = "hct.m4.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(hct.m4)
-# Predictors whose 95% CIs do NOT overlap zero: NONE
-# Reduced hct.m4 will be: NA
 
 # Model 5
 #color_scheme_set("red") # nice default
-hct.m5.p1 <- mcmc_plot(hct.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
+hct.m5.p1 <- mcmc_plot(hct.m5, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z", "b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [hct]", title = "hct.m5: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
 hct.m5.p1
 ggsave(hct.m5.p1, filename = "hct.m5.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hct.m5)
-# Predictors whose 95% CIs do NOT overlap zero: elev.position.z
-# Reduced hct.m5 will be: elev.position.z
-
-# Model 6
-#color_scheme_set("gray") # nice default
-hct.m6.p1 <- mcmc_plot(hct.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [hct]", title = "hct.m6: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-hct.m6.p1
-ggsave(hct.m6.p1, filename = "hct.m6.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(hct.m6)
-# Predictors whose 95% CIs do NOT overlap zero: elev.position.z
-# Reduced hct.m6 will be: elev.position.z
+# Predictors whose 95% CIs do NOT overlap zero: elev.position.z + intravar.elev.pos.z
+# Reduced hct.m5 will be: elev.pos.z + + intravar.elev.pos.z
 
 ####
 
 # Summary of reducing models: 
 # m7 (reduced m3) will be: elev.position.z 
-# m8 (reduced m4) will be: NA
-# m9 (reduced m5) will be: elev.position.z
-# m10 (reduced m6) will be: elev.position.z
+# m9 (reduced m5) will be: elev.pos.z + + intravar.elev.pos.z
 ```
-
-
-#### quick plot for Chris Brown Bag of model 6 posterior probs #####
-```{r}
-# Model 6
-#color_scheme_set("gray") # nice default
-bbag_hct_m6 <- mcmc_plot(hct.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [hct]") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-bbag_hct_m6
-ggsave(bbag_hct_m6, filename = "bbag_hct.m6.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=3, width=4.5, units="in")
-summary(hct.m6)
-# Predictors whose 95% CIs do NOT overlap zero: elev.position.z
-# Reduced hct.m6 will be: elev.position.z
-
-
-
-```
-
-
 
 # hct: Collate model summaries and WAIC scores for full models (m1-m6)
 ```{r}
@@ -1578,9 +1314,7 @@ sink("hct_brms_model_summaries.txt",append = TRUE)
 summary(hct.m1, waic=TRUE)
 summary(hct.m2, waic=TRUE)
 summary(hct.m3, waic=TRUE)
-summary(hct.m4, waic=TRUE)
 summary(hct.m5, waic=TRUE)
-summary(hct.m6, waic=TRUE)
 sink()
 # print(hct.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -1588,19 +1322,15 @@ sink()
 hct.m1.waic <- waic(hct.m1)
 hct.m2.waic <- waic(hct.m2)
 hct.m3.waic <- waic(hct.m3)
-hct.m4.waic <- waic(hct.m4)
 hct.m5.waic <- waic(hct.m5)
-hct.m6.waic <- waic(hct.m6)
-hct.waics <- cbind(hct.m1.waic, hct.m2.waic, hct.m3.waic, hct.m4.waic, hct.m5.waic, hct.m6.waic); hct.waics
+hct.waics <- cbind(hct.m1.waic, hct.m2.waic, hct.m3.waic, hct.m5.waic); hct.waics
 write.csv(hct.waics, "hct_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 
 # Calculate Bayesian R^2:
 bayes_R2(hct.m1)
 bayes_R2(hct.m2) # 0.11
 bayes_R2(hct.m3) # 0.08
-bayes_R2(hct.m4) # 0.15
-bayes_R2(hct.m5) # 0.167
-bayes_R2(hct.m6) # 0.019
+bayes_R2(hct.m5) # 0.166
 ```
 
 
@@ -1613,25 +1343,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 
 # CALCULATE PHYLOGENETIC SIGNAL 
 
-# m2 phylo signal   
-hyp.hct.m2 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.hct.m2 <- hypothesis(hct.m2, hyp.hct.m2, class = NULL))
-plot(hyp.hct.m2)
-# Phylo signal = 0 
-
-# m4 phylo signal   
-hyp.hct.m4 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-(hyp.hct.m4 <- hypothesis(hct.m4, hyp.hct.m4, class = NULL))
-plot(hyp.hct.m4)
-# Phylo signal = 0.01 = ~1%
-
-# m6 phylo signal   
-hyp.hct.m6 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.hct.m6 <- hypothesis(hct.m6, hyp.hct.m6, class = NULL))
-plot(hyp.hct.m6)
-# Phylo signal = 0 
-
-
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
 
@@ -1639,19 +1350,13 @@ plot(hyp.hct.m6)
 hyp.sp.hct.m2 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.hct.m2 <- hypothesis(hct.m2, hyp.sp.hct.m2, class = NULL))
 plot(hyp.sp.hct.m2)
-# ~12% variance explained 
+# ~14% variance explained 
 
 # m5 species variance 
 hyp.sp.hct.m5 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.hct.m5 <- hypothesis(hct.m5, hyp.sp.hct.m5, class = NULL))
 plot(hyp.sp.hct.m5)
-# ~13% variance explained by species 
-
-# m6 
-hyp.sp.hct.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.hct.m6 <- hypothesis(hct.m6, hyp.sp.hct.m6, class = NULL))
-plot(hyp.sp.hct.m6)
-# ~10% variance explained by species 
+# ~12% variance explained by species 
 ```
 
 
@@ -1659,7 +1364,7 @@ plot(hyp.sp.hct.m6)
 ```{r}
 # MODEL 7: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
 hct.m7 <- brm(
-  formula = bf(hct ~ 1 + elev.position.z),
+  formula = bf(hct ~ 1 + elev.pos.z),
   data = final.hct,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -1672,30 +1377,11 @@ hct.m7 <- brm(
   sample_prior = TRUE # default priors 
 )
 save(hct.m7, file="hct.m7_ReducedModel_PredictorsOnly.RData") # save model
-load("hct.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
-
-# NA - model m4 can't be reduced further 
-# MODEL 8: REDUCED MODEL WITH ONLY PHYLO RANDOM EFFECT
-# hct.m8 <- brm(
-#   formula = bf(hct ~ 1 + elev.z + (1|gr(phylo, cov=A))),
-#   data = final.hct,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-#   iter = 10000, 
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-# )
-# save(hct.m8, file="hct.m8_ReducedModel_PhyloREOnly.RData") # save model
-# #load("hct.m8_ReducedModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
-
+# load("hct.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 9: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 hct.m9 <- brm(
-  formula = bf(hct ~ 1 + elev.position.z + (1|species)),
+  formula = bf(hct ~ 1 + elev.pos.z + intravar.elev.pos.z + (1|species)),
   data = final.hct,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
@@ -1708,24 +1394,7 @@ hct.m9 <- brm(
   sample_prior = TRUE # default priors 
 )
 save(hct.m9, file="hct.m9_ReducedModel_SpeciesREOnly.RData") # save model
-load("hct.m9_ReducedModel_SpeciesREOnly.RData") 
-
-#MODEL 10: REDUCED MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-hct.m10 <- brm(
-  formula = bf(hct ~ 1 + elev.position.z + (1|gr(phylo, cov = A)) + (1|species)),
-  data = final.hct,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 4000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors
-)
-save(hct.m10, file="hct.m10_ReducedModel_Phylo&SpeciesRE.RData") # save model
-load("hct.m10_ReducedModel_Phylo&SpeciesRE.RData") 
+# load("hct.m9_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -1737,14 +1406,14 @@ Explanation of what mcmc_plot output below means: https://cran.r-project.org/web
 # Check trace plots for convergence
 # Beginning will look crappy because of burn-in, but we want output to look like a "fuzzy caterpillar", aka noise is good
 # Any plateaus/flat horizontal lines are bad, suggest we're sampling the same spot in the distribution repeatedly 
-mcmc_plot(hct.m10, type = "trace") 
-plot(hct.m10, N = 2, ask = FALSE)
+mcmc_plot(hct.m9, type = "trace") 
+plot(hct.m9, N = 2, ask = FALSE)
 
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hct.m10, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hct.m10, type = "stat", stat = 'median', nsamples = 100)
+pp_check(hct.m9, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
+pp_check(hct.m9, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -1752,22 +1421,22 @@ pp_check(hct.m10, type = "stat", stat = 'median', nsamples = 100)
 # you'd see a bright red bar if something is out of whack
 # Pale bars = you want all heading towards zero to show they're not correlating w/ each other across the chains 
 # fine to be pos and neg, jumping around to get to zero
-mcmc_plot(hct.m8, type = "acf_bar")
+mcmc_plot(hct.m9, type = "acf_bar")
 
 # plot conditional effects for full model (note: you do this separately below)
 # Note: this used to be called marginal_effects, but that's now deprecated; replaced w/ conditional_effects
 # nu = degrees of freedom
-plot(conditional_effects(hct.m10), points = TRUE) 
+plot(conditional_effects(hct.m9), points = TRUE) 
 
 # Quick plot of estimates and 95% CIs (default is 95% CI:
-mcmc_plot(hct.m8)  # adjust prob to get 95% CI
+mcmc_plot(hct.m9)  # adjust prob to get 95% CI
 
 # Changes the fixed effects (i.e. random variable) to odd's ratio 
-exp(fixef(hct.m8)[,-2])
+exp(fixef(hct.m9)[,-2])
 
 # Print group level variable (in log odds)
 # ranef is still an array, so not an exponent on it, hard to change to probability estimates 
-ranef(hct.m8, groups="species") #, probs = 0.95)
+ranef(hct.m9, groups="species") #, probs = 0.95)
 ```
 
 
@@ -1783,7 +1452,7 @@ ranef(hct.m8, groups="species") #, probs = 0.95)
 
 # Model 7 
 color_scheme_set("blue") # nice default
-hct.m7.p1 <- mcmc_plot(hct.m7, pars=c("b_elev.position.z"),
+hct.m7.p1 <- mcmc_plot(hct.m7, pars=c("b_elev.pos.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -1793,42 +1462,17 @@ hct.m7.p1
 ggsave(hct.m7.p1, filename = "hct.m7.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hct.m7)
 
-# # Model 8
-# # color_scheme_set("teal") # nice default
-# hct.m8.p1 <- mcmc_plot(hct.m8, pars=c("b_elev.position.z"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [hct]", title = "hct.m8: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation position")) 
-# hct.m8.p1
-# ggsave(hct.m8.p1, filename = "hct.m8.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# summary(hct.m8)
-
 # Model 9
 #color_scheme_set("red") # nice default
-hct.m9.p1 <- mcmc_plot(hct.m9, pars=c("b_elev.position.z"),
+hct.m9.p1 <- mcmc_plot(hct.m9, pars=c("b_elev.pos.z", "b_intravar.elev.pos.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [hct]", title = "hct.m9: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation Position"))   
+scale_y_discrete(labels=c("Elevation Position", "Intravar: Elev Position"))   
 hct.m9.p1
 ggsave(hct.m9.p1, filename = "hct.m9.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hct.m9)
-
-# Model 10
-#color_scheme_set("red") # nice default
-hct.m10.p1 <- mcmc_plot(hct.m10, pars=c("b_elev.position.z"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [hct]", title = "hct.m10: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation Position"))   
-hct.m10.p1
-ggsave(hct.m10.p1, filename = "hct.m10.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(hct.m10)
-
 ```
 
 
@@ -1837,26 +1481,19 @@ summary(hct.m10)
 # Print model summaries 
 sink("hct_reduced_brms_model_summaries.txt",append = TRUE)
 summary(hct.m7, waic=TRUE)
-#summary(hct.m8, waic=TRUE)
 summary(hct.m9, waic=TRUE)
-summary(hct.m10, waic=TRUE)
 sink()
 # print(hct.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
 hct.m7.waic <- waic(hct.m7)
-#hct.m8.waic <- waic(hct.m8)
 hct.m9.waic <- waic(hct.m9)
-hct.m10.waic <- waic(hct.m10)
-hct.waics.red <- cbind(hct.m7.waic, hct.m9.waic, hct.m10.waic); hct.waics.red
+hct.waics.red <- cbind(hct.m7.waic, hct.m9.waic); hct.waics.red
 write.csv(hct.waics.red, "hct_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 
 # Calculate Bayesian R^2:
 bayes_R2(hct.m7) # 0.05
-# bayes_R2(hct.m8) # 0.13
-bayes_R2(hct.m9) # 0.14
-bayes_R2(hct.m10) # 0.14
-
+bayes_R2(hct.m9) # 0.145
 ```
 
 
@@ -1867,20 +1504,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 # Big models that have phylogenetic grouping variable: m2, m4, m6
 # Reduced models that have phylogenetic grouping variable: m8, m10
 
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m8 phylo signal   
-# hyp.hct.m8 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-# (hyp.hct.m8 <- hypothesis(hct.m8, hyp.hct.m8, class = NULL))
-# plot(hyp.hct.m8)
-# Phylo signal = 0.01 = ~1%
-
-# m10 phylo signal   
-hyp.hct.m10 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.hct.m10 <- hypothesis(hct.m10, hyp.hct.m10, class = NULL))
-plot(hyp.hct.m10)
-# Phylo signal = 0 
-
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
 
@@ -1888,13 +1511,7 @@ plot(hyp.hct.m10)
 hyp.sp.hct.m9 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.hct.m9 <- hypothesis(hct.m9, hyp.sp.hct.m9, class = NULL))
 plot(hyp.sp.hct.m9)
-# ~10% variance explained by species 
-
-# m10 
-hyp.sp.hct.m10 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.hct.m10 <- hypothesis(hct.m10, hyp.sp.hct.m10, class = NULL))
-plot(hyp.sp.hct.m10)
-# ~9% variance explained by species 
+# ~11% variance explained by species 
 ```
 
 
@@ -1905,33 +1522,33 @@ plot(hyp.sp.hct.m10)
 
 library(loo)
 sink("hct_brms_models_all_looic.txt", append=FALSE)
-LOO(hct.m1, hct.m2, hct.m3, hct.m4, hct.m5, hct.m6, hct.m7, hct.m9, hct.m10, reloo=FALSE) 
+LOO(hct.m1, hct.m2, hct.m3, hct.m5, hct.m7, hct.m9, reloo=FALSE) 
 sink()
 # According to LOO, model 8 is top model 
 
 # compare models # Just a shorter version of the above text
 # loo_compare(en.loo) # Top ranked model includes no random effects 
-
+# 
 # Model comparisons:
-#         elpd_diff se_diff
-# hct.m9    0.0       0.0  
-# hct.m10  -0.2       0.4  
-# hct.m5   -1.6       4.1  
-# hct.m6   -2.2       4.1  
-# hct.m4   -5.3       4.4  
-# hct.m2  -19.3       6.6  
-# hct.m7  -33.6       8.1  
-# hct.m3  -33.9       8.3  
-# hct.m1  -67.4      12.4 
+#        elpd_diff se_diff
+# hct.m5   0.0       0.0  
+# hct.m9  -0.2       4.1  
+# hct.m2 -17.7       8.0  
+# hct.m3 -32.6       8.0  
+# hct.m7 -33.6       9.7  
+# hct.m1 -67.2      13.8 
 ```
 
 Quick summary of top 3 models in order of ranking: 
-1) Model 9: Elevation position + (1|species). Phylo signal NA. 
-2) Model 10: Elevation position + (1|phylogeny) + (1|species). Phylo signal is 0. 
-3) Model 5: Full model + (1|species). Phylo signal = NA. 
+1) Model 5: Full model + (1|species). 
+2) Model 9: Elevation position + (1|species). **only marginally worse than m5 
+2) Model 2: RE only model with + (1|species).
+
+**All models performed substantially better than the intercept-only model. 
 
 
 
+NOTE ON 11/23/20 - I DIDN'T GET GET TO TRBC MODEL SET!!!
 
 ##### TRBC MODEL SET #######
 
@@ -1939,18 +1556,6 @@ Quick summary of top 3 models in order of ranking:
 # TRBC MODELS - Set up & run models 
 See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
 ```{r}
-# Copy species column and name it 'phylo' for estimation of phylo variance 
-final.trbc$phylo <- final.trbc$species
-
-# Note:
-# The variables 'phylo' and 'species' are identical (both = species identifiers). However, we model phylo covariance only
-# for 'phylo' and thus the 'species' variable accounts for any effect independent of the phylo relationship between species
-# (e.g., enviro or niche effects). We can obtain model summaries as well as estimates of the phylogenetic signal.
-
-## set up tree structure for brms models
-# This used to be ape::vcv.phylo, but looks like vcv.phylo has been replaced with vcv()
-A <- ape::vcv(tree.trbc)
-
 # See what prior choices are being made for us. 
 get_prior(trbc ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + intravar.elev + intravar.elev.pos + intravar.mass + intravar.lat + intravar.precip + intravar.temp + (1|gr(phylo, cov=A)) + (1|species), data = final.trbc)
 # I see why the tutorial calls one "phlyo" and one species; it's because you can't have both 
@@ -2043,32 +1648,6 @@ save(trbc.m3, file="trbc.m3_FullModel_PredictorsOnly.RData") # save model
 load("trbc.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
-# MODEL 4: FULL MODEL WITH ONLY PHYLO RANDOM EFFECT
-trbc.m4 <- brm(
-  formula = bf(trbc ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-               + (1|gr(phylo, cov=A))),
-  data = final.trbc,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors 
-  # prior = c(
-  #   prior(normal(0, 10), "b"),
-  #   prior(normal(3, 20, 5), "Intercept"),
-  #   prior(student_t(3, 0, 5), "sd"),
-  #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-  # )
-)
-save(trbc.m4, file="trbc.m4_FullModel_PhyloREOnly.RData") # save model 
-#  ~3 mins run time 
-load("trbc.m4_FullModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
-
 # MODEL 5: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
 trbc.m5 <- brm(
   formula = bf(trbc ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
@@ -2095,32 +1674,6 @@ save(trbc.m5, file="trbc.m5_FullModel_SpeciesREOnly.RData") # save model
 # ~3 mins
 load("trbc.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 
-
-# MODEL 6: FULL MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-trbc.m6 <- brm(
-  formula = bf(trbc ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-               + (1|gr(phylo, cov = A)) + (1|species)),
-  data = final.trbc,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 4000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors 
-  # prior = c(
-  #   prior(normal(0, 10), "b"),
-  #   prior(normal(3, 20, 5), "Intercept"),
-  #   prior(student_t(3, 0, 5), "sd"),
-  #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-  # )
-)
-save(trbc.m6, file="trbc.m6_FullModel_Phylo&SpeciesRE.RData") # save model
-# ~ 3 mins run time 
-load("trbc.m6_FullModel_Phylo&SpeciesRE.RData") # If loading from pre-saved file and not re-running
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
@@ -2196,23 +1749,6 @@ summary(trbc.m3)
 # Predictors whose 95% CIs do NOT overlap zero: lat.z, intravar.elev, intravar.elev.pos 
 # Reduced trbc.m3 will be: lat.z, intravar.elev, intravar.elev.pos 
 
-# Model 4
-# color_scheme_set("teal") # nice default
-trbc.m4.p1 <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [trbc]", title = "trbc.m4: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) 
-trbc.m4.p1
-ggsave(trbc.m4.p1, filename = "trbc.m4.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(trbc.m4)
-# Predictors whose 95% CIs do NOT overlap zero: intravar.elev, intravar.elev.pos
-# Reduced trbc.m4 will be: intravar.elev, intravar.elev.pos
-
 # Model 5
 #color_scheme_set("red") # nice default
 trbc.m5.p1 <- mcmc_plot(trbc.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
@@ -2230,30 +1766,12 @@ summary(trbc.m5)
 # Predictors whose 95% CIs do NOT overlap zero: intravar.elev
 # Reduced trbc.m5 will be: intravar.elev
 
-# Model 6
-#color_scheme_set("gray") # nice default
-trbc.m6.p1 <- mcmc_plot(trbc.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [trbc]", title = "trbc.m6: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-trbc.m6.p1
-ggsave(trbc.m6.p1, filename = "trbc.m6.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(trbc.m6)
-# Predictors whose 95% CIs do NOT overlap zero: intravar.elev
-# Reduced trbc.m6 will be: intravar.elev
 
 ####
 
 # Summary of reducing models: 
 # m7 (reduced m3) will be: lat.z, intravar.elev, intravar.elev.pos  
-# m8 (reduced m4) will be: intravar.elev, intravar.elev.pos
 # m9 (reduced m5) will be: intravar.elev
-# m10 (reduced m6) will be: intravar.elev
 ```
 
 
@@ -2264,9 +1782,7 @@ sink("trbc_brms_model_summaries.txt",append = TRUE)
 summary(trbc.m1, waic=TRUE)
 summary(trbc.m2, waic=TRUE)
 summary(trbc.m3, waic=TRUE)
-summary(trbc.m4, waic=TRUE)
 summary(trbc.m5, waic=TRUE)
-summary(trbc.m6, waic=TRUE)
 sink()
 # print(trbc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -2274,19 +1790,15 @@ sink()
 trbc.m1.waic <- waic(trbc.m1)
 trbc.m2.waic <- waic(trbc.m2)
 trbc.m3.waic <- waic(trbc.m3)
-trbc.m4.waic <- waic(trbc.m4)
 trbc.m5.waic <- waic(trbc.m5)
-trbc.m6.waic <- waic(trbc.m6)
-trbc.waics <- cbind(trbc.m1.waic, trbc.m2.waic, trbc.m3.waic, trbc.m4.waic, trbc.m5.waic, trbc.m6.waic); trbc.waics
+trbc.waics <- cbind(trbc.m1.waic, trbc.m2.waic, trbc.m3.waic, trbc.m5.waic); trbc.waics
 write.csv(trbc.waics, "trbc_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 
 # Calculate Bayesian R^2:
 bayes_R2(trbc.m1)
 bayes_R2(trbc.m2) # 0.13
 bayes_R2(trbc.m3) # 0.09
-bayes_R2(trbc.m4) # 0.17
 bayes_R2(trbc.m5) # 0.186
-bayes_R2(trbc.m6) # 0.186
 ```
 
 
@@ -2296,26 +1808,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 ```{R}
 # Big models that have phylogenetic grouping variable: m2, m4, m6
 # Reduced models that have phylogenetic grouping variable: m8, m10
-
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m2 phylo signal   
-hyp.trbc.m2 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.trbc.m2 <- hypothesis(trbc.m2, hyp.trbc.m2, class = NULL))
-plot(hyp.trbc.m2)
-# Phylo signal = 0.01 = ~1%
-
-# m4 phylo signal   
-hyp.trbc.m4 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-(hyp.trbc.m4 <- hypothesis(trbc.m4, hyp.trbc.m4, class = NULL))
-plot(hyp.trbc.m4)
-# Phylo signal = 0.02 = ~2%
-
-# m6 phylo signal   
-hyp.trbc.m6 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.trbc.m6 <- hypothesis(trbc.m6, hyp.trbc.m6, class = NULL))
-plot(hyp.trbc.m6)
-# Phylo signal = 0.01 = ~1% 
 
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
@@ -2331,12 +1823,6 @@ hyp.sp.trbc.m5 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2)
 (hyp.sp.trbc.m5 <- hypothesis(trbc.m5, hyp.sp.trbc.m5, class = NULL))
 plot(hyp.sp.trbc.m5)
 # ~20% variance explained by species 
-
-# m6 
-hyp.sp.trbc.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.trbc.m6 <- hypothesis(trbc.m6, hyp.sp.trbc.m6, class = NULL))
-plot(hyp.sp.trbc.m6)
-# ~13% variance explained by species 
 ```
 
 
@@ -2366,25 +1852,6 @@ trbc.m7 <- brm(
 save(trbc.m7, file="trbc.m7_ReducedModel_PredictorsOnly.RData") # save model
 load("trbc.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-# NA - model m4 can't be reduced further 
-# MODEL 8: REDUCED MODEL WITH ONLY PHYLO RANDOM EFFECT
-trbc.m8 <- brm(
-  formula = bf(trbc ~ 1 + intravar.elev + intravar.elev.pos + (1|gr(phylo, cov=A))),
-  data = final.trbc,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000,
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors
-)
-save(trbc.m8, file="trbc.m8_ReducedModel_PhyloREOnly.RData") # save model
-load("trbc.m8_ReducedModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
-
-
 # MODEL 9: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 trbc.m9 <- brm(
   formula = bf(trbc ~ 1 + intravar.elev + (1|species)),
@@ -2401,23 +1868,6 @@ trbc.m9 <- brm(
 )
 save(trbc.m9, file="trbc.m9_ReducedModel_SpeciesREOnly.RData") # save model
 load("trbc.m9_ReducedModel_SpeciesREOnly.RData") 
-
-#MODEL 10: REDUCED MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-trbc.m10 <- brm(
-  formula = bf(trbc ~ 1 + intravar.elev + (1|gr(phylo, cov = A)) + (1|species)),
-  data = final.trbc,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 4000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors
-)
-save(trbc.m10, file="trbc.m10_ReducedModel_Phylo&SpeciesRE.RData") # save model
-load("trbc.m10_ReducedModel_Phylo&SpeciesRE.RData") 
 ```
 
 
@@ -2485,18 +1935,6 @@ trbc.m7.p1
 ggsave(trbc.m7.p1, filename = "trbc.m7.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(trbc.m7)
 
-# # Model 8
-# color_scheme_set("teal") # nice default
-trbc.m8.p1 <- mcmc_plot(trbc.m8, pars=c("b_intravar.elev", "b_intravar.elev.pos"),
-                                    prob_outer=0.95, # 95% outer CI
-                                    prob=0.50, # 50% inner CI
-                                    point_est="mean") + # mean point est; default is median
-labs(x="Effect on [trbc]", title = "trbc.m8: Posterior mean estimates & 95% Credible Intervals") +
-scale_y_discrete(labels=c("Intra Var: Elev", "Intra Var: Elev Pos"))
-trbc.m8.p1
-ggsave(trbc.m8.p1, filename = "trbc.m8.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(trbc.m8)
-
 # Model 9
 #color_scheme_set("red") # nice default
 trbc.m9.p1 <- mcmc_plot(trbc.m9, pars=c("b_intravar.elev"),
@@ -2508,19 +1946,6 @@ scale_y_discrete(labels=c("Intra Var: Elev"))
 trbc.m9.p1
 ggsave(trbc.m9.p1, filename = "trbc.m9.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(trbc.m9)
-
-# Model 10
-#color_scheme_set("red") # nice default
-trbc.m10.p1 <- mcmc_plot(trbc.m10, pars=c("b_intravar.elev"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on trbc", title = "trbc.m10: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Intra Var: Elev"))   
-trbc.m10.p1
-ggsave(trbc.m10.p1, filename = "trbc.m10.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(trbc.m10)
-
 ```
 
 
@@ -2529,25 +1954,19 @@ summary(trbc.m10)
 # Print model summaries 
 sink("trbc_reduced_brms_model_summaries.txt",append = TRUE)
 summary(trbc.m7, waic=TRUE)
-summary(trbc.m8, waic=TRUE)
 summary(trbc.m9, waic=TRUE)
-summary(trbc.m10, waic=TRUE)
 sink()
 # print(trbc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
 trbc.m7.waic <- waic(trbc.m7)
-trbc.m8.waic <- waic(trbc.m8)
 trbc.m9.waic <- waic(trbc.m9)
-trbc.m10.waic <- waic(trbc.m10)
-trbc.waics.red <- cbind(trbc.m7.waic, trbc.m8.waic, trbc.m9.waic, trbc.m10.waic); trbc.waics.red
+trbc.waics.red <- cbind(trbc.m7.waic, trbc.m9.waic); trbc.waics.red
 write.csv(trbc.waics.red, "trbc_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 
 # Calculate Bayesian R^2:
 bayes_R2(trbc.m7) # 0.06
-bayes_R2(trbc.m8) # 0.13
 bayes_R2(trbc.m9) # 0.14
-bayes_R2(trbc.m10) # 0.14
 ```
 
 
@@ -2558,20 +1977,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 # Big models that have phylogenetic grouping variable: m2, m4, m6
 # Reduced models that have phylogenetic grouping variable: m8, m10
 
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m8 phylo signal   
-hyp.trbc.m8 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE
-(hyp.trbc.m8 <- hypothesis(trbc.m8, hyp.trbc.m8, class = NULL))
-plot(hyp.trbc.m8)
-# Phylo signal = 0.02 = ~2%
-
-# m10 phylo signal   
-hyp.trbc.m10 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.trbc.m10 <- hypothesis(trbc.m10, hyp.trbc.m10, class = NULL))
-plot(hyp.trbc.m10)
-# Phylo signal = 0.0 
-
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
 
@@ -2580,12 +1985,6 @@ hyp.sp.trbc.m9 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2)
 (hyp.sp.trbc.m9 <- hypothesis(trbc.m9, hyp.sp.trbc.m9, class = NULL))
 plot(hyp.sp.trbc.m9)
 # ~21% variance explained by species 
-
-# m10 
-hyp.sp.trbc.m10 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.trbc.m10 <- hypothesis(trbc.m10, hyp.sp.trbc.m10, class = NULL))
-plot(hyp.sp.trbc.m10)
-# ~16% variance explained by species 
 ```
 
 
@@ -2596,7 +1995,7 @@ plot(hyp.sp.trbc.m10)
 
 library(loo)
 sink("trbc_brms_models_all_looic.txt", append=FALSE)
-LOO(trbc.m1, trbc.m2, trbc.m3, trbc.m4, trbc.m5, trbc.m6, trbc.m7, trbc.m8, trbc.m9, trbc.m10, reloo=FALSE) 
+LOO(trbc.m1, trbc.m2, trbc.m3, trbc.m5, trbc.m7, trbc.m9, reloo=FALSE) 
 sink()
 # According to LOO, model 8 is top model 
 
@@ -2630,18 +2029,6 @@ TRBC, Quick summary of top 3 models in order of ranking:
 # MCV MODELS - Set up & run models 
 See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
 ```{r}
-# Copy species column and name it 'phylo' for estimation of phylo variance 
-#final.mcv$phylo <- final.mcv$species
-
-# Note:
-# The variables 'phylo' and 'species' are identical (both = species identifiers). However, we model phylo covariance only
-# for 'phylo' and thus the 'species' variable accounts for any effect independent of the phylo relationship between species
-# (e.g., enviro or niche effects). We can obtain model summaries as well as estimates of the phylogenetic signal.
-
-## set up tree structure for brms models
-# This used to be ape::vcv.phylo, but looks like vcv.phylo has been replaced with vcv()
-#A <- ape::vcv(tree.mcv)
-
 # See what prior choices are being made for us. 
 get_prior(mcv ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + intravar.elev + intravar.elev.pos + intravar.mass + intravar.precip + intravar.temp + (1|species), data = final.mcv)
 # I see why the tutorial calls one "phlyo" and one species; it's because you can't have both 
@@ -2662,9 +2049,9 @@ get_prior(mcv ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + intr
 
 # MODEL 1: NULL MODEL (INTERCEPT ONLY) 
 mcv.m1 <- brm(
-  formula = bf(mcv ~ 1),
+  formula = bf(mcv.log ~ 1),
   data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
 #  data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
@@ -2681,14 +2068,14 @@ mcv.m1 <- brm(
   # )
 )
 save(mcv.m1, file="mcv.m1_Intercept-Only.RData") # save model
-load("mcv.m1_Intercept-Only.Rdata") 
+# load("mcv.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + PHYLO & SPECIES RANDOM EFFECTS)
 mcv.m2 <- brm(
-  formula = bf(mcv ~ 1 + (1|species)),
+  formula = bf(mcv.log ~ 1 + (1|species)),
   data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
 #  data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
@@ -2705,15 +2092,15 @@ mcv.m2 <- brm(
   # )
 )
 save(mcv.m2, file="mcv.m2_RandomEffectsOnly.RData") # save model
-load("mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+#load("mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
 mcv.m3 <- brm(
-  formula = bf(mcv ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.mass + intravar.temp + intravar.precip),
+  formula = bf(mcv.log ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z),
   data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
@@ -2731,39 +2118,13 @@ mcv.m3 <- brm(
 )
 save(mcv.m3, file="mcv.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-load("mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+f#load("mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-
-# MODEL 4: FULL MODEL WITH ONLY PHYLO RANDOM EFFECT
-# mcv.m4 <- brm(
-#   formula = bf(mcv ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-#                intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-#                + (1|gr(phylo, cov=A))),
-#   data = final.mcv,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-#   iter = 10000, # nora had 20000, EBL used 10000
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-#   # prior = c(
-#   #   prior(normal(0, 10), "b"),
-#   #   prior(normal(3, 20, 5), "Intercept"),
-#   #   prior(student_t(3, 0, 5), "sd"),
-#   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-#   # )
-# )
-# save(mcv.m4, file="mcv.m4_FullModel_PhyloREOnly.RData") # save model 
-# #  ~3 mins run time 
-# load("mcv.m4_FullModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 5: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
 mcv.m5 <- brm(
-  formula = bf(mcv ~ 1 + elev.z + elev.position.z + mass.z + temp.z + precip.z + genotype +
-               intravar.elev + intravar.elev.pos + intravar.mass + intravar.temp + intravar.precip 
+  formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.elev.z + intravar.elev.pos.z + intravar.mass.z + intravar.temp.z + intravar.precip.z 
                + (1|species)),
   data = final.mcv,
   family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
@@ -2785,34 +2146,7 @@ mcv.m5 <- brm(
   # )
 )
 save(mcv.m5, file="mcv.m5_FullModel_SpeciesREOnly.RData") # save model
-load("mcv.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
-
-
-# MODEL 6: FULL MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-# mcv.m6 <- brm(
-#   formula = bf(mcv ~ 1 + elev.z + elev.position.z + lat.z + mass.z + temp.z + precip.z + genotype +
-#                intravar.elev + intravar.elev.pos + intravar.lat + intravar.mass + intravar.temp + intravar.precip 
-#                + (1|gr(phylo, cov = A)) + (1|species)),
-#   data = final.mcv,
-#   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-#   data2 = list(A = A), # Phylogeny
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-#   iter = 4000, # nora had 20000, EBL used 10000
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # default priors 
-#   # prior = c(
-#   #   prior(normal(0, 10), "b"),
-#   #   prior(normal(3, 20, 5), "Intercept"),
-#   #   prior(student_t(3, 0, 5), "sd"),
-#   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
-#   # )
-# )
-# save(mcv.m6, file="mcv.m6_FullModel_Phylo&SpeciesRE.RData") # save model
-# # ~ 3 mins run time 
-# load("mcv.m6_FullModel_Phylo&SpeciesRE.RData") # If loading from pre-saved file and not re-running
+# load("mcv.m5_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
@@ -2877,10 +2211,10 @@ ranef(mcv.m6, groups="species") #, probs = 0.95)
 
 # Model 3 
 color_scheme_set("blue") # nice default
-mcv.m3.p1 <- mcmc_plot(mcv.m3, pars=c("b_elev.z", "b_elev.position.z","b_mass.z","b_temp.z","b_precip.z",
+mcv.m3.p1 <- mcmc_plot(mcv.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos","b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z","b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2892,29 +2226,12 @@ summary(mcv.m3)
 # Predictors whose 95% CIs do NOT overlap zero: intravar.elev.pos, intravar.elev, latitude, elev.pos
 # Reduced mcv.m3 will be: intravar.elev.pos, intravar.elev, latitude, elev.pos 
 
-# Model 4
-# color_scheme_set("teal") # nice default
-# mcv.m4.p1 <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-#                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-#                                     "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-#                                     "b_intravar.temp", "b_intravar.precip"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [mcv]", title = "mcv.m4: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) 
-# mcv.m4.p1
-# ggsave(mcv.m4.p1, filename = "mcv.m4.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# summary(mcv.m4)
-# Predictors whose 95% CIs do NOT overlap zero: latitude 
-# Reduced mcv.m4 will be: lat.z
-
 # Model 5
 #color_scheme_set("red") # nice default
-mcv.m5.p1 <- mcmc_plot(mcv.m5, pars=c("b_elev.z", "b_elev.position.z","b_mass.z","b_temp.z","b_precip.z",
+mcv.m5.p1 <- mcmc_plot(mcv.m5, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos","b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
+                                    "b_intravar.elev.z", "b_intravar.elev.pos.z","b_intravar.mass.z",
+                                    "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2926,30 +2243,11 @@ summary(mcv.m5)
 # Predictors whose 95% CIs do NOT overlap zero: latitude
 # Reduced mcv.m5 will be: lat.z
 
-# Model 6
-#color_scheme_set("gray") # nice default
-# mcv.m6.p1 <- mcmc_plot(mcv.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-#                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
-#                                     "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-#                                     "b_intravar.temp", "b_intravar.precip"),
-#                                     prob_outer=0.95, # 95% outer CI 
-#                                     prob=0.50, # 50% inner CI 
-#                                     point_est="mean") + # mean point est; default is median 
-# labs(x="Effect on [mcv]", title = "mcv.m6: Posterior mean estimates & 95% Credible Intervals") + 
-# scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-# mcv.m6.p1
-# ggsave(mcv.m6.p1, filename = "mcv.m6.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-# summary(mcv.m6)
-# Predictors whose 95% CIs do NOT overlap zero: latitude
-# Reduced mcv.m6 will be: lat.z
-
 ####
 
 # Summary of reducing models: 
 # m7 (reduced m3) will be: intravar.elev, intravar.elev.pos, lat.z, elev.pos 
-# m8 (reduced m4) will be: lat.z
 # m9 (reduced m5) will be: lat.z
-# m10 (reduced m6) will be: lat.z
 ```
 
 
@@ -2960,9 +2258,7 @@ sink("mcv_brms_model_summaries.txt",append = TRUE)
 summary(mcv.m1, waic=TRUE)
 summary(mcv.m2, waic=TRUE)
 summary(mcv.m3, waic=TRUE)
-summary(mcv.m4, waic=TRUE)
 summary(mcv.m5, waic=TRUE)
-summary(mcv.m6, waic=TRUE)
 sink()
 # print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -2970,19 +2266,15 @@ sink()
 mcv.m1.waic <- waic(mcv.m1)
 mcv.m2.waic <- waic(mcv.m2)
 mcv.m3.waic <- waic(mcv.m3)
-mcv.m4.waic <- waic(mcv.m4)
 mcv.m5.waic <- waic(mcv.m5)
-mcv.m6.waic <- waic(mcv.m6)
-mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m4.waic, mcv.m5.waic, mcv.m6.waic); mcv.waics
+mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m5.waic); mcv.waics
 write.csv(mcv.waics, "mcv_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 
 # Calculate Bayesian R^2:
 bayes_R2(mcv.m1)
 bayes_R2(mcv.m2) # 0.12
 bayes_R2(mcv.m3) # 0.07
-bayes_R2(mcv.m4) # 0.139
 bayes_R2(mcv.m5) # 0.156
-bayes_R2(mcv.m6) # 0.157
 ```
 
 
@@ -2992,26 +2284,6 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 ```{R}
 # Big models that have phylogenetic grouping variable: m2, m4, m6
 # Reduced models that have phylogenetic grouping variable: m8, m10
-
-# CALCULATE PHYLOGENETIC SIGNAL 
-
-# m2 phylo signal   
-hyp.mcv.m2 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.mcv.m2 <- hypothesis(mcv.m2, hyp.mcv.m2, class = NULL))
-plot(hyp.mcv.m2)
-# Phylo signal = 0.0 = ~0%
-
-# m4 phylo signal   
-hyp.mcv.m4 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sigma^2) = 0") # only phylo RE 
-(hyp.mcv.m4 <- hypothesis(mcv.m4, hyp.mcv.m4, class = NULL))
-plot(hyp.mcv.m4)
-# Phylo signal = 0.01 = ~1%
-
-# m6 phylo signal   
-hyp.mcv.m6 <- paste("sd_phylo__Intercept^2 /", "(sd_phylo__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
-(hyp.mcv.m6 <- hypothesis(mcv.m6, hyp.mcv.m6, class = NULL))
-plot(hyp.mcv.m6)
-# Phylo signal = 0.0 = ~0% 
 
 # CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
@@ -3027,20 +2299,7 @@ hyp.sp.mcv.m5 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) 
 (hyp.sp.mcv.m5 <- hypothesis(mcv.m5, hyp.sp.mcv.m5, class = NULL))
 plot(hyp.sp.mcv.m5)
 # ~16% variance explained by species 
-
-# m6 
-hyp.sp.mcv.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.mcv.m6 <- hypothesis(mcv.m6, hyp.sp.mcv.m6, class = NULL))
-plot(hyp.sp.mcv.m6)
-# ~14% variance explained by species 
 ```
-
-
-# Summary of reducing models: 
-# m7 (reduced m3) will be: lat.z, elev.pos, intravar.elev, intravar.elev.pos  
-# m8 (reduced m4) will be: intravar.elev, intravar.elev.pos
-# m9 (reduced m5) will be: intravar.elev
-# m10 (reduced m6) will be: intravar.elev
 
 
 # mcv: RUN REDUCED MODELS (m7-m10)
@@ -3049,7 +2308,7 @@ plot(hyp.sp.mcv.m6)
 mcv.m7 <- brm(
   formula = bf(mcv ~ 1 + lat.z + elev.position.z + intravar.elev + intravar.elev.pos),
   data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
@@ -3062,29 +2321,12 @@ mcv.m7 <- brm(
 save(mcv.m7, file="mcv.m7_ReducedModel_PredictorsOnly.RData") # save model
 load("mcv.m7_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-# MODEL 8: REDUCED MODEL WITH ONLY PHYLO RANDOM EFFECT
-mcv.m8 <- brm(
-  formula = bf(mcv ~ 1 + lat.z + (1|gr(phylo, cov=A))),
-  data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000,
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors
-)
-save(mcv.m8, file="mcv.m8_ReducedModel_PhyloREOnly.RData") # save model
-load("mcv.m8_ReducedModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
-
 
 # MODEL 9: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 mcv.m9 <- brm(
   formula = bf(mcv ~ 1 + lat.z + (1|species)),
   data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
  # data2 = list(A = A), # Phylogeny
   cores = 4,
   chains = 4,
@@ -3096,23 +2338,6 @@ mcv.m9 <- brm(
 )
 save(mcv.m9, file="mcv.m9_ReducedModel_SpeciesREOnly.RData") # save model
 load("mcv.m9_ReducedModel_SpeciesREOnly.RData") 
-
-#MODEL 10: REDUCED MODEL WITH PHYLO AND SPECIES RANDOM EFFECTS
-mcv.m10 <- brm(
-  formula = bf(mcv ~ 1 + lat.z + (1|gr(phylo, cov = A)) + (1|species)),
-  data = final.mcv,
-  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  data2 = list(A = A), # Phylogeny
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 1000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 4000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # default priors
-)
-save(mcv.m10, file="mcv.m10_ReducedModel_Phylo&SpeciesRE.RData") # save model
-load("mcv.m10_ReducedModel_Phylo&SpeciesRE.RData") 
 ```
 
 
@@ -5003,7 +4228,14 @@ test %>%
 ```
 
 
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
 
+###########
+
+## END 
 
 
 

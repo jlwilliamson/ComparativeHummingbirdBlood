@@ -3,8 +3,8 @@ title: "Plots and Figures for Comparative Hummingbird Blood paper"
 author: "Jessie Williamson"
 date: "7/21/2020"
 output:
-  pdf_document: default
-  html_document: default
+  md_document:
+    variant: markdown_github
 ---
 
 #### 
@@ -85,32 +85,80 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 
 # load in data 
 ```{R}
-# Load functions 
-source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
+# # Load functions 
+# source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
 
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
-#final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_07-18-20.csv")
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv")
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
+
+# Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
+final.nopgig <- read.csv("HumBlood.final.nopgig_12-01-20.csv")
+final.nopgig <- final.nopgig[ , !(colnames(final.nopgig) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
 #tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
-tree$tip.label # Check 77 tips
-plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
+# tree$tip.label # Check 77 tips
+# plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
 ```
 
 
-# Make Patagona-only subset (might be necessary if wanting to plot mass distributions separately)
+# Set levels to ensure that colors plot properly
+Make sure levels correspond to clade label order in phylogeny from top to bottom
 ```{r}
-# Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
-final.nopgig <- final[-which(final$species == "Patagona gigas"),] # 161 Patagona observations 
-# write.csv(final.nopgig, "HumBlood.final.nopgig.csv")
-
+# Set clade levels/make sure these are correct
+final$Clade <- factor(final$Clade
+                       , levels = c("Coquette",
+                                    "Brilliant", 
+                                    "Patagona", 
+                                    "Bee", 
+                                    "Mountain-gem", 
+                                    "Emerald", 
+                                    "Mango",  
+                                    "Topaz",
+                                    "Hermit"))
 ```
+
 
 
 # COLOR PALETTES 
 ```{r}
+# Colors from Figure 1 map phylo fig (last revised 2/23/21); see Illustrator file
+# Turquoise - 4FBBB6 (coquette) **may need to change because very similar to points on the map
+# Gray - A5A5AC (brilliant)
+# Red - EE4024 (patagona)
+# Gold - D9CA44 (bees)
+# Pink - E786B7 (mountain gems)
+# Green - 37B453 (emeralds)
+# Orange - F9AC1B (mangos)
+# Blue - 00A5CB (topazes)
+# purple - 9E6EAE (hermits)
+
+# HUMMINGBIRD COLORS 
+# hum_colors <- c( "#4FBBB6", # Turquoise (Coquette)
+#                  "#A5A5AC", # gray (Brilliant)
+#                  "#EE4024", # red (Patagona)
+#                  "#D9CA44", # Gold (Bee)
+#                  "#E786B7", # pink (Mountain-gem)
+#                  "#37B453", # green (Emerald)  
+#                  "#F9AC1B", # orange (Mango)
+#                  "#00A5CB", # blue (Topaz)
+#                  "#9E6EAE" # purple (Hermit)
+#                             )
+
+# revised 
+hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
+                 "#9E9285", # brown (Brilliant)
+                 "#EE4024", # red (Patagona)
+                 "#F4CD0B", # Gold (Bee)
+                 "#E786B7", # pink (Mountain-gem)
+                 "#97B25B", # green (Emerald)  
+                 "#F79E0F", # orange (Mango)
+                 "#03446B", # navy blue (Topaz)
+                 "#916EF9" # purple (Hermit)
+                            )
+
 # Oreotrochilus chimborazo color palette: 
 # Deep purple: #6E1EDC
 # Aqua gorget: #1CD2D8; another color: #0DAFA9
@@ -123,44 +171,81 @@ final.nopgig <- final[-which(final$species == "Patagona gigas"),] # 161 Patagona
 # Iridescent cheeks: #BA51FA
 #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
 
-Ochimborazo_palette <- c( "#0E0E17", # Black 
-                          "#1CD2D8", # turquoise aqua gorget
-                          "#8C847B", # browny flanks 
-                          "#F4893C", # Chuquiragua buds 
-                          "#166975", # Darker part of gorget
-                          "#FDC31F", # Chuquiragua pollen  
-                          "#BA51FA", # Pinkish shine to gorget; Dark green wing patches: #344D3F
-                          "#6E1EDC", # Deep purple 
-                          "#6F8F17" # Chuquiragua leaves 
-                            )
+# Ochimborazo_palette <- c( "#0E0E17", # Black 
+#                           "#1CD2D8", # turquoise aqua gorget
+#                           "#8C847B", # browny flanks 
+#                           "#F4893C", # Chuquiragua buds 
+#                           "#166975", # Darker part of gorget
+#                           "#FDC31F", # Chuquiragua pollen  
+#                           "#BA51FA", # Pinkish shine to gorget; Dark green wing patches: #344D3F
+#                           "#6E1EDC", # Deep purple 
+#                           "#6F8F17" # Chuquiragua leaves 
+#                             )
+# 
+# peru_palette <- c( "#628454", # sage green
+#                    "#FB4301", # deep orange-red
+#                    "#6D7B9C", # skirt blue
+#                    "#966D56", # Adobe brown
+#                    "#E7860E", # golden orange-yellow
+#                    "#264142", # Deep sea green
+#                    "#BFD1F8", # periwinkle on shirt
+#                    "#952842", # cabernet
+#                    "#F871AA" # pink
+#                             )
+# 
+# # Peru chimborazo: inspired by Peruvian textiles and Oreotrochilus chimborazo colors 
+# peru_chimborazo <- c( "#FDC31F", # Chuquiragua pollen
+#                       "#1CD2D8", # turquoise aqua gorget
+#                       "#8C847B", # browny flanks 
+#                       "#9AB243", # Chuquiragua gree
+#                        "#FB4301", # Deep orange-red
+#                       "#264142", # Deep sea green
+#                       "#F871AA", # pink
+#                       "#6E1EDC", # Deep purple 
+#                       "#6D7B9C" # skirt blue # played around w/ subbing in this too:   "#A8A9AD" # gray breast
+#                             )
+```
 
-peru_palette <- c( "#628454", # sage green
-                   "#FB4301", # deep orange-red
-                   "#6D7B9C", # skirt blue
-                   "#966D56", # Adobe brown
-                   "#E7860E", # golden orange-yellow
-                   "#264142", # Deep sea green
-                   "#BFD1F8", # periwinkle on shirt
-                   "#952842", # cabernet
-                   "#F871AA" # pink
-                            )
 
-# Peru chimborazo: inspired by Peruvian textiles and Oreotrochilus chimborazo colors 
-peru_chimborazo <- c( "#FDC31F", # Chuquiragua pollen
-                      "#1CD2D8", # turquoise aqua gorget
-                      "#8C847B", # browny flanks 
-                      "#9AB243", # Chuquiragua gree
-                       "#FB4301", # Deep orange-red
-                      "#264142", # Deep sea green
-                      "#F871AA", # pink
-                      "#6E1EDC", # Deep purple 
-                      "#6D7B9C" # skirt blue # played around w/ subbing in this too:   "#A8A9AD" # gray breast
-                            )
+# Basic plot of sampling across elevations
+```{r}
+# SUPER BASIC PLOTS, missing a lot of formatting/aesthetics 
+# Sampling density across elevation 
+(p <- ggplot(final, aes(x=elev, y=..density..)) +
+      geom_density(alpha=.2, fill="#FF6666") + 
+      geom_histogram(binwidth = 200) + 
+    #  scale_color_manual(values = hum_colors) +
+      theme_classic() + 
+      labs(x="Elevation (m)", y="Sampling Density") + 
+      theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+
+# Sampling Depth across elevation  
+(p <- ggplot(final, aes(x=elev)) +
+   #   geom_density(alpha=.2, fill="#FF6666") + 
+      geom_histogram(binwidth = 200) + 
+    #  scale_color_manual(values = hum_colors) +
+      theme_classic() + 
+      labs(x="Elevation (m)", y="Sampling Depth") + 
+      theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+
+# Overlaid histograms
+# ggplot(final, aes(x=elev)) +
+#   geom_histogram(fill="black", alpha=0.5, position="identity")
+# 
+# ggplot(final, aes(elev, colour = Clade)) +
+#   geom_freqpoly(binwidth = 500)
+# 
+# ggplot(final, aes(elev)) +
+#   geom_histogram(bins = 100) + 
+#   theme_classic() 
 ```
 
 
 
 # PLOTS OF BLOOD CHARACTERISTICS WITH ELEVATION 
+Figure 2
 ```{r}
 # Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
 
@@ -172,95 +257,111 @@ peru_chimborazo <- c( "#FDC31F", # Chuquiragua pollen
 
 # Scatterplot: Hb v. elev 
 (p1 <- ggplot(final, aes(x=elev, y=hb, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="Elevation (m)", y="[Hb] g/dl") +
+  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="[Hb] g/dl") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") + 
-  ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb.pdf", height=7, width=9, units="in")
+# The 166 rows of missing values come from many NA Hb values; don't worry about these 
 
 # Scatterplot: Hct v. elev
 (p2 <- ggplot(final, aes(x=elev, y=hct, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(data=final, size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  # scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="Elevation (m)", y="Hct (%)") +
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="Hct (%)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
-  ggtitle("(b)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct.pdf", height=7, width=9, units="in")
 
 # Scatterplot: TRBC v. elev
 (p3 <- ggplot(final, aes(x=elev, y=trbc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(data=final, size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="Elevation (m)", y="TRBC (RBCx10^6mm^3)") +
+   labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
-  ggtitle("(c)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p3, filename="p3_ScatterplotBasic_Elev_by_TRBC.pdf", height=7, width=9, units="in")
 
 # Scatterplot: mcv v. elev
 (p4 <- ggplot(final, aes(x=elev, y=mcv, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(data=final, size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="Elevation (m)", y="MCV (fl)") +
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCV (fl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
-  ggtitle("(d)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p4, filename="p4_ScatterplotBasic_Elev_by_MCV.pdf", height=7, width=9, units="in")
 
+# ANNOYING: space between plot area and legend is supposedly adjusted w/ "legend.box.spacing" arg but little documentation and it's
+# being stubborn. I manually exported legend, will make 6-panel fig w/out legend and will add legend on in Illustrator
+
 # Scatterplot: MCH v. elev
 (p5 <- ggplot(final, aes(x=elev, y=mch, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(data=final, size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
   labs(x="Elevation (m)", y="MCH (pg)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
-  ggtitle("(e)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.2,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p5, filename="p5_ScatterplotBasic_Elev_by_MCH.pdf", height=7, width=9, units="in")
@@ -268,19 +369,20 @@ ggsave(p5, filename="p5_ScatterplotBasic_Elev_by_MCH.pdf", height=7, width=9, un
 
 # Scatterplot: MCHC v. elev
 (p6 <- ggplot(final, aes(x=elev, y=mchc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(data=final, size=1.5, alpha=0.8) +
-  scale_colour_viridis(discrete=TRUE) + 
-  #scale_color_manual(values = peru_chimborazo) +
-  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", colour="firebrick3", size=1.0) + # line used to be dark turquoise 
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
   labs(x="Elevation (m)", y="MCHC (g/dl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
-  ggtitle("(f)") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("F") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.2,0.2,0.1), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
 ggsave(p6, filename="p6_ScatterplotBasic_Elev_by_MCHC.pdf", height=7, width=9, units="in")
@@ -288,14 +390,15 @@ ggsave(p6, filename="p6_ScatterplotBasic_Elev_by_MCHC.pdf", height=7, width=9, u
 
 library(patchwork)
 # Combine all plots to make one 6-panel figure:
-Fig_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2)
-# To really make this better, need to adjust individual dimensions of panels
+Fig2_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2)
+ggsave(Fig2_BloodVElev_6panel, filename = "Fig2_BloodVElev_6panel.pdf", bg="transparent", height=8, width=7, units="in")
+
+# To really make this better, need to adjust individual dimensions of panels - cut width by 1"
+# Figure out how to add legend while keeping plot length the same in panel D (see comment below)
 # Need to increase space on right-hand side of MCV plot so legend is offset more and doesn't take up plot space
 # e.g. you want all plots to take up the same amount of space 
 # Then I went ahead and took legend off altogether; need to figure out how to add this back in
 # Need to adjust individual y-axes 
-# May help to scale x-axis to max value is right-hand most value, make elev increase in increments of 500?
-ggsave(Fig_BloodVElev_6panel, filename = "Fig_BloodVElev_6panel.pdf", bg="transparent", height=7, width=8, units="in")
 
 ```
 
@@ -348,13 +451,12 @@ If you want to do this, need to read in species mean value dataset from modeling
 ggsave(p1, filename="p1_Boxplot_Hb_by_Clade.pdf", height=7, width=9, units="in")
 
  
-
 # Extremely basic plot of elev range summary
 # Maybe interesting to get mean Hb value per species and plot range on x-axis and mean Hb on y? 
 plot(elev.range.summary)
 
 # Basic scatterplot of mass v. Hb 
-(p3 <- ggplot(final, aes(x=mass, y=hb, colour=clade)) + # uncenter Tamin values
+(p3 <- ggplot(final, aes(x=mass, y=hb, colour=Clade)) + # uncenter Tamin values
   geom_point() +
   scale_colour_viridis(discrete=TRUE) +
   geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
@@ -367,14 +469,14 @@ plot(elev.range.summary)
   #       plot.title = element_text(face="bold")) + # This makes panel header bold 
   #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
-   )
+)
 ggsave(p3, filename="p3_ScatterplotBasic_Mass_by_Hb.pdf", height=7, width=9, units="in")
 # This is hilarious: this plot is like "Patagona"...and everything else. 
 # This brings up questions about how to analyze mass data w/ Patagona involved and whether this 
 
 
 # Basic scatterplot of mass v. Hb 
-(p4 <- ggplot(full.nopgig, aes(x=mass, y=hb)) + # uncenter Tamin values
+(p4 <- ggplot(final.nopgig, aes(x=mass, y=hb)) + # uncenter Tamin values
   geom_point() +
   geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
   theme_classic() + 
@@ -439,7 +541,7 @@ ggsave(p5.2, filename="p5.2_Scatterplot_Elev_by_Hb_PO2-generalists.pdf", height=
 # Break these plots out by species but remove colors to simplify 
 # not sure this is too useful except to show sampling across elev gradient 
 (p6 <- ggplot(final, aes(x=elev, y=hb)) +
-  facet_wrap(~clade, scales="free") +
+  facet_wrap(~Clade, scales="free") +
   geom_point(stroke=1, show.legend = FALSE) +
   geom_smooth(method="lm", se=FALSE, color="turquoise") +
   theme_classic() +
@@ -538,8 +640,8 @@ scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist=
 # INTERACTION PLOT -GENERALIST SPECIALIST HB v. ELEV
 (p10 <- ggplot(final, aes(x=elev, y=hb, colour=po2_class, linetype=po2_class)) +
 # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(data=full1, aes(y=hb), size=2, alpha=0.8) +
-    stat_smooth(data=full1, aes(y=hb, group=po2_class), size=1.2, method="lm") +
+    geom_point(data=final, aes(y=hb), size=2, alpha=0.8) +
+    stat_smooth(data=final, aes(y=hb, group=po2_class), size=1.2, method="lm") +
     geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
     labs(y="[Hb] g/dl", x="Elevation (m)") +
     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
@@ -587,7 +689,7 @@ ggsave(p11, filename="p11_Hb_vs_Elev_Scatterplot_PO2GeneralistSpecialistONLY.pdf
 
 
 # Elev and Hb, faceted by species 
-(p2 <- ggplot(full1, aes(x=elev, y=hb)) + 
+(p2 <- ggplot(final, aes(x=elev, y=hb)) + 
        facet_wrap(~species) +   # ok, way too many species right now to see any sort of clear pattern
        geom_point() +
        geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
@@ -668,7 +770,7 @@ print(p1)
 
 # Hb v. elev_position
 library(ggplot2)
-p <- ggplot(full1, aes(x=elev_position, y=hb))
+p <- ggplot(final, aes(x=elev_position, y=hb))
 p <- p + geom_jitter(position = position_jitter(width = 0.1), alpha = 1/4)
 p <- p + stat_smooth(method = lm)
 p <- p + theme_bw()
@@ -697,11 +799,11 @@ library(viridis)
 # RBC and MCV - redo of plot in Hawksey et al. 1991
 (p12 <- ggplot(final, aes(x=mcv, y=trbc)) +
 # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(data=final, aes(y=trbc, color=species), size=2, alpha=0.8) +
-  #  scale_fill_manual(values=manualcolors) +
-     scale_color_viridis(discrete=TRUE) +
-#    stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
-    geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    geom_point(size=2, alpha=0.8, colour="darkred") +
+ #   scale_color_manual(values=hum_colors) +
+  #   scale_color_viridis(discrete=TRUE) +
+  #  stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
+  #  geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
     labs(y="RBC x 10^6", x="MCV (fl)") + # fix RBC title/notation
     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
 #    scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
@@ -723,9 +825,9 @@ ggsave(p12, filename="p12_RBC_vs_MCV_Scatterplot.pdf", height=7, width=9, units=
 # MCH and MCV - redo of plot in Hawksey et al. 1991
 (p13 <- ggplot(final, aes(x=mcv, y=mch)) +
 # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(data=final, aes(y=mch), size=2, alpha=0.8) +
+    geom_point(size=2, alpha=0.8, colour="darkred") +
 #    stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
-    geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+  # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
     labs(y="MCH (pg)", x="MCV (fl)") + # fix RBC title/notation
     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
 #    scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
@@ -806,3 +908,15 @@ fig1
 ```
 
 
+
+
+
+
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
+
+###########
+
+## END 

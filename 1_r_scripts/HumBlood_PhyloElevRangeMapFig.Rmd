@@ -9,6 +9,8 @@ Script to produce our sampling locality map and figure components associted with
 
 This script also produces basic components of this figure, which were then read out and processed in Adobe Illustrator for more creative license. See annotations below for where 'final' R components were then manipulated in Illustrator. 
 
+This script can be run after running HumBlood_DataWrangling.Rmd OR as a standalone. 
+
 
 # Set up directory structure with here() 
 ```{R, message=FALSE, warning=FALSE}
@@ -58,16 +60,11 @@ library(rasterVis)
 ```
 
 
-
-
-
-
 # Load in data to use for map 
 ```{r}
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
-# final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_08-26-20.csv", stringsAsFactors = TRUE)
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_12-01-20.csv", stringsAsFactors = TRUE)
+final <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
 ```
@@ -76,7 +73,29 @@ names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column
 # Load spatial data 
 This code was pasted in from HumBlood_DataWrangling.Rmd to be able to seamlessly produce our sampling map. 
 ```{r}
-# READ IN RASTERS TO AVOID RUNNING ALL CODE ABOVE 
+# DOWNLOAD COUNTRY POLYGONS 
+# Search country 3-letter ISO code: https://www.iso.org/obp/ui/#search
+# Note: Chile's southern coastline makes plotting the outline near impossible; R  crashes every time 
+# If you do want to plot outline, write straight to .pdf instead of plotting w/in RStudio
+# Best approach seems to be to crop the extent of hte outline to remove Juan Fernandez Islands
+# Then to crop and mask climate rasters to Peru and Chile
+# THEN to merge these two rasters. 
+peru <- raster::getData('GADM', country = "PER", level = 0) # download country shape  
+chile <- raster::getData('GADM', country = "CHL", level = 0) 
+extent(chile) # look at the spatial extent (lat, lon) of Chile; compare to map 
+# Chile's extent goes way out into the Pacific because of Juan Fernandez Islands; get rid of these
+extent_mainland <- extent(c(-76, -66.41472, -55.98403,-17.50755)) # Use map to pick a reasonable x min
+chile <- crop(chile, extent_mainland) # this takes ~3-5 mins
+
+# Download surrounding countries for visualization/map-making
+countries <- c("BRA", "ARG", "ECU", "BOL", "VEN", "COL", "GUY", "SUR", "PRY", "URY") 
+manycountries <- do.call("bind", lapply(countries, function(x) raster::getData('GADM', country=x, level=0)))
+
+# Merge country polygons 
+southamerica_countries <- merge(peru, chile, manycountries)
+
+
+# READ IN ELEVATION RASTERS TO AVOID CUMBERSOME RE-PROCESSING
 # Need to run BioClim data above to ensure that peru_chile is a raster brick otherwise you can't extract BioClim
 #peru_chile_bioclim <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_chile_bioclim.grd") # read in peru_chile BioClim data
 peru_alt <- raster("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/peru_alt.grd") # elevation raster
@@ -99,16 +118,16 @@ locality.coords <- SpatialPointsDataFrame(
                    sampling.elev = final$elev),
                    proj4string=CRS("+init=epsg:4326")
                    )
-
-
-
 ```
 
 
+-----
 
 
-# SAMPLING LOCALITY MAP 
+##  SAMPLING LOCALITY MAP 
 Mapping tips here: https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
+
+# Define map/spatial extent (may or map not use this)
 ```{r, message=FALSE, warning=FALSE}
 library(viridis)
 library(RColorBrewer)
@@ -126,6 +145,17 @@ library(RColorBrewer)
 # y min = -37
 # y max = 0.8
 
+# crop raster and country lines to a smaller box (hard to get right, requires a lot of tinkering)
+# south_america_elevs_cropped = all elevation rasters combined 
+# southamerica_cropped = all country polygons combined 
+# These are perfect but fairly zoomed out to capture more of southern Chile 
+#ex <- extent(c(-90, -41.7, -45.3, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
+# Zoomed in version: 
+ex <- extent(c(-86, -47.4, -37, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
+south_america_elevs_cropped <- crop(south_america_elevs, ex)
+extent(south_america_elevs_cropped)
+southamerica_cropped <- crop(southamerica_countries, ex)
+
 # Alternatively, instead of guessing, pull extent with: 
 #find peru extent
 # minx <- NULL
@@ -142,19 +172,11 @@ library(RColorBrewer)
 # maxlong <- max(maxx)
 # minlat <- min(miny)
 # maxlat <- max(maxy)
+```
 
-# crop raster and country lines to a smaller box (hard to get right, requires a lot of tinkering)
-# south_america_elevs_cropped = all elevation rasters combined 
-# southamerica_cropped = all country polygons combined 
-# These are perfect but fairly zoomed out to capture more of southern Chile 
-#ex <- extent(c(-90, -41.7, -45.3, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
-# Zoomed in version: 
-ex <- extent(c(-86, -47.4, -37, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
-south_america_elevs_cropped <- crop(south_america_elevs, ex)
-extent(south_america_elevs_cropped)
-southamerica_cropped <- crop(southamerica_countries, ex)
 
-# FINAL MAP
+# MAP VERSION 1: Cropped and bounded by extend w/ lat and lon labeled
+```{r}
 # Peru and Chile sampling localities w/ rest of South America 
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Peru_and_Chile_SamplingMap_WithSouthAmerica_Cropped_Outlines.pdf", useDingbats = F)
 #plot(south_america_elevs_cropped, col = colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5, ext=ex)
@@ -189,44 +211,155 @@ dev.off()
 # topo.colors: actually painful for the eyes 
 
 # See allhum_blood_comp_CUT.Rmd for other map versions that I cut/didn't include here 
+```
 
 
+# MAP VERSION 2: Simpler map with full extent of Peru and Chile, no spatial extent cropping, lat/lon boxes will be removed
+Points all one color 
+```{r}
+# "Naked" map of Peru and Chile, full extent. Cleaner and simpler, will look much nicer with our elev phylo range fig. 
+# No constraining of extent. No outlines of surrounding countries. 
+# ex.big <- extent(c(-86, -47.4, -47, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
 
-# Attempts at making a much simpler map 
+pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_PeruChileOnly_FullExtent_12-01-20.pdf", useDingbats = F)
+#plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # for grayscale elev
+plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
+plot(chile, add=TRUE, border = "white", lwd = 0.000001) # Make outline incredibly faint to capture southern Chilean coastline
+plot(peru, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru; must be second to get tiny portion of P-C border oulined
+plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="turquoise") # olivedrab1 looks nice too; pch=21 is circle w/ black outline
+# addscalebar(plotepsg=4326, widthhint=0.20, labelpadin=0.08, label.cex=0.8, label.col="black", pos="bottomleft")
+# Removed scale bar becuase I think obvious geographic features will speak for themselves 
+# text(x=-99.2, y=31.5, label="Texas", cex=0.75, font=2) # Peru label 
+# text(x=-112.7, y=32.9, label="Arizona", cex=0.75, font=2) # Chile label
+# Note, neither of those text label coords are correct - just samples of how to add text labels (not sure I want to)
+dev.off()
 
-
-# Peru and Chile sampling localities w/ rest of South America 
-# I don't want to contraint extent 
-# no outlines of surrounding countries 
-# Set much simpler extent for map (can crop out map boundaries, but extent seems non-negotiable )
-ex.big <- extent(c(-86, -47.4, -47, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
-
-pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/TestMap_PeruChileOnly_gray.pdf", useDingbats = F)
-plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5)
+pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_PeruChileOnly_Gray_12-01-20.pdf", useDingbats = F)
+plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # for grayscale elev
 #plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
+plot(chile, add=TRUE, border = "white", lwd = 0.000001) # Make outline incredibly faint to capture southern Chilean coastline
+plot(peru, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru; must be second to get tiny portion of P-C border oulined
+plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="turquoise") # olivedrab1 looks nice too; pch=21 is circle w/ black outline
+# addscalebar(plotepsg=4326, widthhint=0.20, labelpadin=0.08, label.cex=0.8, label.col="black", pos="bottomleft")
+# Removed scale bar becuase I think obvious geographic features will speak for themselves 
+# text(x=-99.2, y=31.5, label="Texas", cex=0.75, font=2) # Peru label 
+# text(x=-112.7, y=32.9, label="Arizona", cex=0.75, font=2) # Chile label
+# Note, neither of those text label coords are correct - just samples of how to add text labels (not sure I want to)
+dev.off()
+```
+
+
+# MAP VERSION 3: Simpler map with full extent of Peru and Chile, no spatial extent cropping, POINTS COLORED BY ELEV BIN
+Create spatial  points data frames binned by elevation
+```{r}
+# This would be way more straight forward with a nice loop or two, but...it was also super simple to execute this clunkier way.
+
+# First subset the data by elevation: 
+bin1 <- final[which(final$elev > 0 & final$elev < 1000), ] # Sea level to 1,000 m
+bin2 <- final[which(final$elev > 1000 & final$elev < 2000), ] # 1,000 m to 2,000 m
+bin3 <- final[which(final$elev > 2000 & final$elev < 3000), ] # 2,000 m to 3,000 m
+bin4 <- final[which(final$elev > 3000 & final$elev < 4000), ] # 3,000 m to 4,000 m
+bin5 <- final[which(final$elev > 4000 & final$elev < 5000), ] # 4,000 m to 5,000 m
+sum(nrow(bin1)) + sum(nrow(bin2)) + sum(nrow(bin3)) + sum(nrow(bin4)) + sum(nrow(bin5)) # Good! = 1,157, total # rows in 'final'.
+
+# Create spatial points data frames for each elevational bin 
+# NAs in the data will create problems; e.g. you won't be able to make spatial data frame 
+bin1.coords <- SpatialPointsDataFrame(
+                   matrix(c(bin1$lon, bin1$lat), ncol = 2),
+                   data.frame(ID=1:nrow(bin1),
+                   sampling.locality = bin1$locality,
+                   sampling.elev = bin1$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
+
+bin2.coords <- SpatialPointsDataFrame(
+                   matrix(c(bin2$lon, bin2$lat), ncol = 2),
+                   data.frame(ID=1:nrow(bin2),
+                   sampling.locality = bin2$locality,
+                   sampling.elev = bin2$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
+
+bin3.coords <- SpatialPointsDataFrame(
+                   matrix(c(bin3$lon, bin3$lat), ncol = 2),
+                   data.frame(ID=1:nrow(bin3),
+                   sampling.locality = bin3$locality,
+                   sampling.elev = bin3$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
+
+bin4.coords <- SpatialPointsDataFrame(
+                   matrix(c(bin4$lon, bin4$lat), ncol = 2),
+                   data.frame(ID=1:nrow(bin4),
+                   sampling.locality = bin4$locality,
+                   sampling.elev = bin4$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
+
+bin5.coords <- SpatialPointsDataFrame(
+                   matrix(c(bin5$lon, bin5$lat), ncol = 2),
+                   data.frame(ID=1:nrow(bin5),
+                   sampling.locality = bin5$locality,
+                   sampling.elev = bin5$elev),
+                   proj4string=CRS("+init=epsg:4326")
+                   )
+```
+
+Map. 
+```{r}
+pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_PeruChileOnly_ColorByElev.pdf", useDingbats = F)
+#plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # for grayscale elev
+plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
 plot(peru, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru 
 plot(chile, add=TRUE, border = "white", lwd = 1.5) # This outlines Peru 
-plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="olivedrab1") # pch=21 is circle w/ black outline
+plot(bin1.coords, add=TRUE, pch=21, cex=1.1, bg="olivedrab1") # pch=21 is circle w/ black outline
+plot(bin2.coords, add=TRUE, pch=21, cex=1.1, bg="red") # pch=21 is circle w/ black outline
+plot(bin3.coords, add=TRUE, pch=21, cex=1.1, bg="turquoise") # pch=21 is circle w/ black outline
+plot(bin4.coords, add=TRUE, pch=21, cex=1.1, bg="white") # pch=21 is circle w/ black outline
+plot(bin5.coords, add=TRUE, pch=21, cex=1.1, bg="darkorchid") # pch=21 is circle w/ black outline
 #addscalebar(plotepsg = 4326, widthhint=0.20, labelpadin = 0.08, label.cex = 0.8, label.col = "black", pos = "bottomleft")
 #with(CommunitySpatial, text(CommunitySpatial,
 #  labels=CommunitySpatial$ID, pos=4, cex=1.3))
 dev.off()
 
+# Colors are awful  but are trial colors
+# Only thing about this is that now I almost have *too* much information about elevation: map is shaded by elev AND sampling 
+# points are colored by elev - it's a little much. 
+# The other issue is that many overlapping points obscure interesting sampling across elevations, so the colors don't convey as 
+# much info as I'd wanted. And, as I discovered for the OLWA-BHCO project, there is no way to jitter a spatial points data frame
+# (see that script for how I attempted to introduce jitter, though that workaround wasn't 100% satisfying)
+# I think I vote to leave sampling across elevs as all one color. 
+```
 
 
+# MAP VERSION 4: Chauncey's suggestion: all of SA, no cropping, non-Chile, non-Peru countries faded 
+```{r}
+# Peru and Chile sampling localities w/ rest of South America 
+pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_AllSA_PeruChileHighlight.pdf", useDingbats = F)
+#plot(south_america_elevs, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # remove extent 
+plot(south_america_elevs, col=magma(200), cex.axis=1.5) # Remove ext=ex
+plot(manycountries, add=TRUE, border = "gray92", lwd = 0.05) # outlines surrounding countries; must be first to "layer"
+#plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
+plot(chile, add=TRUE, border = "white", lwd = 0.000001) # Make outline incredibly faint to capture southern Chilean coastline
+plot(peru, add=TRUE, border = "white", lwd = 0.05) # This outlines Peru; must be second to get tiny portion of P-C border oulined
+plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="turquoise") # olivedrab1 looks nice too; pch=21 is circle w/ black outline
+# addscalebar(plotepsg=4326, widthhint=0.20, labelpadin=0.08, label.cex=0.8, label.col="black", pos="bottomleft")
+# Removed scale bar becuase I think obvious geographic features will speak for themselves 
+# text(x=-99.2, y=31.5, label="Texas", cex=0.75, font=2) # Peru label 
+# text(x=-112.7, y=32.9, label="Arizona", cex=0.75, font=2) # Chile label
+# Note, neither of those text label coords are correct - just samples of how to add text labels (not sure I want to)
+dev.off()
 
-
-
-
-
-mapa <- borders("world", regions = c("Peru", "Chile"), fill = "grey70", colour = "black")
-
-ggplot() + mapa + theme_bw() + xlab("Longitude (decimals)") + ylab("Latitude (decimals)") + 
-  theme(panel.border = element_blank(), panel.grid.major = element_line(colour = "grey80"), panel.grid.minor = element_blank())
+# This doesn't seem to want to work; I think I'd need to merge an elev layer for just surrounding countries AND THEN plot 
+# just Peru and Chile (I suspect R doesn't want to make the overlap work)
 ```
 
 
 
+
+------
+
+## ELEV RANGES OF EACH SPECIES IN THE DATASET FOR ELEV RANGE PHYLO FIG
 
 # For elevational range phylogeny figure: Ceate a species mean dataset, wrangle into workable format for Illustrator figure
 Note: this script should be cleaned up and probably moved for my plots & figs .Rmd. Still a working chunk, in here for now. 
@@ -451,7 +584,7 @@ species.means$elevmidpt_offset <- species.means$elevmidpt + species.means$elev_m
 # To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min #
 # After testing this out, thins look correct: All elev midpoints plot accurately at their midpoints within their elev range (!)
 
-write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_11-09-20.csv")
+write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_03-01-21.csv")
 
 
 # Now make copy of 'final' dataset that you can finagle to get offset collection elevations to represent sampling: 
@@ -576,8 +709,13 @@ p1 <- ggplot(data=species.means, aes(y=range, x=reorder(phylo_order, -phylo_orde
       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
       theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=8))
 print(p1)
-ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_09-17-20.pdf", height=6.35, width=2.8, units="in")
+ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_03-01-21.pdf", height=6.35, width=2.8, units="in")
 # Same units as phylogeny for easy wrangling? 
+
+# NOTE: 
+# I MADE THIS REALLY EASY FOR MYSELF! Just write out this pdf, open in Illustrator, remove clipping mask, and paste into 
+# elev range layer - no resizing necessary.
+# Only modifications: Make elev range line widths 0.5 and make top tick marks black (vs. dark gray)  
 
 #####
 # TRIAL AND ERROR NOTES ON PLOTTING ELEV RANGES: 
