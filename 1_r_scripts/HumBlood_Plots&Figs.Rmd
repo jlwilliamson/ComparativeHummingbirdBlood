@@ -746,7 +746,7 @@ If you want to do this, need to read in species mean value dataset from modeling
 ```{r}
 
 # Boxplot of differences in hb w/ species
-(p1 <- ggplot(final, aes(x=Clade, y=hb)) +
+(p22 <- ggplot(final, aes(x=Clade, y=hb)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(Clade)), outlier.size=2.0, alpha=0.7) +
         geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
@@ -759,15 +759,32 @@ If you want to do this, need to read in species mean value dataset from modeling
         theme(legend.position = "none") +
         theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
 )
-ggsave(p1, filename="p1_Boxplot_Hb_by_Clade.pdf", height=7, width=9, units="in")
+#ggsave(p1, filename="p1_Boxplot_Hb_by_Clade.pdf", height=7, width=9, units="in")
 
+# Boxplot of differences in hb w/ genotype
+(p23 <- ggplot(final, aes(x=b13b83.genotype, y=hb)) +
+       # facet_wrap(~sex, nrow=2) + 
+        geom_boxplot(aes(fill = factor(b13b83.genotype)), outlier.size=2.0, alpha=0.7) +
+        geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
+        stat_summary(fun=mean, colour="firebrick1", geom="point", shape=18, size=6) + # Red diamonds at mean 
+        theme_classic() +   # theme_classic() removes all gridlines; theme_bw() retains subtle nice gridlines           
+        theme(panel.grid.minor = element_blank()) +
+        labs(y="[Hb] g/dl", # Hella confusing formatting for x and y axis labels 
+             x="Species") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        theme(legend.position = "none") +
+        theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+#ggsave(p1, filename="p1_Boxplot_Hb_by_Clade.pdf", height=7, width=9, units="in")
  
+
+
 # Extremely basic plot of elev range summary
 # Maybe interesting to get mean Hb value per species and plot range on x-axis and mean Hb on y? 
 plot(elev.range.summary)
 
 # Basic scatterplot of mass v. Hb 
-(p3 <- ggplot(final, aes(x=mass, y=hb, colour=Clade)) + # uncenter Tamin values
+(p <- ggplot(final, aes(x=mass, y=hb, colour=Clade)) + # uncenter Tamin values
   geom_point() +
   scale_colour_viridis(discrete=TRUE) +
   geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
@@ -787,7 +804,7 @@ ggsave(p3, filename="p3_ScatterplotBasic_Mass_by_Hb.pdf", height=7, width=9, uni
 
 
 # Basic scatterplot of mass v. Hb 
-(p4 <- ggplot(final.nopgig, aes(x=mass, y=hb)) + # uncenter Tamin values
+(p <- ggplot(final.nopgig, aes(x=mass, y=hb)) + # uncenter Tamin values
   geom_point() +
   geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
   theme_classic() + 
