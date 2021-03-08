@@ -800,7 +800,28 @@ plot(elev.range.summary)
 )
 ggsave(p3, filename="p3_ScatterplotBasic_Mass_by_Hb.pdf", height=7, width=9, units="in")
 # This is hilarious: this plot is like "Patagona"...and everything else. 
+# This brings up questions about how to analyze mass data w/ Patagona involved and whether this
+
+
+# Basic scatterplot of intraspecific variation in mass (note: need to have read in modeling steps)
+(p <- ggplot(final, aes(x=elev, y=intravar.mass, colour=Clade)) + # uncenter Tamin values
+  geom_point() +
+  scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
+  theme_classic() + 
+  labs(x="Elevation (m)", y="Intraspecific Mass Variation (g)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p3, filename="p3_ScatterplotBasic_Mass_by_Hb.pdf", height=7, width=9, units="in")
+# This is hilarious: this plot is like "Patagona"...and everything else. 
 # This brings up questions about how to analyze mass data w/ Patagona involved and whether this 
+
 
 
 # Basic scatterplot of mass v. Hb 
