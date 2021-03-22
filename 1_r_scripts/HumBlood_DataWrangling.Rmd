@@ -1490,10 +1490,10 @@ genotype.summary <- final %>% group_by(b13b83.genotype) %>% summarise(count = le
 
 How we did this: We first added Hb genotypes from Projecto-Garcia et al. 2013. If any were missing, Jessie looked through old Hbba sequence files from Chris, assembled alignments with 5 GenBank Reference sequences from Projecto-Garcia, and determined Hb genotypes that way (see description of this workflow in Hbba-genotyping-workflow-hummingbird-comparative-data_08-27-20.doc). Then, if species were still missing, Jessie took Hb genotypes from the McGuire et al .nex file that Chris sent over that has a nice little alignment of b13-b83 genotypes for many species. 
 
-After doing this, we were still left with 15 species missing Hb genotypes. We made educated best guesses based on genotypes of sister taxa and elevational ranges. We think most of these are solidly-inferred, though we know this is not a foolproof method. 
+After doing this, we were still left with 12 species missing Hb genotypes. We made educated best guesses based on genotypes of sister taxa and elevational ranges. We think most of these are solidly-inferred, though we know this is not a foolproof method. 
 Rationale for best guesses is provided in: ComparativeHummingbirdData_SpeciesMissingHbGenotypes_Data&BestGuesses_08-28-20.xlsx
 
-Here are the list of 15 species for which we used "best guess" Hb genotype info: 
+Here are the list of 12ß species for which we used "best guess" Hb genotype info: 
 Amazilia franciae
 Campylopterus villaviscensio
 Eutoxeres aquila
@@ -1638,7 +1638,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_03-01-21.csv")
+# write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_03-01-21.csv")
 ```
 
 
