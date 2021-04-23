@@ -110,7 +110,7 @@ blood$rowID <- 1:nrow(blood)
 blood$species <- as.factor(blood$species)
 
 # Cleaned Patagona data (written in Patagona_blood_analysis_2020.Rmd file for Patagona analysis)
-pdat <- read.csv(here::here("./Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_11-30-20.csv"))  
+pdat <- read.csv(here::here("./Patagona_subset_cleaned_for_merge_with_AllHummingbirdComparative_04-20-21.csv"))  
 # Make sure this is most updated version; 10-27-20 version updated from 07-08-20 w/ museum cat num added 
 pdat <- pdat[ , !(colnames(pdat) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
@@ -132,7 +132,7 @@ blood <- subset(blood, select = -c(pe6_no,
                                  #  cat_owner,
                                    cat_owner_initials,
                                    pers_cat_no,
-                                   preparator,
+                                  # preparator, # keep for author contributions wrangling
                                    gonads,
                                    skull,
                                    bursa, # consider keeping this and using it to make an age variable
@@ -305,6 +305,7 @@ bsub <- subset(blood, select = c(rowID,
                                  msb_cat_no, 
                                  prep_num,
                                  cat_owner,
+                                 preparator,
                                  species,
                                  sex,
                                  age_est, # See notes in Excel metadata about estimating age from bursa; check w/ Chris
@@ -382,6 +383,7 @@ pdat <- subset(pdat, select = c(rowID,
                                  msb_cat_no, # Any NA values are from uncatalogued birds 
                                  pers_cat_no,
                                  cat_owner,
+                                 preparator,
                                  species,
                                  sex,
                                  age, 
@@ -434,7 +436,11 @@ length(unique(full$species)) # number of unique species
 # 77 total species 
 
 # Write out "full" dataset for HumBlood_PreparatorContributions.rmd
-# write.csv(full, "humblood_full.csv")
+# write.csv(full, "humblood_full.csv") 
+
+# Now drop 'preparator' column, which throws things off below: 
+full <- full[ , !(colnames(full) %in% c("preparator"))] 
+# THIS IS NECESSARY BECAUSE BELOW YOU CALL COL #S TO FILL IN MISSING ELEVS AND ADDING THIS THROWS OFF #S
 ```
 
 
