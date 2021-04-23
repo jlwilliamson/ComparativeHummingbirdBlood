@@ -42,47 +42,28 @@ library(PMCMR) #Allows Kruskal-Wallis post-hocs
 library(effects)
 library(gridExtra)
 library(lattice)
-library(survival)
-library(fmsb)
+# library(survival)
+# library(fmsb)
 library(faraway)
-library(ape)
-
-# Mapping 
-library(raster)
-library(sp)
-library(rgdal)
-library(RStoolbox)
-library(prettymapr)
+library(tidyverse)
+library(patchwork) 
 library(viridis)
-library(rasterVis)
+library(rcompanion) # for Tukey's Ladder of Powers Transformation
+library(purrr)
+library(tidyr)
+library(cowplot)
+library(gganimate)
 
-# Modeling packages 
-library(nlme)
-library(lme4)
-library(AICcmodavg)
-library(MuMIn)
-library(glmulti)
-library(lsmeans)
-library(rsq) # get r-squared values from GLM
-library(r2glmm) # for R^2 values from lmer() and glmer()
-library(multcompView) # related to multiple comparisons?
-library(jtools) # interaction plots 
-library(interactions) # interaction plots 
-library(broom)
-library(stargazer) # model output tables
-library(ggeffects) # for estimating model predictions from mixed effects models
+# Bayesian modeling packages 
 library(MCMCglmm)
 library(bayesplot)
 library(rstan)
 library(Rcpp) # required for brms
-library(brms)
-library(rcompanion) # for Tukey's Ladder of Powers Transformation
-library(purrr)
-library(tidyr)
+library(brms) # updated to 2.15.0 on 3/29/21
+library(bayesplot) # appears to be required for bayesplot::pp_check?
 library(ggdist)
 library(tidybayes)
-library(cowplot)
-library(gganimate)
+library(performance)
 
 # To run each time you load rstan
 options(mc.cores = parallel::detectCores()) # for core setup 
@@ -91,7 +72,23 @@ rstan_options(auto_write = TRUE) # auto save  bare verion of compiled Stan progr
 
 # Phylo packages 
 library(phytools)
-library(ape)
+# library(ape)
+
+# Frequentist modeling packages
+# library(nlme)
+# library(lme4)
+# library(AICcmodavg)
+# library(MuMIn)
+# library(glmulti)
+# library(lsmeans)
+# library(rsq) # get r-squared values from GLM
+# library(r2glmm) # for R^2 values from lmer() and glmer()
+# library(multcompView) # related to multiple comparisons?
+# library(jtools) # interaction plots 
+# library(interactions) # interaction plots 
+# library(broom)
+# library(stargazer) # model output tables
+# library(ggeffects) # for estimating model predictions from mixed effects models
 ```
 
 
@@ -105,7 +102,6 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 
 
 
-# load in data 
 ```{R}
 # Load functions 
 source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
@@ -307,7 +303,6 @@ qqPlot(final$mass.log)
 
 More on Tukey's Ladder of Powers transformation here: https://rcompanion.org/handbook/I_12.html#:~:text=For%20left%2Dskewed%20data%E2%80%94tail,log%20(constant%20%E2%80%93%20x).
 
-
 # Standardize predictors 
 ```{R}
 # Standardize continuous PREDICTOR variables to mean of 0 and standard deviation of 1:
@@ -319,7 +314,13 @@ final$temp.z <- standardize(final$tempPC1)
 final$precip.z <- standardize(final$precipPC1)
 final$mass.z <- standardize(final$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
 final$elev.pos.z <- standardize(final$elev_position)
-final$wl.z <- standardize(final$wl) 
+final$wl.z <- standardize(final$wl)
+
+# Standardize species means
+final$spec.mean.elev.z <- standardize(final$spec.mean.elev)
+final$spec.mean.temp.z <- standardize(final$spec.mean.temp)
+final$spec.mean.precip.z <- standardize(final$spec.mean.precip)
+final$spec.mean.mass.z <- standardize(final$spec.mean.mass)
 
 # Now standardize intraspecific variation 
 final$intravar.mass.z <- standardize(final$intravar.mass)
@@ -354,7 +355,7 @@ final.trbc <- na.omit(final.trbc)
 str(final.trbc) # looks good, nothing to coerce
 
 # mcv subset - 732 observations
-final.mcv <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z, mcv.log)) 
+final.mcv <- subset(final, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z, mcv.log, spec.mean.elev.z, spec.mean.temp.z, spec.mean.precip.z, spec.mean.mass.z)) 
 final.mcv <- na.omit(final.mcv)
 str(final.mcv) # looks good, nothing to coerce 
 
@@ -469,12 +470,6 @@ dev.off()
 # View(just.hb.median); class(just.hb.median); typeof(just.hb.median) # Check data format and structure
 # hb.cont.tree.median <- contMap(tree.hb, just.hb.median, plot=TRUE) # Create hemoglobin continuous trait phylo object 
 
-# If removing "sampling outliers", consider dropping from Hb dataset: 
-# A. franciae: highest value in dataset and n=1
-# P. ruber: lowest value in dataset and n=1
-# Others? 
-
-
 ###
 
 # HCT 
@@ -491,12 +486,6 @@ pdf(file="hematocrit.contmap.pdf", width=6, height=6) # Write plot to pdf
 #hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
 plot.contMap(hct.cont.tree, just.hct, res=200, fsize=0.4, lwd=2, leg.txt="Mean Hct", outline=FALSE) # Manually plot using phytools
 dev.off()
-
-# If removing "sampling outliers", consider dropping from Hct dataset: 
-# P. stuarti: highest value in dataset and n=1
-# P. ruber: lowest value in dataset and n=1
-# Others? 
-
 
 ###
 
@@ -515,12 +504,6 @@ pdf(file="trbc.contmap.pdf", width=6, height=6) # Write plot to pdf
 plot.contMap(trbc.cont.tree, just.trbc, res=200, fsize=0.4, lwd=2, leg.txt="Mean TRBC", outline=FALSE) # Manually plot using phytools
 dev.off()
 
-# If removing "sampling outliers", consider dropping from Hb dataset: 
-# P. atrimentalis: lowest value in dataset and n=1
-# Heliomaster longirostris: highest value in dataset and n=1
-# Others? (Campylopterus villavicensio has 2nd highest value and n=1 sampling)
-
-
 ###
 
 # MCV
@@ -537,12 +520,6 @@ pdf(file="mcv.contmap.pdf", width=6, height=6) # Write plot to pdf
 #trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
 plot.contMap(mcv.cont.tree, just.mcv, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCV", outline=FALSE) # Manually plot using phytools
 dev.off()
-
-# If removing "sampling outliers", consider dropping from Hb dataset: 
-# P. atrimentalis: lowest value in dataset and n=1
-# Heliomaster longirostris: highest in dataset and n=1
-# Campylopterus villavicensio has 2nd highest value and also has n=1 sampling
-# Others? 
 
 ###
 
@@ -561,12 +538,6 @@ pdf(file="mch.contmap.pdf", width=6, height=6) # Write plot to pdf
 plot.contMap(mch.cont.tree, just.mch, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCH", outline=FALSE) # Manually plot using phytools
 dev.off()
 
-# If removing "sampling outliers", consider dropping from Hb dataset: 
-# C. villavicensio: lowest value in dataset and n=1
-# L. taczanowski = second lowest value and also n=1
-# H. rubinoides: highest in dataset and n=1
-# Others? 
-
 ###
 
 # MCHC
@@ -584,13 +555,7 @@ pdf(file="mchc.contmap.pdf", width=6, height=6) # Write plot to pdf
 plot.contMap(mchc.cont.tree, just.mchc, res=200, fsize=0.4, lwd=2, leg.txt="Mean MCHC", outline=FALSE) # Manually plot using phytools
 dev.off()
 
-# If removing "sampling outliers", consider dropping from Hb dataset: 
-# A. franciae: highest value in dataset and n=1
-# A. viridicauda is 2nd highest but has n=8, so leave
-# Similarly, Klais is lowest and has n=3, so leave. 
-
 # length value in legend = how many millions of years the legend bar represents (or whatever units are on tree edge lengths)
-
 # Lamely, moosh all these together into an Illustrator figure to make Figure S1
 ```
 
@@ -648,6 +613,154 @@ phylosig(tree=tree.mchc, x=just.mchc, method="lambda", test=TRUE) # lambda=<0, p
 Info on computing phylogenetic signal w/ Phylosig: http://blog.phytools.org/2011/03/computing-phylogenetic-signal.html
 
 
+# Verify that phylo signal is robust to "sampling outliers"
+How much is phylo signal affected by poorly-sampled species? To get a sense for how these species might affect estimates, let's run samples where we drop any species with n < 3 individuals, remake contmaps, and rerun tests of phylogenetic signal. 
+```{r}
+# # The suffix ".nso" stands for "no sampling outliers"
+# 
+# # Drop all species counts < 3 
+# final.hb.nso <- subset(final.hb, with(final.hb, species %in% names(which(table(species)>=3)))) 
+#     View(final.hb.nso %>% group_by(species) %>% summarise(count = length(nk))) # No species count < 3
+# final.hct.nso <- subset(final.hct, with(final.hct, species %in% names(which(table(species)>=3)))) 
+#     View(final.hct.nso %>% group_by(species) %>% summarise(count = length(nk))) 
+# final.trbc.nso <- subset(final.trbc, with(final.trbc, species %in% names(which(table(species)>=3)))) 
+#     View(final.trbc.nso %>% group_by(species) %>% summarise(count = length(nk))) 
+# final.mcv.nso <- subset(final.mcv, with(final.mcv, species %in% names(which(table(species)>=3)))) 
+#     View(final.mcv.nso %>% group_by(species) %>% summarise(count = length(nk))) 
+# final.mch.nso <- subset(final.mch, with(final.mch, species %in% names(which(table(species)>=3)))) 
+#     View(final.mch.nso %>% group_by(species) %>% summarise(count = length(nk))) 
+# final.mchc.nso <- subset(final.mchc, with(final.mchc, species %in% names(which(table(species)>=3)))) 
+#     View(final.mchc.nso %>% group_by(species) %>% summarise(count = length(nk))) 
+# 
+# # Set up tips to drop and drop tips from each dataset 
+# hb.drop <- names(which(table(final.hb$species) < 3)) # Get names of species w/ <3 individuals 
+# tree.hb.nso <- drop.tip(tree.hb, hb.drop) # Drop 
+# hct.drop <- names(which(table(final.hct$species) < 3))  
+# tree.hct.nso <- drop.tip(tree.hct, hct.drop) 
+# trbc.drop <- names(which(table(final.trbc$species) < 3))  
+# tree.trbc.nso <- drop.tip(tree.trbc, trbc.drop) 
+# mcv.drop <- names(which(table(final.mcv$species) < 3))  
+# tree.mcv.nso <- drop.tip(tree.mcv, mcv.drop) 
+# mch.drop <- names(which(table(final.mch$species) < 3))  
+# tree.mch.nso <- drop.tip(tree.mch, mch.drop) 
+# mchc.drop <- names(which(table(final.mchc$species) < 3))  
+# tree.mchc.nso <- drop.tip(tree.mchc, mchc.drop) 
+# 
+# 
+# # CONTMAPS
+# # HB 
+# # Subset by species and mean(hb) to make trait matrix for Phytools contMap (annotations here, streamlined below)
+# hb.contmap.nso <- final.hb.nso %>% group_by(species) %>% summarise(hb = mean(hb)) # HB 
+# just.hb.nso <- hb.contmap.nso$hb # Take mean hb values only 
+# names(just.hb.nso) <- hb.contmap.nso$species # Add sp names from hb.contmap file (to match w/ Hb); don't use rownames()! 
+# hb.cont.tree.nso <- contMap(tree.hb.nso, just.hb.nso, plot=TRUE, outline=FALSE) # create Hb phylo object
+# # hb.cont.tree <- setMap(hb.cont.tree, colors=c("#280a52","#e9612c","#f7d03d")) # Set colors: purple, green, yellow
+# #n <- length(hb.cont.tree$cols); n # Find length of colors in contmap 
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="hemoglobin.contmap.NoSamplingOutliers.pdf", width=6, height=6)
+# #hb.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(hb.cont.tree.nso, just.hb.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean [Hb]", outline=FALSE) # Manually plot using phytools
+# #par(mar=c(5.1, 4.1, 0, 2.1)) ## reset margins to default
+# # Use outline=FALSE to remove black outlines from branches 
+# #title("[Hb]", xpd=TRUE, ) #Add a title manually 
+# #plot(hb.cont.tree, lwd=4, fsize=0.5) # setting xlim changes actual plot dimensions, NOT trait value scale 
+# dev.off()
+# 
+# # HCT 
+# hct.contmap.nso <- final.hct.nso %>% group_by(species) %>% summarise(hct = mean(hct))  
+# just.hct.nso <- hct.contmap.nso$hct
+# names(just.hct.nso) <- hct.contmap.nso$species 
+# class(just.hct.nso); typeof(just.hct.nso) 
+# hct.cont.tree.nso <- contMap(tree.hct.nso, just.hct.nso, plot=TRUE, outline=FALSE) # Make contmap object
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="hematocrit.contmap.NoSamplingOutliers.pdf", width=6, height=6) # Write plot to pdf 
+# #hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(hct.cont.tree.nso, just.hct.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean Hct", outline=FALSE) # Manually plot using phytools
+# dev.off()
+# 
+# # TRBC
+# trbc.contmap.nso <- final.trbc.nso %>% group_by(species) %>% summarise(trbc = mean(trbc))  
+# just.trbc.nso <- trbc.contmap.nso$trbc
+# names(just.trbc.nso) <- trbc.contmap.nso$species 
+# class(just.trbc.nso); typeof(just.trbc.nso) 
+# trbc.cont.tree.nso <- contMap(tree.trbc.nso, just.trbc.nso, plot=TRUE, outline=FALSE) # Make contmap object
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="TRBC.contmap.NoSamplingOutliers.pdf", width=6, height=6) # Write plot to pdf 
+# #trbc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(trbc.cont.tree.nso, just.trbc.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean trbc", outline=FALSE) # Manually plot using phytools
+# dev.off()
+# 
+# # MCV
+# mcv.contmap.nso <- final.mcv.nso %>% group_by(species) %>% summarise(mcv = mean(mcv))  
+# just.mcv.nso <- mcv.contmap.nso$mcv
+# names(just.mcv.nso) <- mcv.contmap.nso$species 
+# class(just.mcv.nso); typeof(just.mcv.nso) 
+# mcv.cont.tree.nso <- contMap(tree.mcv.nso, just.mcv.nso, plot=TRUE, outline=FALSE) # Make contmap object
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="MCV.contmap.NoSamplingOutliers.pdf", width=6, height=6) # Write plot to pdf 
+# #mcv.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(mcv.cont.tree.nso, just.mcv.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean mcv", outline=FALSE) # Manually plot using phytools
+# dev.off()
+# 
+# # MCH
+# mch.contmap.nso <- final.mch.nso %>% group_by(species) %>% summarise(mch = mean(mch))  
+# just.mch.nso <- mch.contmap.nso$mch
+# names(just.mch.nso) <- mch.contmap.nso$species 
+# class(just.mch.nso); typeof(just.mch.nso) 
+# mch.cont.tree.nso <- contMap(tree.mch.nso, just.mch.nso, plot=TRUE, outline=FALSE) # Make contmap object
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="MCH.contmap.NoSamplingOutliers.pdf", width=6, height=6) # Write plot to pdf 
+# #mch.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(mch.cont.tree.nso, just.mch.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean mch", outline=FALSE) # Manually plot using phytools
+# dev.off()
+# 
+# # MCHC
+# mchc.contmap.nso <- final.mchc.nso %>% group_by(species) %>% summarise(mchc = mean(mchc))  
+# just.mchc.nso <- mchc.contmap.nso$mchc
+# names(just.mchc.nso) <- mchc.contmap.nso$species 
+# class(just.mchc.nso); typeof(just.mchc.nso) 
+# mchc.cont.tree.nso <- contMap(tree.mchc.nso, just.mchc.nso, plot=TRUE, outline=FALSE) # Make contmap object
+# 
+# # Plot map and save to pdf w/ proper aesthetics 
+# pdf(file="MCHC.contmap.NoSamplingOutliers.pdf", width=6, height=6) # Write plot to pdf 
+# #mchc.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+# plot.contMap(mchc.cont.tree.nso, just.mchc.nso, res=200, fsize=0.4, lwd=2, leg.txt="Mean mchc", outline=FALSE) # Manually plot using phytools
+# dev.off()
+# 
+# # TESTS OF PHYLOGENETIC SIGNAL
+# # Compute two metrics of phylogenetic signal: Blomberg's K and Pagel's lamda 
+# # Pagel's lambda: 0 = no phylo singal in the trait and 1 = phylo signal in the trait
+# # Blomberg's K: computed w/ p-val by comparing real data to null distribution obtained by random permuations. 
+#     # Values of K range from 0 to inf; K=1 = Brownian motion evol; k>1 = spp more similar than expected under random drift; 
+#     # k<1 = spp less similar than expected under random drift. The larger the K, the stronger the phylo signal. 
+#     # Generally, only K-values with significant p-vals indicate phylo signal
+# 
+# # Compute K and conduct a test of the null hypothesis of no phylogenetic signal
+# set.seed(1568)
+# phylosig(tree=tree.hb.nso, x=just.hb.nso, method="K", test=TRUE) # K=0.355, p=0.383
+# phylosig(tree=tree.hct.nso, x=just.hct.nso, method="K", test=TRUE) # K=0.282, p=0.677
+# phylosig(tree=tree.trbc.nso, x=just.trbc.nso, method="K", test=TRUE) # K=0.425, p=0.18
+# phylosig(tree=tree.mcv.nso, x=just.mcv.nso, method="K", test=TRUE) # K=0.358, p=0.468
+# phylosig(tree=tree.mch.nso, x=just.mch.nso, method="K", test=TRUE) # K=0.362, p=0.378
+# phylosig(tree=tree.mchc.nso, x=just.mchc.nso, method="K", test=TRUE) # K=0.283, p=0.815 
+# 
+# # Compute Pagel's lambda using maximum likelihood
+# phylosig(tree=tree.hb.nso, x=just.hb.nso, method="lambda", test=TRUE) # lambda=<0, p=1
+# phylosig(tree=tree.hct.nso, x=just.hct.nso, method="lambda", test=TRUE) # lambda=<0, p=1
+# phylosig(tree=tree.trbc.nso, x=just.trbc.nso, method="lambda", test=TRUE) # lambda= 0.037, p=0.934
+# phylosig(tree=tree.mcv.nso, x=just.mcv.nso, method="lambda", test=TRUE) # lambda=<0, p=1
+# phylosig(tree=tree.mch.nso, x=just.mch.nso, method="lambda", test=TRUE) # lambda=<0, p=1
+# phylosig(tree=tree.mchc.nso, x=just.mchc.nso, method="lambda", test=TRUE) # lambda=<0, p=1 
+```
+
+**Conclusion:** Even after removing sampling outliers (species with fewer 3 individuals sampled), there is no phylogenetic signal in our data. This is confirmed visually w/ contmaps and with estimates of Pagel's lamda and Blomberg's K. 
+
+
 # Check for correlations among continuous predictors 
 ```{r}
 # Correlation matrix 
@@ -681,19 +794,54 @@ theme_set(theme_bw() +
 
 
 
-
 # MODELING 
+*Note that in Bayesian stats, "fixed" and "random" effects don't make sense because everything can be considered random. "Grouping variable" makes more sense, as do descriptors of no, partial, or complete pooling. BUT, since "fixed" and "random" are more intuitive to a frequentist audience, I'll use those in quotes here. 
 
 For each response, run 6 sets of models: 
 1) Null (intercept only)
-2) Random effect only (+1 species)
+2) "Random effect" only (+1|species)
 3) Full model (predictors only)
-4) Full model + (+1 species)
+4) Full model + (1|species)
 --
 5) Reduced M3, predictors only 
-6) Reduced M4, predictors + RE model 
+6) Reduced M4, predictors + (1|species)
 
 Select distributions and priors as is best needed for each model set. 
+
+Note on 3/24/21: After revisiting some basic brms/Bayesian modeling material, I began to doubt whether it was appropriate to use individual-level data (referred to as "repeated measures" in the Bayesian world, implying multiple individuals sampled per species, for example) as predictors in a model since some Bayesian material suggests that predictors should be population-level. And, other resources, like this excellent vignette about incorporating repeated measures into phylogenetic brms models (https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html) suggests taking individual-level, repeated measures data and constructing "species mean" and "within species variability" variables and using these two as predictors in lieu of individual-level data (aka raw data values). 
+
+This EXACT topic is addressed in this post: https://discourse.mc-stan.org/t/phylogenetic-model-with-repeated-measurements-without-using-species-mean/4801/4
+
+**IN BRIEF/CONCLUSION:** Yes, the way I've structured my models is ok, and it is fine to use individual-level data as predictors. See last comment by Jon Nations (aka, might affect those conditional probabilities plots because more error is involved in individual-level measurements). Alternatively, it is also totally fine to break the data into "species mean" and "within species variability" (raw value - mean), as described in the phylo tutorial above, and Paul Buerkener says he did this following the phylogenetic textbook (Garamszagi original tutorial) from which the data originally come. So essentially: Paul modified Garamszagi's tutorial; now everyone uses Paul's tutorial, which is just one approach to a modeling challenge put forward by one guy. 
+
+AND, the approach you use may also depend on the questions you're answering; i.e., we're interested in using elev.position, a measure of each individual's elevation relative to its species mean elevation, so "species mean" and "within species variability" variables don't capture what we want with elev.pos. 
+
+A good lesson in "there are multiple ways to skin a cat"; questioning is good, trusting intuition is good, exploring options is good. (Plus, I did end up doing a comparison between individual-level data and population-level data (w/ predictors of spec_mean and within_species_variability) and there was essentially no difference between model results. Conditional probability plots did fit a bit better in population-level models, and R^2 was a bit higher in pop-level model, but diagnostics were all the same, and in loo model comparison, original hb.m4 emerged as the top model, marginally better than hb.popleveltest.m4)
+
+TL;DR - We want individual-level data *and* it's totally acceptable to keep model structure the way I've been doing it from the beginning. 
+
+As a side note, some other info about population-level modeling in brms w/ a bird malaria system someone is working on: https://discourse.mc-stan.org/t/brms-formula-for-population-level-effects-measured-at-the-group-level/20953
+
+Repeated measures w/ population-level effects might also be helpful: https://discourse.mc-stan.org/t/repeated-measures-with-population-level-effects/10944
+
+ 
+ 
+NOTES ON PRIORS: 
+
+I did a lot of research on priors and I honestly think that default priors specified by brms are ok. Models fit about the same with and without weakly informative priors. 
+
+I also think it's better to run mcv models with non-transformed MCV and skew_normal distribution - fit is better than with log-transformed MCV and gaussian. 
+
+see if changing sample_prior=TRUE to "no" or "yes" changes results at all. 
+
+Some stuff on priors: https://github.com/paul-buerkner/brms/issues/131
+
+https://www.monicaalexander.com/posts/2020-28-02-bayes_viz/ <--- great brms tutorial
+
+This has a little blurb on posteriors vs. priors: https://www.rensvandeschoot.com/tutorials/brms-priors/
+
+brms polynomial regression: https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/linear-models.html#polynomial-regression
+
 
 
 ##### HB MODEL SET ######
@@ -804,8 +952,8 @@ plot(hb.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hb.m4, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hb.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(hb.m4, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(hb.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -948,6 +1096,9 @@ hyp.sp.hb.m4 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) =
 (hyp.sp.hb.m4 <- hypothesis(hb.m4, hyp.sp.hb.m4, class = NULL))
 plot(hyp.sp.hb.m4)
 # 13% variance explained by species 
+
+performance::variance_decomposition(hb.m4)
+performance::variance_decomposition(hb.m2)
 ```
 
 
@@ -1002,8 +1153,8 @@ plot(hb.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hb.m6, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hb.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(hb.m6, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(hb.m6, type = "stat", stat = 'median', nsamples = 100)
 
 
 # Is there presence of strong autocorrelation?
@@ -1158,6 +1309,199 @@ Quick summary of top 3 models in order of ranking:
 **All models fit substantially better than the intercept-only model (m1), AND, it's very clear that it's important to consider variation explained by species identity. 
 
 
+Hb test of posterior draws plot
+```{r}
+# example model
+m_mpg = brm(
+  mpg ~ log(hp), 
+  data = mtcars, 
+  family = lognormal,
+
+  file = "README_models/m_mpg.rds" # cache model (can be removed)  
+)
+
+library(modelr)
+library(ggdist)
+library(tidybayes)
+
+mtcars %>%
+  data_grid(hp = seq_range(hp, n = 101)) %>%
+  add_predicted_draws(m_mpg) %>%
+  ggplot(aes(x = hp, y = mpg)) +
+  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
+  geom_point(data = mtcars, size = 2) +
+  scale_fill_brewer()
+
+predicted_draws(hb.m4)
+get_variables(hb.m4)
+# b_Intercept is global mean; r_condition[] variables are offsets from that mean for each condition
+
+# Spread model draws
+hb.m4 %>%
+  spread_draws(r_species[species,term]) %>% # changing names in square brackets just changes column headers 
+  head(10)
+
+
+hb.m4 %>%
+  spread_draws(b_Intercept, sigma) %>% # Extract draws corresponding to overall mean (Intercept) and standard dev (sigma)
+  head(10)
+
+hb.m4 %>%
+  spread_draws(b_Intercept, sigma) %>%
+  median_qi(b_Intercept, sigma) %>% # add in median and 95% quantile of variables
+  head(10)
+
+# Make a long list instead: 
+hb.m4 %>%
+  gather_draws(b_Intercept, sigma) %>%
+  median_qi()
+
+hb.m4 %>%
+  spread_draws(r_species[species,]) %>% # spread_draws automatically groups by condition
+  median_qi()
+
+hb.m4 %>% 
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  head(10)
+
+# Within each draw, b_Intercept is repeated as necessary to correspond to every index of r_condition. Thus, the mutate function from dplyr can be used to find their sum, condition_mean (which is the mean for each condition):
+
+hb.m4 %>%
+  spread_draws(`b_Intercept`, r_species[species,]) %>% # get species means 
+  mutate(species_mean = b_Intercept + r_species) %>%
+  median_qi(species_mean)
+
+# Plot point summary with one interval
+hb.m4 %>%
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  median_qi(species_mean = b_Intercept + r_species) %>%
+  ggplot(aes(y = species, x = species_mean, xmin = .lower, xmax = .upper)) +
+  geom_pointinterval()
+# Can you plot this in order of phylogeny? 
+
+# Intervals with multiple probability levels: 
+hb.m4 %>%
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  median_qi(species_mean = b_Intercept + r_species, .width = c(.95, .8, .5))
+# The results are in a tidy format: one row per group and uncertainty interval width (.width). 
+# This facilitates plotting
+
+hb.m4 %>%
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  median_qi(species_mean = b_Intercept + r_species, .width = c(.95, .66)) %>%
+  ggplot(aes(y = species, x = species_mean, xmin = .lower, xmax = .upper)) +
+  geom_pointinterval() 
+
+# Intervals with densities: 
+hb.m4 %>%
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  mutate(species_mean = b_Intercept + r_species) %>%
+  ggplot(aes(y = species, x = species_mean)) +
+  stat_halfeye()
+# not a great look for what I'm doing - too many groups
+
+# 
+hb.m4 %>%
+  spread_draws(b_Intercept, r_species[species,]) %>%
+  mutate(species_mean = b_Intercept + r_species) %>%
+  ggplot(aes(y = species, x = species_mean, fill = stat(abs(x) < .8))) +
+  stat_halfeye() +
+  geom_vline(xintercept = c(16, 20), linetype = "dashed") +
+  scale_fill_manual(values = c("gray80", "skyblue"))
+
+# add posterior draws 
+
+final.hb %>%
+  data_grid(species) %>%
+  add_fitted_draws(hb.m4) %>%
+  head(10)
+
+
+final.hb %>%
+  data_grid(elev.z) %>%
+  add_predicted_draws(hb.m3) %>% #specify model you want draws from 
+  ggplot(aes(x = elev, y = hb)) +
+  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
+  geom_point(data = final.hb, size = 2) +
+  scale_fill_brewer()
+
+final.mcv %>%
+  data_grid(temp.z, species) %>%
+  add_predicted_draws(mcv.m6) %>%
+  ggplot(aes(x = .prediction, y = temp.z)) +
+  stat_slab()
+
+
+final.hb %>%
+  group_by(species) %>%
+  data_grid(hb = seq_range(hb, n = 51)) %>%
+  add_fitted_draws(hb.m4) %>%
+  ggplot(aes(x = hb, y = hb, color = ordered(species))) +
+  stat_lineribbon(aes(y = .value)) +
+  geom_point(data = final.hb) +
+  scale_fill_brewer(palette = "Greys") +
+  scale_color_brewer(palette = "Set2")
+
+# compare levels - pairwise comparison between species is essentially meaningless
+hb.m4 %>%
+  spread_draws(r_species[species,]) %>%
+  compare_levels(r_species, by = species) %>%
+  ggplot(aes(y = species, x = r_species)) +
+  stat_halfeye()
+
+hb.m4 %>%
+  spread_draws(r_species[species,]) %>%
+  compare_levels(r_species, by = species) %>%
+  ggplot(aes(y = species, x = r_species)) +
+  stat_halfeye()
+
+
+# Or let's plot comparisons of all levels of j within
+# all levels of i
+hb.m4 %>%
+  spread_draws(b[genotype,genotype]) %>%
+  group_by(i) %>%
+  compare_levels(b, by = j) %>%
+  ggplot(aes(x = b, y = j)) +
+  stat_halfeye() +
+  facet_grid(cols = vars(i))
+
+# Or let's plot all comparisons against the first level (control):
+hb.m4 %>%
+  spread_draws(b[i,genotype]) %>%
+  filter(genotype == 1) %>%
+  compare_levels(b, by = i, comparison = control) %>%
+  ggplot(aes(x = b, y = i)) +
+  stat_halfeye()
+
+# export draws from sampled posterior
+hb.m4.draws %>%
+gather_draws("b_elev.z", "b_elev.pos.z", "b_mass.z", "b_temp.z", "b_precip.z", "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z") %>%
+write.csv("hb.m4.draws.csv")
+
+# Do as EBL did: use gather_draws to make a gathered data frame
+# then use his code to plot
+
+p20 <- ggplot(final.hb, aes(x = elevation, y = Hb)) +
+  geom_ribbon(aes(ymin = p_ll, ymax = p_ul),
+              fill = "gray10", alpha = 1/5) +
+  geom_smooth(aes(ymin = f_ll, ymax = f_ul),
+              stat = "identity",
+              fill = "gray10", color = "gray40", alpha = 1/5, size = 1/4) +
+  geom_point(data=slope_df_m, aes(x=elev_range_s, y=slope_hb), pch=21) +
+  coord_cartesian(xlim = range(slope_df_m$elev_range_s),
+                  ylim = range(slope_df_m$slope_hb)) +
+  labs(y = expression(paste(Delta, " [Hb] * ",10^{3})),
+       x  = "Elevational Range Breadth (Standardized)") +
+  theme_bw() +
+  theme(panel.grid = element_blank())  
+p20
+
+
+```
+
+
+Helpful Tidybayes spread_draws tutorial: https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
 
 
 ##### HCT MODEL SET #######
@@ -1295,8 +1639,8 @@ plot(hct.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hct.m4, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hct.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(hct.m4, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(hct.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -1381,7 +1725,7 @@ scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Pre
 hct.m4.p1
 ggsave(hct.m4.p1, filename = "hct.m4.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hct.m4)
-# Predictors whose 95% CIs do NOT overlap zero (that will be in reduced model): elev.z + intravar.mass.z
+# Predictors whose 95% CIs do NOT overlap zero (that will be in reduced model): elev.z + elev.pos.z + intravar.mass.z
 
 ####
 
@@ -1483,8 +1827,8 @@ plot(hct.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(hct.m6, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(hct.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(hct.m6, resp = "hct", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(hct.m6, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -1753,8 +2097,8 @@ plot(trbc.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(trbc.m4, resp = "trbc", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(trbc.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(trbc.m4, resp = "trbc", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(trbc.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -1943,8 +2287,8 @@ plot(trbc.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(trbc.m6, resp = "trbc", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(trbc.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(trbc.m6, resp = "trbc", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(trbc.m6, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -2051,6 +2395,10 @@ LOO(trbc.m1, trbc.m2, trbc.m3, trbc.m4, trbc.m5, trbc.m6, reloo=FALSE)
 sink()
 # According to LOO, model 8 is top model 
 
+# Get loo model weights: 
+loo.list.trbc <- list(A=trbc.m1, B=trbc.m2, C=trbc.m3, D=trbc.m4, E=trbc.m5, F=trbc.m6) # names optional (affects printing)
+loo_model_weights(loo.list.trbc)
+
 # compare models # Just a shorter version of the above text
 # loo_compare(en.loo) # Top ranked model includes no random effects 
 
@@ -2083,25 +2431,6 @@ TRBC, Quick summary of top 3 models in order of ranking:
 
 
 ##### MCV MODEL SET #######
-
-
-
-
-JESSIE STOPPED HERE: 
-
-I did a lot of research on priors and I honestly think that default priors specified by brms are ok. Models fit about the same with and without weakly informative priors. 
-
-I also think it's better to run mcv models with non-transformed MCV and skew_normal distribution - fit is better than with log-transformed MCV and gaussian. 
-
-see if changing sample_prior=TRUE to "no" or "yes" changes results at all. 
-
-Some stuff on priors: https://github.com/paul-buerkner/brms/issues/131
-
-https://www.monicaalexander.com/posts/2020-28-02-bayes_viz/ <--- great brms tutorial
-
-This has a little blurb on posteriors vs. priors: https://www.rensvandeschoot.com/tutorials/brms-priors/
-
-
 
 
 # MCV MODELS - Set up & run models 
@@ -2139,10 +2468,10 @@ mcv.m1 <- brm(formula = bf(mcv ~ 1),
   sample_prior = TRUE # save priors 
 )
 save(mcv.m1, file="mcv.m1_Intercept-Only.RData") # save model
-#load("mcv.m1_Intercept-Only.Rdata") 
+load("mcv.m1_Intercept-Only.Rdata") 
 
 
-# MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + PHYLO & SPECIES RANDOM EFFECTS)
+# MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECT)
 mcv.m2 <- brm(formula = bf(mcv ~ 1 + (1|species)),
   data = final.mcv,
   family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
@@ -2155,7 +2484,7 @@ mcv.m2 <- brm(formula = bf(mcv ~ 1 + (1|species)),
   sample_prior = TRUE # save priors
 )
 save(mcv.m2, file="mcv.m2_RandomEffectsOnly.RData") # save model
-#load("mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+load("mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -2172,7 +2501,7 @@ mcv.m3 <- brm(formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + pre
   sample_prior = TRUE # save priors 
 )
 save(mcv.m3, file="mcv.m3_FullModel_PredictorsOnly.RData") # save model
-#load("mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+load("mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -2192,7 +2521,24 @@ mcv.m4 <- brm(formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + pre
   sample_prior = TRUE # save priors 
 )
 save(mcv.m4, file="mcv.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+load("mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+
+
+# m4 WITH QUADRATIC ELEV
+mcv.m4.quad <- brm(formula = bf(mcv ~ 1 + elev.z + I(elev.z^2) + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species)),
+  data = final.mcv,
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000, EBL used 10000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mcv.m4.quad, file="mcv.m4.quad_FullModel_SpeciesREOnly.RData") # save model
+#load("mcv.m4.quad_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 ```
 
 
@@ -2210,8 +2556,8 @@ plot(mcv.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mcv.m4, resp = "mcv", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mcv.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mcv.m4, resp = "mcv", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mcv.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -2292,17 +2638,34 @@ mcv.m4.p1 <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_t
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [mcv]", title = "mcv.m4: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+scale_y_discrete(labels=c("Elevation", "Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
 mcv.m4.p1
-ggsave(mcv.m4.p1, filename = "mcv.m4.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+ggsave(mcv.m4.p1, filename = "mcv.m4.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(mcv.m4)
 # Predictors whose 95% CIs do NOT overlap zero (for reduced model): temp.z
+
+# Model 4 - quadratic
+#color_scheme_set("red") # nice default
+mcv.m4.p1.quad <- mcmc_plot(mcv.m4.quad, pars=c("b_elev.z", "b_Ielev.zE2", 
+                                                "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mcv]", title = "mcv.m4.quad: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation", "Elev Quad", "Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+mcv.m4.p1.quad
+ggsave(mcv.m4.p1.quad, filename = "mcv.m4.p1.quad_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mcv.m4.quad)
+# Predictors whose 95% CIs do NOT overlap zero (for reduced model): elev.z + temp.z
 
 ####
 
 # Summary of reducing models: 
 # m5 (reduced m3) will be: elev.z, temp.z
 # m6 (reduced m4) will be: temp.z
+# m6.quad (reduced m4.quad) will be: elev.z + temp.z
 ```
 
 
@@ -2314,6 +2677,7 @@ summary(mcv.m1, waic=TRUE)
 summary(mcv.m2, waic=TRUE)
 summary(mcv.m3, waic=TRUE)
 summary(mcv.m4, waic=TRUE)
+summary(mcv.m4.quad, waic=TRUE)
 sink()
 # print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -2322,7 +2686,8 @@ mcv.m1.waic <- waic(mcv.m1)
 mcv.m2.waic <- waic(mcv.m2)
 mcv.m3.waic <- waic(mcv.m3)
 mcv.m4.waic <- waic(mcv.m4)
-mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m4.waic); mcv.waics
+mcv.m4.quad.waic <- waic(mcv.m4.quad)
+mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m4.waic, mcv.m4.quad.waic); mcv.waics
 write.csv(mcv.waics, "mcv_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 ```
 
@@ -2339,10 +2704,16 @@ hyp.sp.mcv.m2 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) 
 plot(hyp.sp.mcv.m2)
 # 14% variance explained 
 
-# m5 species variance 
+# m4 species variance 
 hyp.sp.mcv.m4 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.mcv.m4 <- hypothesis(mcv.m4, hyp.sp.mcv.m4, class = NULL))
 plot(hyp.sp.mcv.m4)
+# 14% variance explained by species 
+
+# m4.quad species variance 
+hyp.sp.mcv.m4.quad <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.mcv.m4.quad <- hypothesis(mcv.m4.quad, hyp.sp.mcv.m4.quad, class = NULL))
+plot(hyp.sp.mcv.m4.quad)
 # 14% variance explained by species 
 ```
 
@@ -2380,7 +2751,23 @@ mcv.m6 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(mcv.m6, file="mcv.m6_ReducedModel_SpeciesREOnly.RData") # save model
-#load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+# load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+
+# MODEL 6.QUAD: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
+mcv.m6.quad <- brm(
+  formula = bf(mcv ~ 1 + elev.z + temp.z + (1|species)),
+  data = final.mcv,
+  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mcv.m6.quad, file="mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") # save model
+# load("mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2398,8 +2785,8 @@ plot(mcv.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mcv.m6, resp = "mcv", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mcv.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mcv.m6, resp = "mcv", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mcv.m6, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -2412,7 +2799,7 @@ mcmc_plot(mcv.m6, type = "acf_bar")
 # plot conditional effects for full model (note: you do this separately below)
 # Note: this used to be called marginal_effects, but that's now deprecated; replaced w/ conditional_effects
 # nu = degrees of freedom
-plot(conditional_effects(mcv.m6), points = TRUE) 
+plot(conditional_effects(mcv.m4), points = TRUE) 
 
 # Quick plot of estimates and 95% CIs (default is 95% CI:
 mcmc_plot(mcv.m6)  # adjust prob to get 95% CI
@@ -2442,7 +2829,7 @@ mcv.m5.p1 <- mcmc_plot(mcv.m5, pars=c("b_elev.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [mcv]", title = "mcv.m5: Posterior mean estimates & 95% Credible Intervals") + 
+labs(x="Effect on MCV", title = "mcv.m5: Posterior mean estimates & 95% Credible Intervals") + 
 scale_y_discrete(labels=c("Elevation", "Temp"))  
 mcv.m5.p1
 ggsave(mcv.m5.p1, filename = "mcv.m5.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
@@ -2454,11 +2841,23 @@ mcv.m6.p1 <- mcmc_plot(mcv.m6, pars=c("b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
-labs(x="Effect on [mcv]", title = "mcv.m6: Posterior mean estimates & 95% Credible Intervals") +
+labs(x="Effect on MCV", title = "mcv.m6: Posterior mean estimates & 95% Credible Intervals") +
 scale_y_discrete(labels=c("Temp"))
 mcv.m6.p1
 ggsave(mcv.m6.p1, filename = "mcv.m8.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(mcv.m6)
+
+# Model 6.quad 
+color_scheme_set("blue") # nice default
+mcv.m6.quad.p1 <- mcmc_plot(mcv.m6.quad, pars=c("b_elev.z", "b_temp.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on MCV", title = "mcv.m6.quad: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation", "Temp"))  
+mcv.m6.quad.p1
+ggsave(mcv.m6.quad.p1, filename = "mcv.m6.quad.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mcv.m6.quad)
 ```
 
 
@@ -2468,13 +2867,15 @@ summary(mcv.m6)
 sink("mcv_reduced_brms_model_summaries.txt",append = TRUE)
 summary(mcv.m5, waic=TRUE)
 summary(mcv.m6, waic=TRUE)
+summary(mcv.m6.quad, waic=TRUE)
 sink()
 # print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
 mcv.m5.waic <- waic(mcv.m5)
 mcv.m6.waic <- waic(mcv.m6)
-mcv.waics.red <- cbind(mcv.m5.waic, mcv.m6.waic); mcv.waics.red
+mcv.m6.quad.waic <- waic(mcv.m6.quad)
+mcv.waics.red <- cbind(mcv.m5.waic, mcv.m6.waic, mcv.m6.quad.waic); mcv.waics.red
 write.csv(mcv.waics.red, "mcv_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 ```
 
@@ -2491,6 +2892,12 @@ hyp.sp.mcv.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) 
 plot(hyp.sp.mcv.m6)
 # 13% variance explained by species
 
+# m6.quad
+hyp.sp.mcv.m6.quad <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.mcv.m6.quad <- hypothesis(mcv.m6.quad, hyp.sp.mcv.m6.quad, class = NULL))
+plot(hyp.sp.mcv.m6.quad)
+# 14% variance explained by species
+
 plot(final.mcv$mass.z, final.mcv$mcv, xlab="Mass (standardized)", ylab="MCV", pch=19)
 ```
 
@@ -2502,37 +2909,53 @@ plot(final.mcv$mass.z, final.mcv$mcv, xlab="Mass (standardized)", ylab="MCV", pc
 
 library(loo)
 sink("mcv_brms_models_all_looic.txt", append=FALSE)
-LOO(mcv.m1, mcv.m2, mcv.m3, mcv.m4, mcv.m5, mcv.m6, reloo=FALSE) 
+LOO(mcv.m1, mcv.m2, mcv.m3, mcv.m4, mcv.m5, mcv.m6, mcv.m4.quad, mcv.m6.quad, reloo=TRUE) 
 sink()
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# This takes ~20 minutes to run
 # compare models # Just a shorter version of the above text
 # loo_compare(en.loo) # Top ranked model includes no random effects 
 
 # Calculate Bayesian R^2:
 bayes_R2(mcv.m1)
-bayes_R2(mcv.m2) # 0.091
-bayes_R2(mcv.m3) # 0.052
-bayes_R2(mcv.m4) # 0.112
+bayes_R2(mcv.m2) # 0.093
+bayes_R2(mcv.m3) # 0.028
+bayes_R2(mcv.m4) # 0.110
+bayes_R2(mcv.m4.quad) # 0.115
 bayes_R2(mcv.m5) # 0.008
 bayes_R2(mcv.m6) # 0.094
+bayes_R2(mcv.m6.quad) # 0.099
 
-# PASTE IN PROPER DATA! 
-# Model comparisons:
+# Model comparisons - original comparison without quadratic models:
 #        elpd_diff se_diff
-# mcv.m2   0.0       0.0  
-# mcv.m6  -0.7       1.0  
-# mcv.m4  -1.8       3.8  
-# mcv.m5 -23.6       7.2  
-# mcv.m1 -25.1       6.8  
-# mcv.m3 -26.3       7.4  
+# mcv.m6   0.0       0.0  
+# mcv.m2  -0.5       1.0  
+# mcv.m4  -0.9       3.6  
+# mcv.m5 -23.3       7.1  
+# mcv.m1 -24.9       6.9  
+# mcv.m3 -26.5       7.3   
+
+# Model comparisons- WITH QUADRATIC MODELS:
+#             elpd_diff se_diff
+# mcv.m6.quad   0.0       0.0  ; 14% explained by species
+# mcv.m6       -1.8       2.5  
+# mcv.m2       -2.4       2.7  
+# mcv.m4       -2.6       1.9  
+# mcv.m4.quad  -3.4       2.2  
+# mcv.m5      -25.1       6.8  
+# mcv.m1      -26.6       7.2  
+# mcv.m3      -28.3       6.7  
 ```
 
 
-MCV, Quick summary of top 3 models in order of ranking: 
-1) Model 2: Null model + (1|species) **significantly better than most models, marginally better than M6 (reduced), 14% variance explained by species, R^2 = 0.093
-2) Model 6: Reduced model w/ just temp.z and +1 species, 14% variation explained by species, R^2 = 0.09 
-3) Model 4: Full + (1|species), 14% of variance explained by species, R^2 = 0.112 
+MCV, Quick summary of top 3 models in order of ranking (this does not include quadratic model summary!): 
+1) Model 6: Reduced model w/ just temp.z and +1 species; 13% variation explained by species, R^2 = 0.094 
+2) Model 2: Null model + (1|species), only marginally below than M6 (reduced); 14% variance explained by species, R^2 = 0.093
+3) Model 4: Full + (1|species); 14% of variance explained by species; R^2 = 0.110 
 
-**Null model fits the best, suggesting that no predictors are great for MCV. However, effect of species clearly important. Perhaps MCV is a blood trait best explained by other blood traits? Not quite sure how to interpret this. 
+**All models w/ random effect of species fit better than without, suggesting that this is important. 
 
 
 
@@ -2643,8 +3066,8 @@ plot(mch.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mch.m4, resp = "mch", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mch.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mch.m4, resp = "mch", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mch.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -2776,7 +3199,7 @@ plot(hyp.sp.mch.m2)
 hyp.sp.mch.m4 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
 (hyp.sp.mch.m4 <- hypothesis(mch.m4, hyp.sp.mch.m4, class = NULL))
 plot(hyp.sp.mch.m4)
-# 13% variance explained by species 
+# 12% variance explained by species 
 ```
 
 
@@ -2830,8 +3253,8 @@ plot(mch.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mch.m6, resp = "mch", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mch.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mch.m6, resp = "mch", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mch.m6, type = "stat", stat = 'median', nsamples = 100)
 
 
 # Is there presence of strong autocorrelation?
@@ -2941,30 +3364,29 @@ sink()
 
 # Calculate Bayesian R^2:
 bayes_R2(mch.m1)
-bayes_R2(mch.m2) # 0.09
+bayes_R2(mch.m2) # 0.091
 bayes_R2(mch.m3) # 0.025
-bayes_R2(mch.m4) # 0.115
+bayes_R2(mch.m4) # 0.114
 bayes_R2(mch.m5) # 0.005
-bayes_R2(mch.m6) # 0.09
+bayes_R2(mch.m6) # 0.092
 
 # Model comparisons:
 #        elpd_diff se_diff
-# mch.m2   0.0       0.0  
-# mch.m6  -0.3       1.6  
-# mch.m4  -1.8       3.3  
-# mch.m1 -20.0       6.6  
-# mch.m5 -20.5       6.8  
-# mch.m3 -22.9       7.0  
+# mch.m6   0.0       0.0  
+# mch.m2   0.0       1.5  
+# mch.m4  -1.2       3.1  
+# mch.m1 -19.6       6.5  
+# mch.m5 -20.1       6.5  
+# mch.m3 -22.8       6.7  
 ```
 
 
 MCH, Quick summary of top 3 models in order of ranking: 
-1) Model 2: Null model + (1|species) **significantly better than most models, marginally better than M6 (reduced), 12% variance explained by species, R^2 = 0.09
-2) Model 6: Reduced model w/ just temp.z and +1 species, 12% variation explained by species, R^2 = 0.09 
-3) Model 4: Full + (1|species), 13% of variance explained by species, R^2 = 0.115 
+1) Model 6: Reduced model w/ just elev.pos and elev (both overlap zero in reduced model) and +1 species; 12% variation explained by species, R^2 = 0.092 
+2) Model 2: TIED w/ Null model + (1|species); 12% variance explained by species, R^2 = 0.091
+3) Model 4: Full + (1|species); 12% of variance explained by species; R^2 = 0.114 
 
-**Null model fits the best, suggesting that no predictors are great for MCH However, effect of species clearly important. Perhaps MCH is a blood trait best explained by other blood traits? Not quite sure how to interpret this. 
-
+**Effect of species clearly important
 
 
 
@@ -3074,8 +3496,8 @@ plot(mchc.m4, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mchc.m4, resp = "mchc", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mchc.m4, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mchc.m4, resp = "mchc", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mchc.m4, type = "stat", stat = 'median', nsamples = 100)
 
 # Is there presence of strong autocorrelation?
 # If you have autocorrelation, you get a bunch of red things flagged 
@@ -3261,8 +3683,8 @@ plot(mchc.m6, N = 2, ask = FALSE)
 # y to y-rep fit plot 
 # Generate new y values given the model and compare to actual y from the data. 
 # You want the y rep line to be somewhat close to dark line, signifying that model fits the data
-pp_check(mchc.m6, resp = "mchc", nsamples = 100) # pull 100 draws from model and cast back to original data 
-pp_check(mchc.m6, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(mchc.m6, resp = "mchc", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(mchc.m6, type = "stat", stat = 'median', nsamples = 100)
 
 
 # Is there presence of strong autocorrelation?
@@ -3355,7 +3777,6 @@ hyp.sp.mchc.m6 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2)
 (hyp.sp.mchc.m6 <- hypothesis(mchc.m6, hyp.sp.mchc.m6, class = NULL))
 plot(hyp.sp.mchc.m6)
 # 15% variance explained by species 
-
 ```
 
 
@@ -3376,24 +3797,24 @@ sink()
 # Calculate Bayesian R^2:
 bayes_R2(mchc.m1)
 bayes_R2(mchc.m2) # 0.088
-bayes_R2(mchc.m3) # 0.048
-bayes_R2(mchc.m4) # 0.133
-bayes_R2(mchc.m5) # 0.036
-bayes_R2(mchc.m6) # 0.116
+bayes_R2(mchc.m3) # 0.049
+bayes_R2(mchc.m4) # 0.134
+bayes_R2(mchc.m5) # 0.037
+bayes_R2(mchc.m6) # 0.115
 
 # Model comparisons:
 #         elpd_diff se_diff
 # mchc.m6   0.0       0.0  
-# mchc.m4  -0.8       2.6  
-# mchc.m2 -11.7       5.1  
-# mchc.m3 -29.6       7.2  
-# mchc.m5 -30.1       7.2  
-# mchc.m1 -39.6       8.8  
+# mchc.m4  -0.1       2.6  
+# mchc.m2 -11.5       5.0  
+# mchc.m3 -29.3       7.1  
+# mchc.m5 -29.9       7.1  
+# mchc.m1 -39.4       8.7  
 ```
 
 MCHC, Quick summary of top 3 models in order of ranking: 
-1) Model 6: Reduced model w/ just intravar.temp and intravar.mass and +1 species, 15% variation explained by species, R^2 = 0.116 2) Model 4: Full + (1|species), 18% of variance explained by species, R^2 = 0.133. Only marginally lower than Model 6. 
-3) Model 2: Null model + (1|species). 14% of variance explained by species, R^2 = 0.088. 
+1) Model 6: Reduced model w/ just intravar.temp and intravar.mass and +1 species; 15% variation explained by species; R^2 = 0.115 2) Model 4: Full + (1|species); 18% of variance explained by species; R^2 = 0.134. Only *marginally* lower than Model 6. 
+3) Model 2: Null model + (1|species); 14% of variance explained by species; R^2 = 0.088. 
 
 All models with species effect ranked much higher than models w/out, suggesting species very important. 
 
@@ -3401,144 +3822,1080 @@ All models with species effect ranked much higher than models w/out, suggesting 
 
 #######
 
-# Rough 6-panel blood posterior probability fig 
+# FIGURE 4 - 6-panel blood posterior probability fig 
 ```{r}
+library(tidyverse)
+library(patchwork)
 
-# Hb 
-# Full model from which best-fit reduced model (M8) comes from, shows that elevation is important: 
-hb.m4.p1 <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]") + #, title = "hb.m4: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) 
-hb.m4.p1
-ggsave(hb.m4.p1, filename = "hb.m4.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(hb.m4)
+# Set color scheme 
+color_scheme_set("viridisE") # Looks most sophisticated for fig; ViridisC looks a little clownish
+# Options: blue, teal, red, brightblue, purple, gray, mix-blue-red, pink; ViridisC & E are my favorite
+# See help function of color_scheme_set for full list and how to mix colors 
 
-# hct 
-# Model 5
-#color_scheme_set("red") # nice default
-hct.m5.p1 <- mcmc_plot(hct.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on Hct") + #, title = "hct.m5: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
-hct.m5.p1
-ggsave(hct.m5.p1, filename = "hct.m5.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(hct.m5)
-# Predictors whose 95% CIs do NOT overlap zero: elev.position.z
-# Reduced hct.m5 will be: elev.position.z
+# Note that if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
+# Narrow and pdf is slightly different; either use family "Helvetica" (or any other), or follow instructions here: 
+# https://github.com/thomasp85/ggraph/issues/152
+
+# HB - panel A
+color_scheme_set("viridisE")
+hb.m4.fig4a <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+            "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+            prob_outer=0.95, # 95% outer CI 
+            prob=0.50, # 50% inner CI 
+            point_est="mean") + # mean point est; default is median 
+            labs(x="Effect on [Hb]", title = " ") + 
+            scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", 
+                                      "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
+            ggtitle("A") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+hb.m4.fig4a
+ggsave(hb.m4.fig4a, filename = "hb.m4.fig4a_Hb_PosteriorEstimates&CredibleIntervals_ViridisC.pdf", bg="transparent", height=7, width=9, units="in")
 
 
-# TRBC: 
-# Model 5
-#color_scheme_set("red") # nice default
-trbc.m5.p1 <- mcmc_plot(trbc.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on TRBC" ) + #, title = "trbc.m5: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
-trbc.m5.p1
-ggsave(trbc.m5.p1, filename = "trbc.m5.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(trbc.m5)
+# HCT - Panel B
+color_scheme_set("viridisE")
+hct.m4.fig4b <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+            "b_genotypeGlyMSer", "b_genotypeSerMSer","b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+            prob_outer=0.95, # 95% outer CI 
+            prob=0.50, # 50% inner CI 
+            point_est="mean") + # mean point est; default is median 
+            labs(x="Effect on Hct", title = " ") + 
+            # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", 
+            #                         "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +  
+            scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
+            ggtitle("B") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+hct.m4.fig4b
+ggsave(hct.m4.p1, filename = "hct.m4.fig4b_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-# MCV
-# Model 5
-#color_scheme_set("red") # nice default
-mcv.m5.p1 <- mcmc_plot(mcv.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on MCV") + #, title = "mcv.m5: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
-mcv.m5.p1
-ggsave(mcv.m5.p1, filename = "mcv.m5.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(mcv.m5)
-# Predictors whose 95% CIs do NOT overlap zero: latitude
-# Reduced mcv.m5 will be: lat.z
+# TRBC - Panel C
+color_scheme_set("viridisE")
+trbc.m4.fig4c <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
+              prob_outer=0.95, # 95% outer CI 
+              prob=0.50, # 50% inner CI 
+              point_est="mean") + # mean point est; default is median 
+              labs(x="Effect on TRBC", title = " ") + 
+              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
+              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+              theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+              theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
+              ggtitle("C") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold 
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+trbc.m4.fig4c
+ggsave(trbc.m4.fig4c, filename = "trbc.m4.fig4c_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-# MCH
-# Model 6
-#color_scheme_set("gray") # nice default
-mch.m6.p1 <- mcmc_plot(mch.m6, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on MCH") + #, title = "mch.m6: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))     
-mch.m6.p1
-ggsave(mch.m6.p1, filename = "mch.m6.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(mch.m6)
-# Predictors whose 95% CIs do NOT overlap zero: lat.z
-# Reduced mch.m6 will be: lat.z
 
-# MCHC
-# Model 5
-#color_scheme_set("red") # nice default
-mchc.m5.p1 <- mcmc_plot(mchc.m5, pars=c("b_elev.z", "b_elev.position.z","b_lat.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.elev", "b_intravar.elev.pos", "b_intravar.lat", "b_intravar.mass",
-                                    "b_intravar.temp", "b_intravar.precip"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on MCHC") + #, title = "mchc.m5: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation","Elevation Position", "Latitude", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Elev", "Intra Var: Elev pos", "Intra Var: Lat", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
-mchc.m5.p1
-ggsave(mchc.m5.p1, filename = "mchc.m5.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(mchc.m5)
-# Predictors whose 95% CIs do NOT overlap zero: intravar.mass
-# Reduced mchc.m5 will be: intravar.masss
+# MCV - panel D
+color_scheme_set("viridisE")
+mcv.m4.fig4d <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+             "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
+             prob_outer=0.95, # 95% outer CI 
+             prob=0.50, # 50% inner CI 
+             point_est="mean") + # mean point est; default is median 
+             labs(x="Effect on MCV", title = " ") + 
+             scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
+                                        "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+             theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+             theme(text = element_text(family="Helvetica",size=9)) + # y axis labels 
+             ggtitle("D") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold 
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+mcv.m4.fig4d + inset_element(mcv.m6.fig4d.inset, 0.6, 0.6, 1, 1)
+ggsave(mcv.m4.fig4d, filename = "mcv.m4.fig4d_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
+# MCV Inset plot (Final model, M6)
+color_scheme_set("brightblue")
+mcv.m6.fig4d.inset <- mcmc_plot(mcv.m6, pars=c("b_temp.z"),
+                   prob_outer=0.95, # 95% outer CI
+                   prob=0.50, # 50% inner CI
+                   point_est="mean") + # mean point est; default is median
+                   labs(x="Effect on MCV", title = " ") +
+                   scale_y_discrete(labels=c("Temp")) + 
+                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
+                   theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                   # ggtitle("C") + # Assign panel number/header
+                   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                   plot.title = element_text(face="bold"))  # This makes panel header bold 
+                   # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+                   #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+mcv.m6.fig4d.inset
+ggsave(mcv.m6.fig4d.inset, filename = "mcv.m6.fig4d.inset_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCV PANEL D WITH INSET 
+mcv.m4.fig4d.withinset <- mcv.m4.fig4d + inset_element(mcv.m6.fig4d.inset, 
+                                                       right = 1.03, bottom = 0.7, left = 0.60, top = 1.1)
+# RIGHT IS LEFT AND LEFT IS RIGHT; THIS IS VERY CONFUSING
+mcv.m4.fig4d.withinset
+
+
+
+# MCH - panel E
+color_scheme_set("viridisE")
+mch.m4.fig4e <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+             "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
+             prob_outer=0.95, # 95% outer CI 
+             prob=0.50, # 50% inner CI 
+             point_est="mean") + # mean point est; default is median 
+             labs(x="Effect on MCH", title = " ") + 
+              # scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
+              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+             scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+             theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+             theme(text = element_text(family="Helvetica",size=9)) + # y axis labels 
+             ggtitle("E") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold 
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+mch.m4.fig4e
+ggsave(mch.m4.fig4e, filename = "mch.m4.fig4e_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCH INSET PLOT (final model M6)
+color_scheme_set("brightblue")
+mch.m6.fig4e.inset <- mcmc_plot(mch.m6, pars=c("b_elev.z", "b_temp.z"),
+                   prob_outer=0.95, # 95% outer CI
+                   prob=0.50, # 50% inner CI
+                   point_est="mean") + # mean point est; default is median
+                   labs(x="Effect on MCH", title = " ") +
+                   scale_y_discrete(labels=c("Elev", "Temp")) + 
+                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
+                   theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                   # ggtitle("C") + # Assign panel number/header
+                   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                   plot.title = element_text(face="bold"))  # This makes panel header bold 
+                   # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+                   #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+mch.m6.fig4e.inset 
+ggsave(mch.m6.fig4e.inset , filename = "mch.m6.fig4e.inset _mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCH PANEL E WITH INSET 
+mch.m4.fig4e.withinset <- mch.m4.fig4e + inset_element(mch.m6.fig4e.inset, 
+                                                       right = 1.03, bottom = 0.7, left = 0.60, top = 1.1)
+# RIGHT IS LEFT AND LEFT IS RIGHT; THIS IS VERY CONFUSING
+mch.m4.fig4e.withinset
+
+
+
+# MCHC - panel F
+color_scheme_set("viridisE")
+mchc.m4.fig4f <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
+              prob_outer=0.95, # 95% outer CI 
+              prob=0.50, # 50% inner CI 
+              point_est="mean") + # mean point est; default is median 
+              labs(x="Effect on MCHC", title = "") + 
+              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
+              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+              theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+              theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
+              ggtitle("F") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold 
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+mchc.m4.fig4f
+ggsave(mchc.m4.fig4f, filename = "mchc.m4.fig4f_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCHC inset element 
+color_scheme_set("brightblue")
+mchc.m6.fig4f.inset <- mcmc_plot(mchc.m6, pars=c("b_intravar.mass.z", "b_intravar.temp.z"),
+                    prob_outer=0.95, # 95% outer CI
+                    prob=0.50, # 50% inner CI
+                    point_est="mean") + # mean point est; default is median
+                    labs(x="Effect on MCHC", title = "") +
+                    scale_y_discrete(labels=c("Intra Var: \n Mass", "Intra Var: \n Temp")) + 
+                    theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
+                    theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                    # ggtitle("C") + # Assign panel number/header
+                    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                    plot.title = element_text(face="bold"))  # This makes panel header bold 
+                    # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+                    #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+mchc.m6.fig4f.inset
+ggsave(mchc.m6.fig4f.inset, filename = "mchc.m6.fig4f.inset_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCHC PANEL E WITH INSET 
+mchc.m4.fig4f.withinset <- mchc.m4.fig4f + inset_element(mchc.m6.fig4f.inset, 
+                                                       right = 1.03, bottom = 0.7, left = 0.60, top = 1.1)
+# RIGHT IS LEFT AND LEFT IS RIGHT; THIS IS VERY CONFUSING
+mchc.m4.fig4f.withinset
+
+
+
+#### FINAL PLOT #####
 
 library(patchwork)
-# Combine all plots to make one 6-panel figure:
-Fig_PosteriorProbResults_6panel <- grid.arrange(hb.m4.p1,
-                                      hct.m5.p1,
-                                      trbc.m5.p1,
-                                      mcv.m5.p1,
-                                      mch.m6.p1,
-                                      mchc.m5.p1, 
-                                      ncol=2)
-# To really make this better, need to adjust individual dimensions of panels
-# Need to increase space on right-hand side of MCV plot so legend is offset more and doesn't take up plot space
-# e.g. you want all plots to take up the same amount of space 
-# Then I went ahead and took legend off altogether; need to figure out how to add this back in
-# Need to adjust individual y-axes 
-# May help to scale x-axis to max value is right-hand most value, make elev increase in increments of 500?
-ggsave(Fig_PosteriorProbResults_6panel, filename = "Fig_PosteriorProbResults_6panel.pdf", bg="transparent", height=7, width=8, units="in")
+# Alternative layout option = BETTER, USE THIS ONE: 
+Fig4_PosteriorProbs_6panel <- (hb.m4.fig4a + hct.m4.fig4b + trbc.m4.fig4c + 
+                              mcv.m4.fig4d.withinset + mch.m4.fig4e.withinset + mchc.m4.fig4f.withinset + 
+                              plot_layout(guides = "collect"))
+plot(Fig4_PosteriorProbs_6panel)
+ggsave(Fig4_PosteriorProbs_6panel, filename = "Fig4_PosteriorProbs_6panel_03-24-21.pdf", bg="transparent", height=7, width=11, units="in")
+# Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
+
+# Model summaries: 
+# summary(hb.m4) # Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# summary(hct.m4) # Predictors whose 95% CIs do NOT overlap zero (that will be in reduced model): elev.z + intravar.mass.z
+# summary(trbc.m4) # Predictors whose 95% CIs do NOT overlap zero (retain for reduced model): elev.z
+# summary(mcv.m4) # Predictors whose 95% CIs do NOT overlap zero (for reduced model): temp.z
+# summary(mch.m4)
+# summary(mchc.m4)
+```
+
+
+converting to unstandardized coefficients?
+```{r}
+
+# coef(m)[1]*sd(d0$y)+mean(d0$y)-  
+#   (coef(m)['x1']*sd(d0$y)*mean(d0[['x1']])/sd(d0[['x1']]) +
+#    coef(m)['x2']*sd(d0$y)*mean(d0[['x2']])/sd(d0[['x2']]))
+# 
+# coef(hb.m4)[1]*sd(final.hb$elev.z)+mean(final.hb$elev.z)-  
+#   (coef(hb.m4)['x1']*sd(final.hb$elev.z)*mean(final.hb[['x1']])/sd(final.hb[['x1']]) +
+#    coef(hb.m4)['x2']*sd(final.hb$elev.z)*mean(final.hb[['x2']])/sd(final.hb[['x2']]))
+
+
+
+ #### 
+
+# Based on Kruschke's Equation 17.2, we can convert the standardized coefficients back to their original metric using the formulas
+
+# \begin{align*}
+# \beta_0 & = \zeta_0 \operatorname{SD}_y + M_y - \frac{\zeta_1 M_x \operatorname{SD}_y}{\operatorname{SD}_x} \;\; \text{and}  \\
+# \beta_1 & = \frac{\zeta_1 \operatorname{SD}_y}{\operatorname{SD}_x},
+# \end{align*}
+# 
+# where $\zeta_0$ and $\zeta_1$ denote the intercept and slope for the model of the standardized data, respectively, and that model follows the familiar form
+# 
+# $$z_{\hat y} = \zeta_0 + \zeta_1 z_x.$$
+
+# To implement those equations, we'll first extract the posterior samples. We begin with `fit17.1`, the model for which $N = 300$.
+
+post <- posterior_samples(hb)
+head(post)
+
+# Let's wrap the consequences of Equation 17.2 into two functions.
+make_beta_0 <- function(zeta_0, zeta_1, sd_x, sd_y, m_x, m_y) {
+  zeta_0 * sd_y + m_y - zeta_1 * m_x * sd_y / sd_x
+}
+make_beta_1 <- function(zeta_1, sd_x, sd_y) {
+  zeta_1 * sd_y / sd_x
+}
+
+# where $\zeta_0$ and $\zeta_1$ denote the intercept and slope for the model of the standardized data
+
+
+# After saving a few values, we're ready to use our custom functions to convert our posteriors for `b_Intercept` and `b_height_z` # to their natural metric.
+
+sd_x <- sd(d$height)
+sd_y <- sd(d$weight)
+m_x  <- mean(d$height)
+m_y  <- mean(d$weight)
+post <-
+  post %>% 
+  mutate(b_0 = make_beta_0(zeta_0 = b_Intercept,
+                           zeta_1 = b_height_z,
+                           sd_x   = sd_x,
+                           sd_y   = sd_y,
+                           m_x    = m_x,
+                           m_y    = m_y),
+         b_1 = make_beta_1(zeta_1 = b_height_z,
+                           sd_x   = sd_x,
+                           sd_y   = sd_y))
+glimpse(post)
+
+post %>% 
+  rename(female = b_Intercept) %>% 
+  mutate(male = female + b_sex) %>% 
+  pivot_longer(cols = c(male, female)) %>% 
+  
+  ggplot(aes(x = name, y = value)) +
+  geom_boxplot(aes(fill = name)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+# perform manual standardization
+beta <- summary(xy_model)$coefficients[2, 1]
+
+(beta_std <- beta * (sd(data$x)/sd(data$y)))
+```
+
+
+This post seems to have answers: https://github.com/ASKurz/Doing-Bayesian-Data-Analysis-in-brms-and-the-tidyverse/blob/master/17.Rmd
+
+From this Stack Exchange page: https://stats.stackexchange.com/questions/235057/convert-standardized-coefficients-to-unstandardized-metric-coefficients-for-li
+
+I've been searching: "convert standardized model coefficients to unstandardized brms r"
+
+THIS ALSO MIGHT BE SIMPLER AND HAVE THE ANSWER: https://bookdown.org/ajkurz/recoding_Hayes_2018/multiple-linear-regression.html
+
+https://jslefche.github.io/sem_book/coefficients.html
+
+
+
+#####
+
+# PCA of morphological variables 
+Tutorial: https://tgmstat.wordpress.com/2013/11/28/computing-and-visualizing-pca-in-r/
+Nice refresher on PCA interpretation: https://online.stat.psu.edu/stat505/lesson/11/11.4
+
+We want to use PCA to visualize relationships among MCV, TRBC, Hb, and elev, so let's start there with those 4. We can always add more later. 
+```{R}
+# Load PCA plotting packages
+library(ggfortify)
+library(devtools)
+
+# Install ggbiplot from GitHub; might need to restart R console for devtools update to recognize install_github()
+#install_github("vqv/ggbiplot") # download ggbiplot from GitHub page 
+library(ggbiplot)
+
+# Alternatively, load functions you'll need from source 
+source('https://raw.githubusercontent.com/vqv/ggbiplot/master/R/ggbiplot.r')
+source('https://raw.githubusercontent.com/vqv/ggbiplot/master/R/ggscreeplot.r')
+# 
+
+# PCA of MCV, TRBC, Hb
+# [rows, cols]
+pca.sub <- final[ , c("species", "Clade", "elev", "mass", "hb", "mcv", "trbc")] # subset desired variables 
+pca.sub <- na.omit(pca.sub) # remove all NAs
+
+# We'll apply PCA to continuous variables and use categorical variables for visualization
+pca.sub.log <- log(pca.sub[, c("hb", "mcv", "trbc")]) # Apply log transform as recommended
+pca.species <- pca.sub[, "species"]
+pca.clade <- pca.sub[, "Clade"]
+ 
+# Apply PCA
+cens.pca <- prcomp(pca.sub.log, center = TRUE, scale. = TRUE) # Centering and scaling variables is highly advisable 
+print(cens.pca) # get loadings; also achieved w/ pg.pca$rotation
+summary(cens.pca) # Get importance of components (look at cumulative proportion); 
+# First 2 PCs explain 98% of variance; first three explain 100%
+
+# visualize how much variance is explained by top PCs
+screeplot(cens.pca)
+plot(cens.pca, type = "l")
+
+# predict new PC values with new observed data
+# predict(pg.pca, newdata=tail(pg.varlist, 2))
+biplot(cens.pca)
+autoplot(cens.pca)
+
+# Plot output w/ elipses & biplot arrows. Colors = haplotype, shape = country 
+g <- ggbiplot(cens.pca, obs.scale = 1, var.scale = 1, 
+              groups = pca.clade, ellipse = TRUE, # groups = grouping variable for PCA output
+              circle = FALSE, varname.size=2, labels.size=2) 
+#g <- g + scale_color_manual(name="Haplotype", values=c("#F39040", "#853FCD", "gainsboro")) # orange, purple
+#g <- g + scale_shape_manual(name="Country", values=c(17, 19))
+#g <- g + geom_point(aes(colour=pg.haplo, shape=pg.country), size = 3)
+# g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = "vertical", 
+              legend.position = "right")
+g <- g + theme(panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+              panel.background = element_blank())
+#g <- g + geom_text(aes(label = pca.sub$hb), hjust = -0.1, alpha = 0.2) # labels for MCV to verify x-axis
+g <- g + theme(axis.text=element_text(size=11, face="bold"))
+g <- g + ggtitle("CeNs PCA")
+# g <- g + xlim(-3, 3) + ylim(-3, 3)
+print(g)
+ggsave(g, filename = "PCA_TRBCxMCVxHb_CladeCircles_04-22-21.pdf", bg="transparent", height=7, width=9, units="in")
+# ggsave(g, filename = "PCA_TRBCxMCVxHbxElev_CladeCircles_04-22-21.pdf", bg="transparent", height=7, width=9, units="in")
+
+# Extract individual loadings
+cens.loadings <- cens.pca$x # this is all PCs
+datawithload <- cbind(pca.sub, cens.loadings)
+plot(PC2 ~ PC1, data=datawithload) #PC1 v. PC2 
+
+(p <- ggplot(datawithload, aes(x=PC1, y=PC2)) + # uncenter Tamin values
+  geom_point() +
+ # scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
+  theme_classic() + 
+  labs(x="PC1", y="PC2") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p, filename="CeNS_Scatterplot_PC1xPC2.pdf", height=7, width=9, units="in")
+
+
+plot(PC1 ~ hb, data=datawithload)
+(p1 <- ggplot(datawithload, aes(x=hb, y=PC1)) + # uncenter Tamin values
+  geom_point() +
+ # scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
+  theme_classic() + 
+  labs(x="[Hb] (g/dl)", y="PC1") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p1, filename="CeNS_Scatterplot_HbxPC1.pdf", height=7, width=9, units="in")
+
+# Try to make CeNS index w/ individual data
+
+# Normalize data on scale from 0 to 1
+library(scales)
+datawithload$PC1.s <- rescale(datawithload$PC1, to=c(0,1))
+
+# PC1 vs. Hb but rescaled
+(p100 <- ggplot(datawithload, aes(x=hb, y=PC1.s, color=PC1.s)) + 
+  geom_point(size=1.5) +
+  scale_color_viridis(option="viridis", discrete=FALSE) +
+  #scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="black", size=1.2) + 
+  theme_classic() + 
+  labs(x="[Hb] (g/dl)", y="CeNS Index \n (0 = large MCV, 1 = high TRBC)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+ # geom_text(aes(label = species), hjust = -0.1, alpha = 0.2) + # labels for MCV to verify x-axis
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+#ggsave(p100, filename="CeNS_Scatterplot_SpeciesMeans_HbxCeNSIndex.pdf", height=7, width=9, units="in")
+# Values closer to 1 indicate increased TRBC; values closer to 0 indicate bigger cells 
+
+
+
+#############
+
+# AND WHAT IF WE USE SPECIES MEAN DATA? 
+
+# Species mean PCA dataset
+
+# PCA of MCV, TRBC, Hb
+# [rows, cols]
+pca.sub.spm <- final.spm[ , c("species", "Clade", "elev", "mass", "hb", "mcv", "trbc")] # subset desired variables 
+# Note that I'm using 'final.spm' made in species means file to keep patagona as 2 functional groups
+pca.sub.spm <- subset(pca.sub.spm, with(pca.sub.spm, species %in% names(which(table(species)>=3))))
+pca.sub.spm <- na.omit(pca.sub.spm) # remove all NAs or PCAs and means won't work
+# Tho I suppose on second thought the dplyr pipes don't take means from 1 individual...
+
+pca.sub.spm <- pca.sub.spm %>% group_by(species) %>% summarise(hb.mean = mean(hb), # Species means for 60 species 
+                                                  elev.mean = mean(elev),   
+                                                  mcv.mean = mean(mcv),
+                                                  trbc.mean = mean(trbc)
+                                                  )
+
+# We'll apply PCA to continuous variables and use categorical variables for visualization
+pca.sub.spm.log <- log(pca.sub.spm[, c("hb.mean", "mcv.mean", "trbc.mean")]) # Apply log transform as recommended
+pca.species.spm <- pca.sub.spm[, "species"]
+ 
+# Apply PCA
+cens.pca.spm <- prcomp(pca.sub.spm.log, center = TRUE, scale. = TRUE) # Centering and scaling variables = highly advisable
+print(cens.pca.spm) # get loadings; also achieved w/ pg.pca$rotation
+summary(cens.pca.spm) # Get importance of components (look at cumulative proportion); 
+# First 2 PCs explain 98% of variance; first three explain 100%
+
+# visualize how much variance is explained by top PCs
+screeplot(cens.pca.spm)
+plot(cens.pca.spm, type = "l")
+
+# predict new PC values with new observed data
+# predict(pg.pca, newdata=tail(pg.varlist, 2))
+biplot(cens.pca)
+autoplot(cens.pca)
+
+# Plot data w/ biplot arrow and elipses 
+g1 <- ggbiplot(cens.pca.spm, obs.scale = 1, var.scale = 1, 
+             # groups = pca.species.spm, ellipse = TRUE, # groups = grouping variable for PCA output
+              circle = FALSE, varname.size=3, labels.size=3) 
+g1 <- g1 + theme(legend.direction = "vertical", 
+              legend.position = "right")
+g1 <- g1 + theme(panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+              panel.background = element_blank())
+g1 <- g1 + geom_text(aes(label = pca.sub.spm$species), hjust = -0.1, alpha = 0.2) # labels for MCV to verify x-axis
+g1 <- g1 + theme(axis.text=element_text(size=11, face="bold"))
+g1 <- g1 + ggtitle("CeNs PCA - Species Means")
+g1 <- g1 + xlim(-4, 6) + ylim(-3, 2)
+print(g1)
+ggsave(g1, filename = "PCA_SpeciesMeans_TRBCxMCVxHb_04-22-21.pdf", bg="transparent", height=7, width=9, units="in")
+# ggsave(g, filename = "PCA_TRBCxMCVxHbxElev_CladeCircles_04-22-21.pdf", bg="transparent", height=7, width=9, units="in")
+
+
+# AS WE DID ABOVE, EXTRACT LOADINGS AND EXAMINE RELATIONSHIPS: 
+cens.spm.loadings <- cens.pca.spm$x # this is all PCs
+cens.pca.spm.all <- cbind(pca.sub.spm, cens.spm.loadings)
+
+(p3 <- ggplot(cens.pca.spm.all, aes(x=PC1, y=PC2)) + # uncenter Tamin values
+  geom_point() +
+ # scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
+  theme_classic() + 
+  labs(x="PC1", y="PC2") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p3, filename="CeNS_Scatterplot_SpeciesMeans_PC1xPC2.pdf", height=7, width=9, units="in")
+
+# PC1 v. hb
+(p4 <- ggplot(cens.pca.spm.all, aes(x=hb.mean, y=PC1)) + 
+  geom_point(size=3) +
+ # scale_color_viridis() +
+ # scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="darkturquoise", size=1.2) + 
+  theme_classic() + 
+  labs(x="[Hb] (g/dl)", y="PC1") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p4, filename="CeNS_Scatterplot_SpeciesMeans_HbxPC1.pdf", height=7, width=9, units="in")
+
+# Normalize data on scale from 0 to 1
+library(scales)
+cens.pca.spm.all$PC1.s <- rescale(cens.pca.spm.all$PC1, to=c(0,1))
+write.csv(cens.pca.spm.all, "cens.pca.spm.all.csv")
+
+# PC1 vs. Hb but rescaled
+(p5 <- ggplot(cens.pca.spm.all, aes(x=hb.mean, y=PC1.s, color=elev.mean)) + 
+  geom_point(size=4.5) +
+  scale_color_viridis(option="rocket", discrete=FALSE, name="Mean\nElevation(m)") + # name= argument is for LEGEND TITLE
+  #scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="black", size=1.2) + 
+  theme_classic() + 
+  labs(x="[Hb] (g/dl)", y="Cell size vs. Number (CeNS) Index \n (0 = large MCV, 1 = high TRBC)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+ # theme(legend.title = element_blank()) + # Remove legend title; change title in scale_color_viridis, weirdly
+ # geom_text(aes(label = species), hjust = -0.1, alpha = 0.2) + # labels for MCV to verify x-axis
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p5, filename="CeNS_Scatterplot_SpeciesMeans_HbxCeNSIndex.pdf", height=7, width=9, units="in")
+# Values closer to 1 indicate increased TRBC; values closer to 0 indicate bigger cells 
+
+# PC1 vs. Hb but rescaled - FLIPPED AXES 
+(p6 <- ggplot(cens.pca.spm.all, aes(x=PC1.s, y=hb.mean, color=elev.mean)) + 
+  geom_point(size=5.5) +
+  scale_color_viridis(option="rocket", discrete=FALSE, name="Mean\nElevation (m)") + # name= argument is for LEGEND TITLE
+  #scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="black", size=1.2) + 
+  theme_classic() + 
+  labs(x="Cell size vs. Number (CeNS) Index \n (0 = larger MCV, 1 = higher TRBC)", y="[Hb] (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+ # theme(legend.title = element_blank()) + # Remove legend title; change title in scale_color_viridis, weirdly
+ # geom_text(aes(label = species), hjust = -0.1, alpha = 0.2) + # labels for MCV to verify x-axis
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(p6, filename="CeNS_Scatterplot_SpeciesMeans_HbxCeNSIndex.pdf", height=7, width=9, units="in")
+# Values closer to 1 indicate increased TRBC; values closer to 0 indicate bigger cells 
+
+
+# PC1 vs. Elev but rescaled - ELEV ON X AXIS, CENS ON Y
+(p7 <- ggplot(cens.pca.spm.all, aes(x=PC1.s, y=elev.mean, color=hb.mean)) + 
+  geom_point(size=5.5) +
+  scale_color_viridis(option="rocket", discrete=FALSE) +
+  #scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="black", size=1.2) + 
+  theme_classic() + 
+  labs(x="CeNS Index \n (0 = large MCV, 1 = high TRBC)", y="Elevation (m)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+ # geom_text(aes(label = species), hjust = -0.1, alpha = 0.2) + # labels for MCV to verify x-axis
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+
+
+# Based on this plot is *kind of* looks like high and low elevation species have different strategies. Let's try to pull
+# out this relationship: 
+# PC1 vs. Elev but rescaled - ELEV ON X AXIS, CENS ON Y
+(p8 <- ggplot(cens.pca.spm.all, aes(x=elev.mean, y=hb.mean, color=PC1.s)) + 
+  geom_point(size=5.5) +
+  scale_color_viridis(option="plasma", discrete=FALSE, name="CeNS\nIndex") +
+  #scale_colour_viridis(discrete=TRUE) +
+  geom_smooth(method = "lm", colour="black", size=1.2) + 
+  theme_classic() + 
+  labs(x="Elevation (m)", y="[Hb] (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+ # geom_text(aes(label = species), hjust = -0.1, alpha = 0.2) + # labels for MCV to verify x-axis
+  # ggtitle("(a)") + # Assign panel number/header; this will be (a) because first in series of 3
+  # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+  #       plot.title = element_text(face="bold")) + # This makes panel header bold 
+  #     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+# Plasma is best for this because it shows differentiation of middle values best 
+
+
+
+
+p30 <- ggtree(slope.tree) +
+  geom_tippoint(aes(color=p29$data$`slope_df_original$slope_hb`), 
+                size=1.5) +
+  scale_color_viridis(option="inferno", name="Slope [Hb]") +
+  theme_tree2(legend.position=c(.1, .82)) 
+
+
+
+#Normalized D
+normalized = (x-min(x))/(max(x)-min(x))
+
+##### OLD CODE BELOW HERE, HAVEN'T CLEANED OR ANTYHIGN YET
+
+
+
+
+# # Plot output w/ elipses & biplot arrows. Colors = haplotype, shape = sex 
+# g <- ggbiplot(pg.pca, obs.scale = 1, var.scale = 1, 
+#               groups = pg.haplo, ellipse = TRUE, # groups = grouping variable for PCA output
+#               circle = FALSE, varname.size=3, labels.size=3) 
+# g <- g + scale_color_manual(name="Haplotype", values=c("#F39040", "#853FCD", "gainsboro")) # orange, purple
+# g <- g + scale_shape_manual(name="Sex", values=c(17,19,18))
+# g <- g + geom_point(aes(colour=pg.haplo, shape=pg.sex), size = 3)
+# # g <- g + scale_color_discrete(name = '')
+# g <- g + theme(legend.direction = 'vertical', 
+#                legend.position = 'right')
+# g <- g + theme(
+#     panel.grid.major = element_blank(),
+#     panel.grid.minor = element_blank(),
+#     panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+#     panel.background = element_blank())
+# g <- g + theme(axis.text=element_text(size=11, face="bold"))
+# g <- g + ggtitle("PCA w/ Morphological Measurements (bill, bill + head, wing chord, tail length, tarsus)")
+# # g <- g + xlim(-3, 3) + ylim(-3, 3)
+# print(g)
+# 
+# 
+# # just plot by sex 
+# g <- ggbiplot(pg.pca, obs.scale = 1, var.scale = 1, 
+#               groups = pg.sex, ellipse = TRUE, # groups = grouping variable for PCA output
+#               circle = FALSE, varname.size=3, labels.size=3) 
+# g <- g + scale_color_manual(name="Sex", values=c("magenta2", "mediumblue", "gainsboro")) 
+# #g <- g + geom_point(aes(colour=pg.haplo, shape=pg.sex), size = 3)
+# # g <- g + scale_color_discrete(name = '')
+# g <- g + theme(legend.direction = 'vertical', 
+#                legend.position = 'right')
+# g <- g + theme(
+#     panel.grid.major = element_blank(),
+#     panel.grid.minor = element_blank(),
+#     panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+#     panel.background = element_blank())
+# g <- g + theme(axis.text=element_text(size=11, face="bold"))
+# g <- g + ggtitle("PCA w/ Morphological Measurements (grouped by sex)")
+# # g <- g + xlim(-3, 3) + ylim(-3, 3)
+# print(g)
+
+
+# Try subsetting by clade and *then* examining species differences: 
+coq <- final[which(final$Clade == "Coquette"),] # Just Coquettes for starters
+
+# PCA of MCV, TRBC, Hb # [rows, cols]
+coq.sub <- coq[ , c("species", "Clade", "elev", "mass", "hb", "mcv", "trbc")] # subset desired variables 
+coq.sub <- na.omit(coq.sub) # remove all NAs
+
+# We'll apply PCA to continuous variables and use categorical variables for visualization
+coq.log <- log(coq.sub[, c("hb", "mcv", "trbc")]) # Apply log transform as recommended
+coq.sp <- coq.sub[, "species"]
+# pca.clade <- pca.sub[, "Clade"]
+ 
+# Apply PCA
+coq.pca <- prcomp(coq.log, center = TRUE, scale. = TRUE) # Centering and scaling variables is highly advisable 
+print(coq.pca) # get loadings; also achieved w/ pg.pca$rotation
+summary(coq.pca) # Get importance of components (look at cumulative proportion); 
+# First 2 PCs explain 98% of variance; first three explain 100%
+
+# visualize how much variance is explained by top PCs
+screeplot(coq.pca)
+plot(coq.pca, type = "l")
+
+# predict new PC values with new observed data
+# predict(coq.pca, newdata=tail(coq.sub, 100))
+biplot(coq.pca)
+autoplot(coq.pca)
+
+# Plot output w/ elipses & biplot arrows. Colors = haplotype, shape = country 
+g <- ggbiplot(coq.pca, obs.scale = 1, var.scale = 1, 
+              groups = coq.sp, ellipse = TRUE, # groups = grouping variable for PCA output
+              circle = FALSE, varname.size=3, labels.size=3) 
+#g <- g + scale_color_manual(name="Haplotype", values=c("#F39040", "#853FCD", "gainsboro")) # orange, purple
+#g <- g + scale_shape_manual(name="Country", values=c(17, 19))
+#g <- g + geom_point(aes(colour=pg.haplo, shape=pg.country), size = 3)
+# g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = "vertical", 
+               legend.position = "right")
+g <- g + theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+    panel.background = element_blank())
+g <- g + theme(axis.text=element_text(size=11, face="bold"))
+g <- g + ggtitle("Coquette CeNS PCA")
+# g <- g + xlim(-3, 3) + ylim(-3, 3)
+print(g)
+
+
+# Now try subsetting by Mangos since it's a small clade and we might be able to pull out differences: 
+# Try subsetting by clade and *then* examining species differences: 
+mango <- final[which(final$Clade == "Mango"),] # Just Mangos for starters
+
+# PCA of MCV, TRBC, Hb # [rows, cols]
+mango.sub <- mango[ , c("species", "Clade", "elev", "mass", "hb", "mcv", "trbc")] # subset desired variables 
+mango.sub <- na.omit(mango.sub) # remove all NAs
+
+# We'll apply PCA to continuous variables and use categorical variables for visualization
+mango.log <- log(mango.sub[, c("hb", "mcv", "trbc", "elev")]) # Apply log transform as recommended
+mango.sp <- mango.sub[, "species"]
+# pca.clade <- pca.sub[, "Clade"]
+ 
+# Apply PCA
+mango.pca <- prcomp(mango.log, center = TRUE, scale. = TRUE) # Centering and scaling variables is highly advisable 
+print(mango.pca) # get loadings; also achieved w/ pg.pca$rotation
+summary(mango.pca) # Get importance of components (look at cumulative proportion); 
+# First 2 PCs explain 98% of variance; first three explain 100%
+
+# visualize how much variance is explained by top PCs
+screeplot(mango.pca)
+plot(mango.pca, type = "l")
+
+# predict new PC values with new observed data
+# predict(mango.pca, newdata=tail(mango.sub, 100))
+biplot(mango.pca)
+autoplot(mango.pca)
+
+# Plot output w/ elipses & biplot arrows. Colors = haplotype, shape = country 
+g <- ggbiplot(mango.pca, obs.scale = 1, var.scale = 1, 
+              groups = mango.sp, ellipse = TRUE, # groups = grouping variable for PCA output
+              circle = FALSE, varname.size=3, labels.size=3) 
+#g <- g + scale_color_manual(name="Haplotype", values=c("#F39040", "#853FCD", "gainsboro")) # orange, purple
+#g <- g + scale_shape_manual(name="Country", values=c(17, 19))
+#g <- g + geom_point(aes(colour=pg.haplo, shape=pg.country), size = 3)
+# g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = "vertical", 
+               legend.position = "right")
+g <- g + theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+    panel.background = element_blank())
+g <- g + theme(axis.text=element_text(size=11, face="bold"))
+g <- g + ggtitle("Mango CeNS PCA")
+# g <- g + xlim(-3, 3) + ylim(-3, 3)
+print(g)
+
+# This is kind of the same of arrows plotted on PCA; tells you about direction of influence of variables
+require(ggplot2)
+theta <- seq(0,2*pi,length.out = 100)
+circle <- data.frame(x = cos(theta), y = sin(theta))
+p <- ggplot(circle,aes(x,y)) + geom_path()
+
+loadings <- data.frame(mango.pca$rotation, 
+                       .names = row.names(mango.pca$rotation))
+p + geom_text(data=loadings, 
+              mapping=aes(x = PC1, y = PC2, label = .names, colour = .names)) +
+  coord_fixed(ratio=1) +
+  labs(x = "PC1", y = "PC2")
+
+# Another idea to pull out patterns might be to slim down the dataset to a few well-sampled species and then see
+# whether there are species differences
+# MCV and TRBC go in opposite directions in a PCA - could it be possible that some birds use MCV, some TRBC? 
+# Can you only do one or the other? Are some species intermediate? 
+# Try shading plots by elevation, body size, sex, etc - try to pull out differences
+
+``` 
+
+# CeNS PCA interpretation
+
+**PCA Interpretation:**  
+- The first 2 principal components explain `r signif(sum(summary(cens.pca)$sdev[1:2]^2) / sum(summary(cens.pca)$sdev^2), 4)` percent of the variance. This is good because it's easiest to plot dimensions in 2D. 
+
+**PC1**
+- PC`r i.print <- 1; signif(i.print,1)` explains `r signif(100*cens.pca$sdev[i.print]^2/sum(cens.pca$sdev^2), 3)`% 
+of the total variation.
+As PC`r signif(i.print,1)` increases, hb and trbc **increase**, while mcv **decreases**. 
+
+**PC2**  
+- PC`r i.print <- 2; signif(i.print,1)` explains `r signif(100*cens.pca$sdev[i.print]^2/sum(cens.pca$sdev^2), 3)`%
+of the total variation.
+As PC`r signif(i.print,2)` increases, hb, trbc, and mcv **decrease**. 
 
 
 
 
 
+# Quick model with Hb response, MCV and TRBC as predictors
+```{r}
+# bi = blood index 
+
+# In order to run hb ~ MCV + trbc, need to: 
+# Use 'final' dataset; models will automatically remove NAs (alternatively, make a hb, mcv, trbc subset w/ no NAs)
+# Models run ok w/out transformed MCV, but may be worth trying to run with transformed MCV 
+# Models look ok without standardizing variables becuase numbers are relatively on the same scale
+# But I might try re=running with standardized predictors to see if it improves fit
+# Interaction (mcv*trbc) isn't important and overlaps zero
+
+
+# WITH PREDICTORS ONLY
+bi.1 <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = final,
+  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(bi.1, file="bi.1_FullModel_PredictorsOnly.RData") # save model
+# load("hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+
+# 
+# # WITH SPECIES RANDOM EFFECT
+bi.m2 <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc + (1|species)),
+  data = final,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(bi.m2, file="bi.m2_FullModel_SpeciesREOnly.RData") # save model
+
+# # WITH INTERACTION AND SPECIES RANDOM EFFECT
+bi.m3 <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc + mcv*trbc + (1|species)),
+  data = final,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(bi.m3, file="bi.m3_FullModel_Interaction_SpeciesRE.RData") # save model
+```
+
+
+# Blood index: Summarize and check fit 
+Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
+```{r}
+# FIT AND CONVERGENCE 
+mcmc_plot(bi.1, type = "trace") 
+plot(bi.1, N = 2, ask = FALSE)
+bayesplot::pp_check(bi.1, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(bi.1, type = "stat", stat = 'median', nsamples = 100)
+mcmc_plot(bi.1, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(bi.1), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI:
+mcmc_plot(bi.1)  # adjust prob to get 95% CI
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+final %>%
+  add_residual_draws(bi.1) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+final %>%
+  add_predicted_draws(bi.1) %>%
+  summarise(
+    p_residual = mean(.prediction < hb), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# Blood index: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Plot: Posterior mean estimates and 95% credible intervals for predictors.
+# Plot these nicely and without intercepts, which throws off scale: 
+# This is a graphical way to look at model fit as opposed to just dumping out model output
+# Circle = point estimate (model summary, print(hb.m6))
+# Thin bars = default 90% CI; adjust prob_outer=0.95 to get 95% CI 
+# Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
+# x-axis should be scale based on value of estimates coming out of the model 
+
+# Model 3 
+#pairs(hb.m3)
+color_scheme_set("blue") # nice default
+bi.1.p1 <- mcmc_plot(bi.1, pars=c("b_mcv", "b_trbc"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "bi.1: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("MCV","TRBC"))  
+bi.1.p1
+ggsave(bi.1.p1, filename = "bi.1.p1_BloodIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(bi.1)
+# Both MCV and TRBC have strong positive effects on Hb: As MCV and TRBC increase, Hb also increases. 
+# But efffect of trbc is ~15x stronger than MCV. 
+
+# Model 4
+#color_scheme_set("red") # nice default
+bi.m2.p1 <- mcmc_plot(bi.m2, pars=c("b_mcv", "b_trbc"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "bi.m2: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("MCV","TRBC"))   
+bi.m2.p1
+ggsave(bi.m2.p1, filename = "bi.m2.p1_BloodIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(bi.m2)
+
+# Model 4
+#color_scheme_set("red") # nice default
+bi.m3.p1 <- mcmc_plot(bi.m3, pars=c("b_mcv", "b_trbc","b_mcv:trbc"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "bi.m3: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("MCV","TRBC", "MCV*TRBC"))   
+bi.m3.p1
+ggsave(bi.m3.p1, filename = "bi.m3.p1_BloodIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(bi.m3)
+# Interaction of MCV*TRBC squarely overlaps zero, suggesting that it isn't important/there isn't really one
 
 ```
 
 
+# Blood Index: Collate model summaries and WAIC scores 
+```{r}
+# Print model summaries 
+sink("blood_index_brms_model_summaries.txt",append = TRUE)
+summary(bi.1, waic=TRUE)
+summary(bi.m2, waic=TRUE)
+sink()
+# print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+bi.m1.waic <- waic(bi.1)
+bi.m2.waic <- waic(bi.m2)
+bi.waics <- cbind(bi.m1.waic, bi.m2.waic); bi.waics
+write.csv(bi.waics, "bi_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
 
 
+# Blood Index: CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
+Calculated from Burkner's phylo  brms tutorial: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
+Note from Burkner: Note that the phylogenetic signal is just a synonym of the intra-class correlation (ICC) used in the context phylogenetic analysis.
+```{R}
+# CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
+# ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
+
+# bi.m2 
+hyp.sp.bi.m2 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.bi.m2 <- hypothesis(bi.m2, hyp.sp.bi.m2, class = NULL))
+plot(hyp.sp.bi.m2)
+# 12% variance explained 
+
+# performance::variance_decomposition(hb.m2)
+```
 
 
+# Blood index: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
 
+library(loo)
+sink("blood_index_brms_models_all_looic.txt", append=FALSE)
+LOO(bi.1, bi.m2, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(bi.1) # 0.48
+bayes_R2(bi.m2) # 0.53
+
+# Model comparisons:
+#       elpd_diff se_diff
+# bi.m2   0.0       0.0  
+# bi.1  -22.1       6.8     
+```
+
+Quick summary of top model comparison: 
+- Model 2 (with random effect of species) fits best by far! Variance explained by species: 12%. R^2 = 0.53. 
+
+Estimates: 
+MCV = 0.12
+TRBC = 1.82
+
+What I think this means: 
+- Since we used untransformed variables, units are normal blood units. 
+- For every increase in MCV of one fl, we expect [Hb] will increase by 0.12 g/dl. 
+- For every increase in TRBC of one unit, we expect [Hb] will increase by 1.82 g/dl. 
+--> This suggests that TRBC is the primary way through which birds increase [Hb], not MCV. Perhaps this is explained by increasing Hb through erythropoesis, increased cells, consistent w/ acclimatization response? 
+Also might suggest that TRBC increases happen faster than MCV increeases?? Not sure we learn about timing here. 
+
+
+I think we might want an interaction term of mcv*trbc since there is some kind of interaction here.
+--> Interaction isn't important, overlaps zero
+
+But since MCV IS calculated partially using TRBC, shouldn't we expect that these two are correlated? 
+
+
+---
 
 
 
@@ -3559,7 +4916,7 @@ Visualizing Bayesian workflow in R: https://www.monicaalexander.com/posts/2020-2
 Intraclass correlation coefficient in mixed models: https://www.theanalysisfactor.com/the-intraclass-correlation-coefficient-in-mixed-models/#:~:text=The%20ratio%20of%20the%20between,observations%20within%20the%20same%20cluster.
 
 Easy Bayes - on model averaging: https://m-clark.github.io/easy-bayes/model-averaging.html
-Posterior and predictive checks: https://mc-stan.org/bayesplot/reference/pp_check.html
+Posterior and predictive checks: https://mc-stan.org/bayesplot/reference/bayesplot::pp_check.html
 
 Comprehensive model check (tho doesn't work w/ brms?): https://easystats.github.io/performance/
 
@@ -3602,6 +4959,8 @@ there is a delta LOOIC output—type “loo_obj$” and press tab to see the opt
 If this is still relevant after individual subsets: dealing w/ missing data in brms: https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
 
 Tips for aggregating and analyzing data w/ dplyr: http://kbroman.org/datacarpentry_R_2016-06-01/03-dplyr.html
+
+Bayesian credible intervals: https://easystats.github.io/bayestestR/articles/credible_interval.html
 
 
 
