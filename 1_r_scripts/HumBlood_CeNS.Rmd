@@ -1,0 +1,405 @@
+---
+title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
+author: "Jessie Williamson"
+date: "4/26/2021"
+output: html_document
+---
+
+Script to try to get to the bottom of 'cell size vs. cell number' and create the CeNS index. 
+
+
+**This script has 2 parts:** 
+
+**1) CeNS Models:** 
+    a) indiviual-level dataset
+    b) species-mean dataset 
+    c) single-species models for well-sampled species 
+    
+**2) CeNS index:** 
+    - Take results of single-species models to calculate this. Formula is: TRBC estimate/(MCV estimate + TRBC estimate).
+    - Is there phylo signal to these estimates? Prune trees, then work up contmaps, Pagel's lamda, and blomberg's K
+    - Take these estimates and run another model: maybe try cens.index ~ mass + elev + (1|phylo) to see what predicts this index? —> This is making that censdat cool jump that Chris mentioned, where we’ll show that something additional PREDICTS our index.
+
+ADD OTHER NOTES HERE 
+
+
+
+
+DO NOT FORGET TO CONVERT STANDARDIZED ESTIMATES TO REAL-WORLD ESTIMATES 
+
+
+
+#######
+
+
+```{R, echo=FALSE}
+# GLOBAL R chunk options here (hide message w/ echo=FALSE)
+knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
+knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
+knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
+```
+
+
+# Load packages
+```{R}
+library(reshape)
+library(reshape2)
+library(plyr)
+library(dplyr)
+library(car)
+library(GGally)
+library(Hmisc)
+library(gridExtra)
+library(stats)
+library(gplots)
+library(ggplot2)
+library(stats4) # Forces knitr to work when it's being wonky
+library(PMCMR) #Allows Kruskal-Wallis post-hocs
+library(effects)
+library(gridExtra)
+library(lattice)
+# library(survival)
+# library(fmsb)
+library(faraway)
+library(tidyverse)
+library(patchwork) 
+library(viridis)
+library(rcompanion) # for Tukey's Ladder of Powers Transformation
+library(purrr)
+library(tidyr)
+library(cowplot)
+library(gganimate)
+
+# Bayesian modeling packages 
+library(MCMCglmm)
+library(bayesplot)
+library(rstan)
+library(Rcpp) # required for brms
+library(brms) # updated to 2.15.0 on 3/29/21
+library(bayesplot) # appears to be required for bayesplot::pp_check?
+library(ggdist)
+library(tidybayes)
+library(performance)
+
+# To run each time you load rstan
+options(mc.cores = parallel::detectCores()) # for core setup 
+rstan_options(auto_write = TRUE) # auto save  bare verion of compiled Stan program to HD
+# rstan output should always end in a blank line w/ no characters or spaces  
+
+# Phylo packages 
+library(phytools)
+# library(ape)
+
+# Frequentist modeling packages
+# library(nlme)
+# library(lme4)
+# library(AICcmodavg)
+# library(MuMIn)
+# library(glmulti)
+# library(lsmeans)
+# library(rsq) # get r-squared values from GLM
+# library(r2glmm) # for R^2 values from lmer() and glmer()
+# library(multcompView) # related to multiple comparisons?
+# library(jtools) # interaction plots 
+# library(interactions) # interaction plots 
+# library(broom)
+# library(stargazer) # model output tables
+# library(ggeffects) # for estimating model predictions from mixed effects models
+```
+
+
+---
+
+# Clear workspace and set WD
+```{R}
+rm(list=ls(all=TRUE)) # clear workspace 
+setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+```
+
+
+# Load in datasets
+```{R}
+# Load functions 
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
+  # Erik's ADA functions for clean & collated lm diag plots
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
+
+# Final hummingbird blood dataset (remember that you completed pre-processing in HumBlood_Modeling file)
+final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_04-26-21.csv", stringsAsFactors = TRUE)
+final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
+
+# Read in species mean dataset 
+
+# # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
+# tree <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
+# tree$tip.label # Check 77 tips
+# 
+# # Write out final tree file as pdf for figure-making
+# # In order to write out .pdf tree file: 1) Initiate pdf (or jpeg, etc) file; 2) Plot tree w/ all graphics; 3) dev.off to save
+# pdf("McGuirePruned_AllHummingbirdComparativeTree_FINAL.pdf", width=5, height=6) 
+# plotTree(tree, ftype="i") # Check this pre-final tree w/ adjusted branch lengths 
+# dev.off()
+# 
+# # Read in sub trees 
+# tree.hb <- read.tree("McGuirePruned_AllHummingbirdComparative_Tree.hb_FINAL.tre")  
+# tree.hct <- read.tree("McGuirePruned_AllHummingbirdComparativeTree.hct_FINAL.tre")  
+# tree.trbc <- read.tree("McGuirePruned_AllHummingbirdComparativeTree.trbc_FINAL.tre") 
+# tree.mcv <- read.tree("McGuirePruned_AllHummingbirdComparativeTree.mcv_FINAL.tre") 
+# tree.mch <- read.tree("McGuirePruned_AllHummingbirdComparativeTree.mch_FINAL.tre") 
+# tree.mchc <- read.tree("McGuirePruned_AllHummingbirdComparativeTree.mchc_FINAL.tre")
+```
+
+
+# Pre-processing for modeling - individual-level data 
+```{r}
+# Check structure 
+str(final)
+final$species <- as.factor(final$species)
+
+# Subset the data to just blood variables of interest
+# We could alternatively use 'final' dataset and model will remove NAs for us, but this is a little bit cleaner. 
+censdat <- subset(final, select=c(species, rowID, nk, elev, hb, mcv, mcv.log, trbc)) 
+censdat <- na.omit(censdat) # 688 observations 
+
+# We don't need to check normality and transform because we did that during pre-processing in HumBlood_Modeling. 
+# We know MCV has heavy tails, respons well to skew_normal, but *might* fit better with mcv.log variable - we'll see below.
+
+# Standardize predictors 
+censdat$mcv.z <- standardize(censdat$mcv)
+censdat$trbc.z <- standardize(censdat$trbc)
+
+# Correlation matrix 
+cor(censdat[,c("hb", "mcv.z", "trbc.z")])
+# Strong negative correlation  between TRBC and MCV, but these two are very different measures and essential to 
+# understanding how birds increase [Hb]; for this reason, we justify leaving both in models. 
+
+# Set global plot theme
+theme_set(theme_bw() +
+            theme(
+              plot.background = element_blank()
+              ,panel.grid.major = element_blank()
+              ,panel.grid.minor = element_blank()
+              ,panel.background = element_blank()
+              ,axis.text.x  = element_text(angle=90, vjust=0.5, size=8)
+            ))
+```
+
+
+
+
+#### CeNS MODELING #####
+
+Three broad model categories 
+1) indiviual-level (il) dataset (all data from all individuals of all species; no elimination of sampling outliers)
+2) species-mean (sm) dataset (drop species with < 3 individuals sampled, calculate species means, run models w/ this dataset)
+3) single-species (ss) models for well-sampled species (figure out threshold min value of individuals needed to run these)
+  --> Result from single-species models will form CeNS index
+
+
+
+### 1) Individual-level CeNS models - What explains CeNS variation within species? 
+
+# Set up and run models
+We'll fit three models for our individual-level data: 
+1) Intercept only null model
+2) Intercept only model with species grouping variable
+3) "Full" model hb ~ MCV + TRBC + (1|species)
+The species grouping variable is essential to our model design because it will allow us to account for repeated sampling within species (i.e., will hold species identity constant) while estimating variation within species.
+```{r}
+# INTERCEPT ONLY 
+cens.il.m1 <- brm(
+  formula = bf(hb ~ 1),
+  data = censdat,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(cens.il.m1, file="cens.il.m1_InterceptOnly.RData") # save model
+# load("hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+
+# INTERCEPT + SPECIES GROUPING VARIABLE 
+cens.il.m2 <- brm(
+  formula = bf(hb ~ 1 + (1|species)),
+  data = censdat,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(cens.il.m2, file="cens.il.m2_SpeciesREOnly.RData") # save model
+
+# PREDICTORS AND SPECIES GROUPING VARIABLE 
+cens.il.m3 <- brm(
+  formula = bf(hb ~ 1 + mcv.z + trbc.z + (1|species)),
+  data = censdat,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 10000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(cens.il.m3, file="cens.il.m3_Predictors_SpeciesRE.RData") # save model
+```
+
+
+# Cens individual-level: Summarize and check fit 
+Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
+```{r}
+# FIT AND CONVERGENCE 
+mcmc_plot(cens.il.m3, type = "trace") 
+plot(cens.il.m3, N = 2, ask = FALSE)
+bayesplot::pp_check(cens.il.m3, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(cens.il.m3, type = "stat", stat = 'median', nsamples = 100)
+mcmc_plot(cens.il.m3, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(cens.il.m3), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(cens.il.m3)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+censdat %>%
+  add_residual_draws(cens.il.m3) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+censdat %>%
+  add_predicted_draws(cens.il.m3) %>%
+  summarise(
+    p_residual = mean(.prediction < hb), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# Blood index: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Plot these nicely and without intercepts, which throws off scale: 
+# Circle = point estimate (model summary, print(hb.m6))
+# Thin bars = default 90% CI; adjust prob_outer=0.95 to get 95% CI 
+# Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
+# x-axis should be scale based on value of estimates coming out of the model 
+
+# Model 3 
+#pairs(hb.m3)
+color_scheme_set("blue") # nice default
+cens.il.m3.p1 <- mcmc_plot(cens.il.m3, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "cens.il.m3: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("MCV","TRBC"))  
+cens.il.m3.p1
+ggsave(cens.il.m3.p1, filename = "cens.il.m3.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+summary(cens.il.m3)
+# Both MCV and TRBC have strong positive effects on Hb.
+# As TRBC increases, Hb increases. As MCV increases, Hb increases.
+# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 2.08; MCV = 1.97)
+# So, it seems that individuals increase Hb by increasing TRBC. 
+```
+
+
+# Cens individual-level: Collate model summaries and WAIC scores 
+```{r}
+# Print model summaries 
+sink("CeNS_IndividualLevel_brms_model_summaries.txt",append = TRUE)
+summary(cens.il.m1, waic=TRUE)
+summary(cens.il.m2, waic=TRUE)
+summary(cens.il.m3, waic=TRUE)
+sink()
+# print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+bi.m1.waic <- waic(cens.il.m1)
+bi.m2.waic <- waic(cens.il.m2)
+bi.m3.waic <- waic(cens.il.m3)
+cens.il.waics <- cbind(bi.m1.waic, bi.m2.waic, bi.m3.waic); cens.il.waics
+write.csv(cens.il.waics, "CeNS_IndividualLevel_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# Cens - Individual level: Calculate Intraclass correlation coefficient (ICC) explained by species grouping variable 
+Calculated from Burkner's phylo  brms tutorial: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
+Note from Burkner: Note that the phylogenetic signal is just a synonym of the intra-class correlation (ICC) used in the context phylogenetic analysis.
+```{R}
+# CALCULATE INTRACLASS CORRELATION (ICC) EXPLAINED BY SPECIES GROUPING VARIABLE 
+# ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
+
+# ICC for full model 
+hyp.cens.il.m3 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.cens.il.m3 <- hypothesis(cens.il.m3, hyp.cens.il.m3, class = NULL))
+plot(hyp.cens.il.m3)
+# 12% variance explained 
+
+#performance::variance_decomposition(cens.il.m3)
+
+# Visually check how variance changes by adding in species term and examining plots 
+PPD1 <- posterior_predict(cens.il.m3, re.form =  ~ species)
+plot(PPD1)
+```
+
+
+# Cens individual-level: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("CeNS_IndividualLevel_brms_models_all_looic.txt", append=FALSE)
+LOO(cens.il.m1, cens.il.m2, cens.il.m3, reloo=FALSE) 
+sink()
+
+# Calculate Bayesian R^2:
+bayes_R2(cens.il.m1) 
+bayes_R2(cens.il.m2) # 0.17
+bayes_R2(cens.il.m3) # 0.54
+
+# Model comparisons:
+#            elpd_diff se_diff
+# cens.il.m3    0.0       0.0 
+# cens.il.m2 -202.4      19.9 
+# cens.il.m1 -249.1      19.7 
+```
+
+Quick summary of top model comparison: 
+- Model 3, full model + species grouping variable fits best by var! Variance explained by species: 12%. R^2 = 0.54. 
+
+Estimates: 
+MCV = 1.97
+TRBC = 2.08
+
+What I think this means: 
+- NEED TO TRANSFORM STANDARDIZED VARIABLES INTO UNDSTANDARDIZED ESTIMATES TO BE ABLE TO ESTIMATE TRUE EFFECTS
+
+LEFT OFF HERE 
+
+- Since we used untransformed variables, units are normal blood units. 
+- For every increase in MCV of one fl, we expect [Hb] will increase by 0.12 g/dl. 
+- For every increase in TRBC of one unit, we expect [Hb] will increase by 1.82 g/dl. 
+--> This suggests that TRBC is the primary way through which birds increase [Hb], not MCV. Perhaps this is explained by increasing Hb through erythropoesis, increased cells, consistent w/ acclimatization response? 
+Also might suggest that TRBC increases happen faster than MCV increeases?? Not sure we learn about timing here. 
+
+
+
+
+
+
+

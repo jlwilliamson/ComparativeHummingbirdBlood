@@ -791,6 +791,11 @@ theme_set(theme_bw() +
 ```
 
 
+# Save final post-processing file for modeling; this will be read into other downstream docs
+```{r}
+write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_04-26-21.csv")
+```
+
 
 
 # MODELING 
