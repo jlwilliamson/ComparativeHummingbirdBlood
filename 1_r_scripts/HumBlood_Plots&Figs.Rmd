@@ -597,6 +597,7 @@ final.hmt <- na.omit(final.hmt)
 # As it turns out, we don't need this; see plot below
 ```
 
+
 Mock up of Figure 3, relationships among blood parameters 
 See Hawkey et al. 1991 for inspiration.
 ```{r}
@@ -605,7 +606,7 @@ See Hawkey et al. 1991 for inspiration.
 
 # Panel A: RBC and MCV - redo of plot in Hawkey et al. 1991
 (p14 <- ggplot(final.hmt, aes(x=mcv, y=trbc, colour=hb)) +
-      scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb] (g/dl)") +
+      scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb]\n(g/dl)") +
      # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
     geom_point(size=2, alpha=1.0) +
     # scale_color_manual(values=hum_colors) +
@@ -630,8 +631,8 @@ ggsave(p14, filename="Fig3_PanelA_RBC_vs_MCV_Scatterplot_ColoredByElev.pdf", hei
 # Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
 
 # Panel B: MCH and MCV - redo of plot in Hawksey et al. 1991
-(p15 <- ggplot(final.hmt, aes(x=mcv, y=mch, colour=elev)) +
-    scale_colour_viridis(option="rocket", discrete=FALSE, name="Elevation (m)") +
+(p15 <- ggplot(final.hmt, aes(x=mcv, y=mch, colour=trbc)) +
+    scale_colour_viridis(option="rocket", discrete=FALSE, name="TRBC") +
     # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
     geom_point(size=2, alpha=1.0) +
     # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
@@ -653,11 +654,12 @@ ggsave(p15, filename="Fig3_PanelB_RBC_vs_MCH_Scatterplot_ColoredByElev.pdf", hei
 
 
 # 2 PANEL FIGURE 
-Fig3_BloodComparison_2panel_v2 <- (p14 / p15 +   # the / literally means put p14 on top of p15
-                                  plot_layout(guides = "collect")) # "collates" and combines one common legend
+Fig3_BloodComparison_2panel_v2 <- (p14 / p15) # the / literally means put p14 on top of p15
+                                  # remove end parenthesis if adding back the plot_layout guides college legend line
+                                  # + plot_layout(guides = "collect")) # "collates" and combines one common legend
                                   # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
 plot(Fig3_BloodComparison_2panel_v2)
-ggsave(Fig3_BloodComparison_2panel_v2, filename = "Fig3_BloodComparison_2panel_ColoredByElev_04-26-21.pdf", bg="transparent", height=6, width=5, units="in")
+ggsave(Fig3_BloodComparison_2panel_v2, filename = "Fig3_BloodComparison_2panel_04-27-21.pdf", bg="transparent", height=6, width=5, units="in")
 
 # Old method for combining plots, but I was having trouble getting a common legend
 # Fig3_BloodComparison_2panel_v2 <- grid.arrange(p14, p15, ncol=1)
@@ -669,30 +671,7 @@ Creating a heat map/color gradient background in ggplot isn't super straightforw
 https://stackoverflow.com/questions/46354513/diagonal-gradient-in-a-ggplot-background
 (Believe it or not, google image searching "ggplot panel.background color gradient" was more helpful than web searching)
 ```{r}
-# PANEL A: MCH v. MCV, no color to points (yes, this was panel B from previous figure version)
-(p16 <- ggplot(final.hmt, aes(x=mcv, y=mch)) +
-    # scale_colour_viridis(option="rocket", discrete=FALSE, name="Elevation (m)") +
-    # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(size=1.8, alpha=0.8) +
-    # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
-    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y="MCH (pg)", 
-         x=" ") + 
-    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-    theme_classic() +
-    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
-    ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
-    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(plot.margin = unit(c(0.0,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-)
-ggsave(p16, filename="Fig3_v2_PanelA_RBC_vs_MCH_Scatterplot.pdf", height=7, width=9, units="in") 
-
-
-# PANEL B: TRBC v. MCV w/ background shaded by heat map of blood O2 carrying capacity 
+# TRBC v. MCV w/ background shaded by heat map of blood O2 carrying capacity 
 # To get a heat map of blood-O2 carrying capacity, we need to make a contour of circles to plot behind our data 
 # Formula for O2 carrying capacity is: oc22 = MCV x TRBC x 1/3
 #min(final$mcv) * min(final$trbc) * (1/3) # min o2cc; can't set this up this way because NAs, I think
@@ -716,34 +695,26 @@ df$zColor <- (df$xColor+df$yColor) # the color factor for radius; tutorial used 
   # Adding xColor+yColor without xColor^2+yColor^2 plots real x-y oxygen carrying capacity values
 
 # Color gradient banana plot 
-(p17 <- ggplot(final.hmt, aes(x=mcv, y=trbc)) +
-    geom_raster(data =df, aes(x, y,fill = zColor))+
+(p16 <- ggplot(final.hmt, aes(x=mcv, y=trbc)) +
+    geom_raster(data=df, aes(x, y, fill=zColor))+ # can add alpha to make this lighter, but doesn't shade well
     scale_fill_viridis(option="rocket", discrete=FALSE, direction=1, name="O2\ncarrying\ncapacity")+ 
       # direction=1 goes cool to warm; direcdtion=-1 goes warm to cool
     # scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb] (g/dl)") +
-    geom_point(size=1.8, alpha=0.8, colour="black") + # aliceblue, ivory1 and snow1 are also nice, slightly warmer
+    geom_point(size=2.0, alpha=0.8, colour="black") + # aliceblue, ivory1 and snow1 are also nice, slightly warmer
     labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
          x="MCV (fl)") + # Removed x-axis label because we don't want Panel A to have label
     theme_classic() +
    # xlim(56, 150) + ylim(2.58, 11)+
     coord_cartesian(expand = FALSE) + # FALSE = no padding for border
     theme(legend.position = "right") + 
-    ggtitle("B") + # Assign panel number/header
+  #  ggtitle("B") + # Assign panel number/header
     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + #makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(plot.margin = unit(c(0.0,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
+    theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
     theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
 )
-ggsave(p17, filename="Blood_O2_CarryingCapacity_HeatMapPlot_04-26-21.pdf", height=7, width=9, units="in") 
-
-
-# 2 PANEL FIGURE 
-Fig3_BloodComparison_2panel_v3 <- (p16 / p17)     # the / literally means put p16 on top of p17
-                                #   plot_layout(guides = "collect")) # "collates" and combines one common legend
-                                  # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
-plot(Fig3_BloodComparison_2panel_v3)
-ggsave(Fig3_BloodComparison_2panel_v3, filename = "Fig3_v3_BloodComparison_2panel_WithHeatMap_04-26-21.pdf", bg="transparent", height=6, width=5, units="in")
+ggsave(p16, filename="Blood_O2_CarryingCapacity_HeatMapPlot_04-27-21.pdf", height=5, width=6, units="in") 
 ```
 
 
