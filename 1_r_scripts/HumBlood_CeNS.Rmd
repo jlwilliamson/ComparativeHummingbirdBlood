@@ -231,23 +231,53 @@ cens.sp$trbc.z <- standardize(cens.sp$trbc)
 # As a general rule, should be at least 10 observations per variable, so we'll use n=10 as our cutoff 
 # Might consider doing as EBL did and making a big loop to run through the 30 species-specific models 
 
-# Take a look at # observations per species:
-sp.count.cens <- censdat %>% group_by(species) %>% summarise(count = length(nk))
+# Get dataset counts 
+sp.count.cens <- censdat %>% group_by(species) %>% summarise(count = length(nk)) # Observations/species for censdat
 
-# Summary of species-specific datasets we'll model (all at least) 
-ss.summary <- subset(censdat, with(censdat, species %in% names(which(table(species)>=10))))
-ss.count.cens <- ss.summary %>% group_by(species) %>% summarise(count = length(nk))
+# Make a species-specific modeling dataset
+cens.ss <- subset(censdat, with(censdat, species %in% names(which(table(species)>=10))))
+ss.count.cens <- cens.ss %>% group_by(species) %>% summarise(count = length(nk)) # Obs/species for ss dataset
 
-# test datasets
-Pguy <- censdat[which(censdat$species == "Phaethornis_guy"),] # w/ Phaethornis guy (small, n=10)
-Pgigs <- censdat[which(censdat$species == "Patagona_gigas_S"),] 
-Pgign <- censdat[which(censdat$species == "Patagona_gigas_N"),] 
-Mtyr <- censdat[which(censdat$species == "Metallura_tyrianthina"),] # Metallura, n=66
+# Split data frame by species and dump into a massive list
+cens.ss.list <- cens.ss %>% group_split(species)
+
+# Now write individual data frames for input into models 
+Amel <- as.data.frame(test[[1]]); str(Amel) # check structure on this first data frame to verify correct
+Acas <- as.data.frame(test[[2]])
+Akin <- as.data.frame(test[[3]])
+Aama <- as.data.frame(test[[4]])
+Clar <- as.data.frame(test[[5]])
+Coen <- as.data.frame(test[[6]])
+Ccoe <- as.data.frame(test[[7]])
+Ciri <- as.data.frame(test[[8]])
+Cvio <- as.data.frame(test[[9]])
+Ccor <- as.data.frame(test[[10]])
+Eluc <- as.data.frame(test[[11]])
+Econ <- as.data.frame(test[[12]])
+Fmel <- as.data.frame(test[[13]])
+Ghir <- as.data.frame(test[[14]])
+Hame <- as.data.frame(test[[15]])
+Hmic <- as.data.frame(test[[16]])
+Hlea <- as.data.frame(test[[17]])
+Llaf <- as.data.frame(test[[18]])
+Lnun <- as.data.frame(test[[19]])
+Meup <- as.data.frame(test[[20]])
+Mpho <- as.data.frame(test[[21]])
+Mtyr <- as.data.frame(test[[22]])
+Ound <- as.data.frame(test[[23]])
+Oest <- as.data.frame(test[[24]])
+Omel <- as.data.frame(test[[25]])
+Pgign <- as.data.frame(test[[26]])
+Pgigs <- as.data.frame(test[[27]])
+Pguy <- as.data.frame(test[[28]])
+Pmal <- as.data.frame(test[[29]])
+Tfur <- as.data.frame(test[[30]])
+
+# Pguy <- censdat[which(censdat$species == "Phaethornis_guy"),] # another clunky subset alternative
 
 # Predictor dataset - take a look at distributions
-p <- ggpairs(subset(Pguy, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
-p <- ggpairs(subset(Mtyr, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
-
+# p <- ggpairs(subset(Pguy, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
+# p <- ggpairs(subset(Mtyr, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
 ```
 
 
@@ -277,15 +307,16 @@ Three broad model categories
 ### 1) Individual-level CeNS models - What explains CeNS variation within species? 
 
 # Set up and run models
-We'll fit three models for our individual-level data: 
+We'll fit two models for our individual-level data: 
 1) Intercept only null model
-2) Intercept only model with species grouping variable
-3) "Full" model hb ~ MCV + TRBC + (1|species)
+2) "Full" model hb ~ MCV + TRBC + (1|species)
 The species grouping variable is essential to our model design because it will allow us to account for repeated sampling within species (i.e., will hold species identity constant) while estimating variation within species.
+
+Note: on 5/13/21 I removed the intercept only + (1|species) model for ease of comparison in the two model format with the species mean dataset. 
 ```{r}
 # INTERCEPT ONLY 
 job::job({ # Send this to a job so you can use the console while it runs
-cens.sm.m1 <- brm(
+cens.il.m1 <- brm(
   formula = bf(hb ~ 1),
   data = censdat,
   family = gaussian(), 
@@ -300,24 +331,24 @@ cens.sm.m1 <- brm(
 save(cens.il.m1, file="cens.il.m1_InterceptOnly.RData") # save model
 # load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
-# INTERCEPT + SPECIES GROUPING VARIABLE 
-cens.il.m2 <- brm(
-  formula = bf(hb ~ 1 + (1|species)),
-  data = censdat,
-  family = gaussian(),
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, 
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # save priors
-)
-save(cens.il.m2, file="cens.il.m2_SpeciesREOnly.RData") # save model
-# load("cens.il.m2_SpeciesREOnly.RData") 
+# # INTERCEPT + SPECIES GROUPING VARIABLE 
+# cens.il.m2 <- brm(
+#   formula = bf(hb ~ 1 + (1|species)),
+#   data = censdat,
+#   family = gaussian(),
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
+#   iter = 10000, 
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors
+# )
+# save(cens.il.m2, file="cens.il.m2_SpeciesREOnly.RData") # save model
+# # load("cens.il.m2_SpeciesREOnly.RData") 
 
 # PREDICTORS AND SPECIES GROUPING VARIABLE 
-cens.il.m3 <- brm(
+cens.il.m2 <- brm(
   formula = bf(hb ~ 1 + mcv.z + trbc.z + (1|species)),
   data = censdat,
   family = gaussian(),
@@ -329,8 +360,8 @@ cens.il.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(cens.il.m3, file="cens.il.m3_Predictors_SpeciesRE.RData") # save model
-# load("cens.il.m3_Predictors_SpeciesRE.RData")
+save(cens.il.m2, file="cens.il.m2_Predictors_SpeciesRE.RData") # save model
+# load("cens.il.m2_Predictors_SpeciesRE.RData")
 })
 ```
 
@@ -339,26 +370,27 @@ save(cens.il.m3, file="cens.il.m3_Predictors_SpeciesRE.RData") # save model
 Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
 ```{r}
 # FIT AND CONVERGENCE 
-mcmc_plot(cens.il.m3, type = "trace") 
-plot(cens.il.m3, N = 2, ask = FALSE)
-bayesplot::pp_check(cens.il.m3, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
-bayesplot::pp_check(cens.il.m3, type = "stat", stat = 'median', nsamples = 100)
-mcmc_plot(cens.il.m3, type = "acf_bar") # looks at autocorrelation
-plot(conditional_effects(cens.il.m3), points = TRUE) # conditional effects 
+mcmc_plot(cens.il.m2, type = "trace") 
+plot(cens.il.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(cens.il.m2, resp = "hb", nsamples = 100) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(cens.il.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(cens.il.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(cens.il.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(cens.il.m2), points = TRUE) # conditional effects 
 
 # Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
-mcmc_plot(cens.il.m3)  
+mcmc_plot(cens.il.m2)  
 
 # Residual plots 
 # typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
 # associated with each residual
 censdat %>%
-  add_residual_draws(cens.il.m3) %>%
+  add_residual_draws(cens.il.m2) %>%
   ggplot(aes(x = .row, y = .residual)) +
   stat_pointinterval()
 
 censdat %>%
-  add_predicted_draws(cens.il.m3) %>%
+  add_predicted_draws(cens.il.m2) %>%
   summarise(
     p_residual = mean(.prediction < hb), # probability residual; Bayesian predictive p-value 
     z_residual = qnorm(p_residual) # quantile residuals 
@@ -381,19 +413,19 @@ censdat %>%
 # Model 3 
 #pairs(hb.m3)
 color_scheme_set("blue") # nice default
-cens.il.m3.p1 <- mcmc_plot(cens.il.m3, pars=c("b_mcv.z", "b_trbc.z"),
+cens.il.m2.p1 <- mcmc_plot(cens.il.m2, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "cens.il.m3: Posterior mean estimates & 95% Credible Intervals") + 
+labs(x="Effect on [Hb]", title = "cens.il.m2: Posterior mean estimates & 95% Credible Intervals") + 
 scale_y_discrete(labels=c("MCV","TRBC"))  
-cens.il.m3.p1
-ggsave(cens.il.m3.p1, filename = "cens.il.m3.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+cens.il.m2.p1
+ggsave(cens.il.m2.p1, filename = "cens.il.m2.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-summary(cens.il.m3)
+summary(cens.il.m2)
 # Both MCV and TRBC have strong positive effects on Hb.
 # As TRBC increases, Hb increases. As MCV increases, Hb increases.
-# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 2.08; MCV = 1.97)
+# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 2.04; MCV = 1.94)
 # So, it seems that individuals increase Hb by increasing TRBC. 
 ```
 
@@ -404,15 +436,13 @@ summary(cens.il.m3)
 sink("CeNS_IndividualLevel_brms_model_summaries.txt",append = TRUE)
 summary(cens.il.m1, waic=TRUE)
 summary(cens.il.m2, waic=TRUE)
-summary(cens.il.m3, waic=TRUE)
 sink()
 # print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
 bi.m1.waic <- waic(cens.il.m1)
-bi.m2.waic <- waic(cens.il.m2)
-bi.m3.waic <- waic(cens.il.m3)
-cens.il.waics <- cbind(bi.m1.waic, bi.m2.waic, bi.m3.waic); cens.il.waics
+bi.m3.waic <- waic(cens.il.m2)
+cens.il.waics <- cbind(bi.m1.waic, bi.m3.waic); cens.il.waics
 write.csv(cens.il.waics, "CeNS_IndividualLevel_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 ```
 
@@ -425,14 +455,14 @@ Note from Burkner: Note that the phylogenetic signal is just a synonym of the in
 # ICC = Tells you proportion of total variance in response variable that is acccounted for by species identity (i.e. clustering)
 
 # ICC for full model 
-hyp.cens.il.m3 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.cens.il.m3 <- hypothesis(cens.il.m3, hyp.cens.il.m3, class = NULL))
-plot(hyp.cens.il.m3)
-# 12% variance explained; est = 0.12, CI = 0.06-0.2
+hyp.cens.il.m2 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.cens.il.m2 <- hypothesis(cens.il.m2, hyp.cens.il.m2, class = NULL))
+plot(hyp.cens.il.m2)
+# 13% variance explained; est = 0.13, CI = 0.06-0.21
 
-#performance::variance_decomposition(cens.il.m3)
+#performance::variance_decomposition(cens.il.m2)
 # Visually check how variance changes by adding in species term and examining plots 
-# PPD1 <- posterior_predict(cens.il.m3, re.form =  ~ species)
+# PPD1 <- posterior_predict(cens.il.m2, re.form =  ~ species)
 # plot(PPD1)
 ```
 
@@ -444,49 +474,48 @@ plot(hyp.cens.il.m3)
 
 library(loo)
 sink("CeNS_IndividualLevel_brms_models_all_looic.txt", append=FALSE)
-LOO(cens.il.m1, cens.il.m2, cens.il.m3, reloo=FALSE) 
+LOO(cens.il.m1, cens.il.m2, reloo=FALSE) 
 sink()
 
 # Calculate Bayesian R^2:
 bayes_R2(cens.il.m1) 
-bayes_R2(cens.il.m2) # 0.17
-bayes_R2(cens.il.m3) # 0.54
+#bayes_R2(cens.il.m2) # 0.17
+bayes_R2(cens.il.m2) # 0.54
 
 # Model comparisons:
 #            elpd_diff se_diff
-# cens.il.m3    0.0       0.0 
-# cens.il.m2 -202.4      19.9 
-# cens.il.m1 -249.1      19.7 
+# cens.il.m2    0.0       0.0 
+# cens.il.m1 -251.9      19.6 
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
-cens.il.m3.unstandardized <- 
-  update(cens.il.m3,
+cens.il.m2.unstandardized <- 
+  update(cens.il.m2,
         newdata = censdat,
         formula = hb ~ 1 + mcv + trbc + (1|species),
         chains = 4, cores = 4)
-save(cens.il.m3.unstandardized, file="cens.il.m3.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(cens.il.m2.unstandardized, file="cens.il.m2.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("cens.il.m3.unstandardized_Predictors_SpeciesRE.RData")
+# load("cens.il.m2.unstandardized_Predictors_SpeciesRE.RData")
 
-summary(cens.il.m3.unstandardized)
-# mcv = 0.12; trbc = 1.82; what this tells us: 
-# For every unit increase in TRBC, [Hb] increases by 1.82 g/dl
+summary(cens.il.m2.unstandardized)
+# mcv = 0.12; trbc = 1.79; what this tells us: 
+# For every unit increase in TRBC, [Hb] increases by 1.79 g/dl
 # For every unit increase in MCV, [Hb] increases by 0.12 g/dl
 ```
 
 Quick summary of top model comparison: 
-- Model 3, full model + species grouping variable fits best by var! Variance explained by species: 12%. R^2 = 0.54. 
+- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 13%. R^2 = 0.54. 
 
 Standardized Estimates: 
-MCV = 1.97
-TRBC = 2.08
+MCV = 1.94
+TRBC = 2.04
 
 Unstandardized Estimates: 
 MCV = 0.12
-TRBC = 1.82
+TRBC = 1.79
 - For every increase in MCV of one fl, we expect [Hb] will increase by 0.12 g/dl. 
-- For every increase in TRBC of one unit, we expect [Hb] will increase by 1.82 g/dl. 
+- For every increase in TRBC of one unit, we expect [Hb] will increase by 1.79 g/dl. 
 --> This suggests that TRBC is the primary way through which birds increase [Hb], not MCV. Perhaps this is explained by increasing Hb through erythropoesis, increased cells, consistent w/ acclimatization response? 
 Also might suggest that TRBC increases happen faster than MCV increeases?? Not sure we learn about timing here. 
 
@@ -634,7 +663,7 @@ bayes_R2(cens.sm.m2) # 0.59
 # Model comparisons:
 #            elpd_diff se_diff
 # cens.sm.m2   0.0       0.0  
-# cens.sm.m1 -21.7       5.1   
+# cens.sm.m1 -21.8       5.1    
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
@@ -671,6 +700,9 @@ TRBC = 2.13
 # 3) species-specific CeNS models and the CeNS index 
 
 # Set up models...all currently in testing phase 
+When datasets are large, priors are unlikely to have large influence unless they are highly informative.
+Best description of the effect of priors I've seen (look at the  comparison plot at the end!): https://www.rensvandeschoot.com/tutorials/brms-priors/
+TAKE HOME: Informative priors pull the posteriors towards them, while uninformarive priors yield a posterior that is centred around what would be the frequentist (LME4) estimate.
 ```{r}
 # get priors
 get_prior(hb ~ 1 + mcv + trbc, data = Pguy) 
@@ -678,26 +710,30 @@ get_prior(hb ~ 1 + mcv + trbc, data = Pguy)
 # Futz w/ priors to get model to fit better 
 # Overwrite those (not so) terrible choices with some slightly informed priors.
 # Otherwise known as 'let the data drive the model'. 
-# prior1 <- c(set_prior("student_t(7, 0, 2.5)", class = "Intercept"), # Set intercept prior
-#             set_prior("student_t(3, 0, 1)", class = "b" )) # Class b = all responses
-# 
+# prior.Pguy <- c(set_prior("student_t(3, 18.9, 2.5)", class = "Intercept"), # Set intercept prior
+#                 set_prior("student_t(3,100, 2.5", class = "b", coef="mcv"),
+#                 set_prior("student_t(3,2, 2.5", class = "b", coef="trbc")) # Class b = all responses
+# # 
 # prior1 <- c(
 # prior(normal(0, 10), class = Intercept),
 # prior(normal(0, 10), class = b, coef = gender),
 # prior(cauchy(0, 10), class = sigma)
 # )
 # 
+# plot(hypothesis(cens.Pguy, "mcv > 0", alpha=0.05)) # see efffect of priors on posterior
 # get_variables(cens.Pguy)
+# summary(cens.Pguy)
 ```
 
+
 # FIT MODELS 
+REMEMBER: We aren't doing model comparison, so we won't use standardized inputs. We WANT raw variable values to be able to calculate real-world estimates. 
 ```{r}
-# Phaethornis guy 
 job::job({ # Send this to a job so you can use the console while it runs
 
-  cens.Pguy <- brm(
+  cens.Amel <- brm(
   formula = bf(hb ~ 1 + mcv + trbc),
-  data = Pguy,
+  data = Amel,
   family = student(),
   cores = 4,
   chains = 4,
@@ -707,14 +743,313 @@ job::job({ # Send this to a job so you can use the console while it runs
   control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
   sample_prior = TRUE # save priors
 )
-save(cens.Pguy, file="cens.Pguy_Predictors_SpeciesRE.RData") # save model
-# load("cens.Pguy_Predictors_SpeciesRE.RData")
+save(cens.Amel, file="cens.Amel.RData") # save model
+# load("cens.Amel.RData")
 
-# Metallura tyrianthina 
-cens.Mtyr <- brm(
+  cens.Acas <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Acas,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Acas, file="cens.Acas.RData") # save model
+# load("cens.Acas.RData")
+  
+  cens.Akin <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Akin,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Akin, file="cens.Akin.RData") # save model
+# load("cens.Akin.RData")
+  
+ cens.Aama <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Aama,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Aama, file="cens.Aama.RData") # save model
+# load("cens.Aama.RData")
+
+ cens.Clar <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Clar,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Clar, file="cens.Clar.RData") # save model
+# load("cens.Clar.RData")
+
+ cens.Coen <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Coen,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Coen, file="cens.Coen.RData") # save model
+# load("cens.Coen.RData")
+
+ cens.Ccoe <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Ccoe,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Ccoe, file="cens.Ccoe.RData") # save model
+# load("cens.Ccoe.RData")
+
+ cens.Ciri <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Ciri,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Ciri, file="cens.Ciri.RData") # save model
+# load("cens.Ciri.RData")
+
+ cens.Cvio <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Cvio,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Cvio, file="cens.Cvio.RData") # save model
+# load("cens.Cvio.RData")
+
+ cens.Ccor <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Ccor,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Ccor, file="cens.Ccor.RData") # save model
+# load("cens.Ccor.RData")
+
+ cens.Eluc <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Eluc,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Eluc, file="cens.Eluc.RData") # save model
+# load("cens.Eluc.RData")
+
+ cens.Econ <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Econ,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Econ, file="cens.Econ.RData") # save model
+# load("cens.Econ.RData")
+
+ cens.Fmel <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Fmel,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Fmel, file="cens.Fmel.RData") # save model
+# load("cens.Fmel.RData")
+
+ cens.Ghir <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Ghir,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Ghir, file="cens.Ghir.RData") # save model
+# load("cens.Ghir.RData")
+
+ cens.Hame <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Hame,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Hame, file="cens.Hame.RData") # save model
+# load("cens.Hame.RData")
+
+ cens.Hmic <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Hmic,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Hmic, file="cens.Hmic.RData") # save model
+# load("cens.Hmic.RData")
+
+ cens.Hlea <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Hlea,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Hlea, file="cens.Hlea.RData") # save model
+# load("cens.Hlea.RData")
+
+ cens.Llaf <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Llaf,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Llaf, file="cens.Llaf.RData") # save model
+# load("cens.Llaf.RData")
+
+ cens.Lnun <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Lnun,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Lnun, file="cens.Lnun.RData") # save model
+# load("cens.Lnun.RData")
+
+ cens.Meup <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Meup,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Meup, file="cens.Meup.RData") # save model
+# load("cens.Meup.RData")
+
+ cens.Mpho <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Mpho,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Mpho, file="cens.Mpho.RData") # save model
+# load("cens.Mpho.RData")
+
+ cens.Mtyr <- brm(
   formula = bf(hb ~ 1 + mcv + trbc),
   data = Mtyr,
-  family = student(), # student might fit a bit better than gaussian?
+  family = student(),
   cores = 4,
   chains = 4,
   thin = 10,
@@ -725,6 +1060,67 @@ cens.Mtyr <- brm(
 )
 save(cens.Mtyr, file="cens.Mtyr.RData") # save model
 # load("cens.Mtyr.RData")
+
+ cens.Ound <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Ound,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Ound, file="cens.Ound.RData") # save model
+# load("cens.Ound.RData")
+
+ cens.Oest <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Oest,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Oest, file="cens.Oest.RData") # save model
+# load("cens.Oest.RData")
+
+ cens.Omel <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Omel,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Omel, file="cens.Omel.RData") # save model
+# load("cens.Omel.RData")
+
+# Patagona gigas N 
+cens.Pgign <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Pgign,
+  family = gaussian(), # student might fit a bit better than gaussian?
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Pgign, file="cens.Pgign.RData") # save model
+# load("cens.Pgign.RData")
 
 # Patagona gigas S 
 cens.Pgigs <- brm(
@@ -741,12 +1137,12 @@ cens.Pgigs <- brm(
 )
 save(cens.Pgigs, file="cens.gigs.RData") # save model
 # load("cens.Pgigs.RData")
-  
-# Patagona gigas N 
-cens.Pgign <- brm(
+
+# Phaethornis guy
+  cens.Pguy <- brm(
   formula = bf(hb ~ 1 + mcv + trbc),
-  data = Pgign,
-  family = gaussian(), # student might fit a bit better than gaussian?
+  data = Pguy,
+  family = student(),
   cores = 4,
   chains = 4,
   thin = 10,
@@ -755,13 +1151,43 @@ cens.Pgign <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
   sample_prior = TRUE # save priors
 )
-save(cens.Pgign, file="cens.Pgign.RData") # save model
-# load("cens.Pgign.RData")
+save(cens.Pguy, file="cens.Pguy.RData") # save model
+# load("cens.Pguy.RData")
+
+# Phaethornis malaris
+  cens.Pmal <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Pmal,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Pmal, file="cens.Pmal.RData") # save model
+# load("cens.Pmal.RData")
+
+# Thalurania furcata
+  cens.Tfur <- brm(
+  formula = bf(hb ~ 1 + mcv + trbc),
+  data = Tfur,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15), # adapt_delta can be between 0.8-1.0; higher helps convergence
+  sample_prior = TRUE # save priors
+)
+save(cens.Tfur, file="cens.Tfur.RData") # save model
+# load("cens.Tfur.RData")
+
 })
-
 ```
-
-
 
 
 # FIT AND CONVERGENCE 
@@ -771,10 +1197,16 @@ save(cens.Pgign, file="cens.Pgign.RData") # save model
 # Effective Sample (ESS) should be as large as possible; BUT, for most applications, ESS > 1,000 is sufficient for stable 
 # estimates (Bürkner, 2017). ESS corresponds to the # indep samples with the same estimation power as the N autocorrelated
 # samples. It's a measure of “how much indep info there is in autocorrelated chains” (Kruschke 2015, p182-3).
-bayestestR::effective_sample(cens.Pguy) 
-bayestestR::effective_sample(cens.Mtyr) 
-bayestestR::effective_sample(cens.Pgigs) 
-bayestestR::effective_sample(cens.Pgign) 
+# bayestestR::effective_sample(cens.Pguy) 
+# bayestestR::effective_sample(cens.Mtyr) 
+# bayestestR::effective_sample(cens.Pgigs) 
+# bayestestR::effective_sample(cens.Pgign) 
+# JUST LOOK AT BULK AND TAIL ESS FROM MODEL OUTPUT! 
+
+
+#### JESSIE LEFT OFF HERE: 
+# Add in fit metrics for each species-specific dataset
+# then, for posterior predictive checks, combine all species into one massive plot output, maybe 5 x 6 
 
 
 # Fit 
@@ -796,7 +1228,7 @@ mcmc_plot(cens.Pgign, type = "acf_bar") # looks at autocorrelation
 
 
 # Posterior predictive checks 
-bayesplot::pp_check(cens.Pguy, resp = "hb", nsamples = 200) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(cens.Pguy, resp = "hb", nsamples = 200) # pull draws from model and cast back to original data 
 bayesplot::pp_check(cens.Pguy, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20) # or stat = "median"
 
 bayesplot::pp_check(cens.Mtyr, resp = "hb", nsamples = 200) 
