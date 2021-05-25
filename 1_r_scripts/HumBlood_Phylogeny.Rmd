@@ -1292,6 +1292,41 @@ tree.mchc$tip.label # 73 tips
 ```
 
 
+# MAKE CENS TREE FOR ASSESSMENT OF PHYLO SIGNAL
+```{r}
+# Since I haven't worked with this script for a while, read in final tree
+tree.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
+is.rooted(tree.final) # verify that tree is rooted; TRUE = tree is rooted (we want this)
+
+# Must have the file 'cens.ss.mean' loaded (may have done this from HumBlood_CeNS.Rmd file). If not, load it here: 
+# cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_05-24-21.csv", stringsAsFactors = TRUE)
+
+# PREP KEEP.TIP DATA
+# We want to create a pruned tree with just species tips for CeNS modeling. But, we split Patagona into PgigN and PgigS. 
+# We don't want to combine them since functional differences were the basis for classifying as 2 different haplotypes. 
+# Drop PgigS and change name of PgigN back to P gigas
+cens.data.for.tree <- cens.ss.mean
+cens.data.for.tree <- cens.data.for.tree[-which(cens.data.for.tree$species == "Patagona_gigas_S"),]
+levels(cens.data.for.tree$species)[levels(cens.data.for.tree$species)=="Patagona_gigas_N"] <- "Patagona_gigas"
+
+# Check data structures 
+# To use keep.tip, variable "species" MUST BE A CHARACTER, not a factor! 
+str(cens.data.for.tree)
+cens.data.for.tree$species <- as.character(cens.data.for.tree$species)
+
+# Prune CeNS sub-tree
+tree.cens <- keep.tip(tree.final, cens.data.for.tree$species)
+
+# Check to make sure things look ok
+plot(tree.cens)
+class(tree.cens)
+tree.cens$tip.label # fantastic; just the 29 tip labels we want 
+
+# Write out final file you'll use for CeNS modeling
+ape::write.tree(tree.cens, file="HumBlood_CeNS_Modeling_Tree_FINAL.tre") 
+```
+
+
 # Print environment for reproducibility
 ```{r}
 sessionInfo() # List of packages and versions in use 

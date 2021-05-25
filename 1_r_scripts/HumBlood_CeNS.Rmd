@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 4/30/21"
+date: "4/26/2021; last revised 5/21/21"
 output: html_document
 ---
 
@@ -155,7 +155,7 @@ final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if rea
 ```{r}
 # Subset the data to just blood variables of interest
 # We could alternatively use 'final' dataset and model will remove NAs for us, but this is a little bit cleaner. 
-censdat <- subset(final, select=c(species, rowID, nk, department, elev, hb, mcv, mcv.log, trbc)) 
+censdat <- subset(final, select=c(species, rowID, nk, department, elev, mass, wl, hb, mcv, mcv.log, trbc)) 
   # dept needed for filtering of patagona for species mean data
 censdat <- na.omit(censdat) # 688 observations 
 
@@ -206,7 +206,9 @@ cens.sp <- subset(cens.sp, with(cens.sp, species %in% names(which(table(species)
 
 # species mean summary - should be no NAs here 
 cens.sp <- cens.sp %>% group_by(species) %>% summarise(hb = mean(hb),   
-                                                  elev = mean(elev),   
+                                                  elev = mean(elev),  
+                                                  mass = mean(mass),
+                                                  wl = mean(wl),
                                                   mcv = mean(mcv),
                                                   mcv.log = mean(mcv.log),
                                                   trbc = mean(trbc)
@@ -215,6 +217,7 @@ cens.sp <- cens.sp %>% group_by(species) %>% summarise(hb = mean(hb),
 # Standardize predictors 
 cens.sp$mcv.z <- standardize(cens.sp$mcv)
 cens.sp$trbc.z <- standardize(cens.sp$trbc)
+cens.sp$mass.log <- log10(cens.sp$mass)
 
 # This dataset now contains species mean values for Hb, TRBC, MCV for all species with 3 or more individuals sampled. 
 ```
@@ -242,42 +245,94 @@ ss.count.cens <- cens.ss %>% group_by(species) %>% summarise(count = length(nk))
 cens.ss.list <- cens.ss %>% group_split(species)
 
 # Now write individual data frames for input into models 
-Amel <- as.data.frame(test[[1]]); str(Amel) # check structure on this first data frame to verify correct
-Acas <- as.data.frame(test[[2]])
-Akin <- as.data.frame(test[[3]])
-Aama <- as.data.frame(test[[4]])
-Clar <- as.data.frame(test[[5]])
-Coen <- as.data.frame(test[[6]])
-Ccoe <- as.data.frame(test[[7]])
-Ciri <- as.data.frame(test[[8]])
-Cvio <- as.data.frame(test[[9]])
-Ccor <- as.data.frame(test[[10]])
-Eluc <- as.data.frame(test[[11]])
-Econ <- as.data.frame(test[[12]])
-Fmel <- as.data.frame(test[[13]])
-Ghir <- as.data.frame(test[[14]])
-Hame <- as.data.frame(test[[15]])
-Hmic <- as.data.frame(test[[16]])
-Hlea <- as.data.frame(test[[17]])
-Llaf <- as.data.frame(test[[18]])
-Lnun <- as.data.frame(test[[19]])
-Meup <- as.data.frame(test[[20]])
-Mpho <- as.data.frame(test[[21]])
-Mtyr <- as.data.frame(test[[22]])
-Ound <- as.data.frame(test[[23]])
-Oest <- as.data.frame(test[[24]])
-Omel <- as.data.frame(test[[25]])
-Pgign <- as.data.frame(test[[26]])
-Pgigs <- as.data.frame(test[[27]])
-Pguy <- as.data.frame(test[[28]])
-Pmal <- as.data.frame(test[[29]])
-Tfur <- as.data.frame(test[[30]])
+Amel <- as.data.frame(cens.ss.list[[1]]); str(Amel) # check structure on this first data frame to verify correct
+Acas <- as.data.frame(cens.ss.list[[2]])
+Akin <- as.data.frame(cens.ss.list[[3]])
+Aama <- as.data.frame(cens.ss.list[[4]])
+Clar <- as.data.frame(cens.ss.list[[5]])
+Coen <- as.data.frame(cens.ss.list[[6]])
+Ccoe <- as.data.frame(cens.ss.list[[7]])
+Ciri <- as.data.frame(cens.ss.list[[8]])
+Cvio <- as.data.frame(cens.ss.list[[9]])
+Ccor <- as.data.frame(cens.ss.list[[10]])
+Eluc <- as.data.frame(cens.ss.list[[11]])
+Econ <- as.data.frame(cens.ss.list[[12]])
+Fmel <- as.data.frame(cens.ss.list[[13]])
+Ghir <- as.data.frame(cens.ss.list[[14]])
+Hame <- as.data.frame(cens.ss.list[[15]])
+Hmic <- as.data.frame(cens.ss.list[[16]])
+Hlea <- as.data.frame(cens.ss.list[[17]])
+Llaf <- as.data.frame(cens.ss.list[[18]])
+Lnun <- as.data.frame(cens.ss.list[[19]])
+Meup <- as.data.frame(cens.ss.list[[20]])
+Mpho <- as.data.frame(cens.ss.list[[21]])
+Mtyr <- as.data.frame(cens.ss.list[[22]])
+Ound <- as.data.frame(cens.ss.list[[23]])
+Oest <- as.data.frame(cens.ss.list[[24]])
+Omel <- as.data.frame(cens.ss.list[[25]])
+Pgign <- as.data.frame(cens.ss.list[[26]])
+Pgigs <- as.data.frame(cens.ss.list[[27]])
+Pguy <- as.data.frame(cens.ss.list[[28]])
+Pmal <- as.data.frame(cens.ss.list[[29]])
+Tfur <- as.data.frame(cens.ss.list[[30]])
 
 # Pguy <- censdat[which(censdat$species == "Phaethornis_guy"),] # another clunky subset alternative
 
 # Predictor dataset - take a look at distributions
-# p <- ggpairs(subset(Pguy, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
-# p <- ggpairs(subset(Mtyr, select = c(hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
+p <- ggpairs(subset(Ccoe, select = c(elev, hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
+# 
+# p <- (ggplot(Amel, aes(x=trbc)) + 
+#        geom_density(alpha=.2, fill="#FF6666") +
+#        geom_histogram(aes(y=..density..), colour="black", fill="white"))
+#        # geom_vline(aes(xintercept=35), color="blue", linetype="dashed", size=1) + 
+#        # geom_vline(aes(xintercept=75), color="blue", linetype="dashed", size=1)) 
+# p
+```
+
+
+# Outlier assessment for single-species model sets 
+Generally: We're taking a conservative approach and choosing to include all data we can, especially because these single-species datasets are so small. After initially running initial models with ALL data, we assessed model fit and diagnostic plots and then revisited conservative outlier elimination of single points per dataset. Specific notes below; most outliers eliminated due to wonky combinations of too low or too high MCV values for TRBC (and vice-versa), and weird combinations of these two with Hb (too high or too low). A couple points eliminated due to seemingly outlier Hb points that actually fall w/in normal Hb range, but that stood out due to low sample sizes (so removed these points to improve overall model fit). 
+```{r}
+# A. amazilia
+# Drop NK168931; Single outlier point: highest Hb value but low MCV and super high TRBC - high standard deviation 
+Aama <- Aama[-which(Aama$nk == 168931),]
+
+# C. violifer
+# Drop NK168452; super high Hb at ~2,800 m but crazy low TRBC
+Cvio <- Cvio[-which(Cvio$nk == 168452),]
+
+# E. condamini
+# Drop NK220376; super high Hb and outlier on the MCV and TRBC axes
+Econ <- Econ[-which(Econ$nk == 220376),]
+
+# H. amethysticollis
+# Tough call, "outlier" is NK163809 (low Hb, super high MCV, super low TRBC); skews distribution a bit but also likely 
+# related to small sample size. Erring on the conservative side, leaving this point (esp since outliers have relatively)
+# small effects on CeNS index)
+
+# H. leadbeateri
+# Drop NK161154; Hb of 21 at moderate elev, coupled w/ 2nd lowest MCV and highest TRBC
+# That set of characteristics makes this point stand out 
+Hlea <- Hlea[-which(Hlea$nk == 161154),]
+
+# L. nuna
+# Really on the fence about this one: NK159749
+# Clear case of super high Hb but really not that high (22.0), coupled with normal-ish MCV and TRBC
+# Basically: this is a low sample size outlier; if more samples, chance of seeing values closer to 22.9 Hb greater
+# BUT, models fit better without this point. Doesn't have very strong effect on CeNS index, but removing for fit. 
+Lnun <- Lnun[-which(Lnun$nk == 159749),]
+
+# M. phoebe
+# Drop NK162840; Low Hb (15.9) at high elev (~3700 m), coupled w/ low MCV and high TRBC for this species 
+Mpho <- Mpho[-which(Mpho$nk == 162840),]
+
+# O. underwoodii
+# Drop NK167872; High Hb (22.2), highest MCV in species dataset + 3rd lowest TRBC for species dataset
+# This could easily be an outlier due to low sampling, but we want models to fit well... 
+Ound <- Ound[-which(Ound$nk == 167872),]
+
+# Check distributions 
+# p <- ggpairs(subset(test, select = c(elev, hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
 ```
 
 
@@ -293,6 +348,9 @@ theme_set(theme_bw() +
               ,axis.text.x  = element_text(angle=90, vjust=0.5, size=8)
             ))
 ```
+
+
+
 
 
 #### CeNS MODELING #####
@@ -727,12 +785,15 @@ get_prior(hb ~ 1 + mcv + trbc, data = Pguy)
 
 
 # FIT MODELS 
-REMEMBER: We aren't doing model comparison, so we won't use standardized inputs. We WANT raw variable values to be able to calculate real-world estimates. 
+IMPORTANT! Although we aren't doing model comparison, it is essential to use standardized predictors because otherwise the relationship between TRBC and MCV will always be heavily skewed towards TRBC (aka, it will always look like TRBC has a 1.5-2x larger effect than MCV). TRBC typically *does* have a larger effect than MCV, but the difference being that strong is partly attributable to non-standardized units. 
+
+Must run models w/ standardized inputs; re-run if needing to estimate real-world estimates. 
 ```{r}
 job::job({ # Send this to a job so you can use the console while it runs
+  #Note that job() is kind of wonky, sometimes doesn't run properly, & sometimes produces errors/doesn't save right models
 
   cens.Amel <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Amel,
   family = student(),
   cores = 4,
@@ -744,10 +805,9 @@ job::job({ # Send this to a job so you can use the console while it runs
   sample_prior = TRUE # save priors
 )
 save(cens.Amel, file="cens.Amel.RData") # save model
-# load("cens.Amel.RData")
 
   cens.Acas <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Acas,
   family = student(),
   cores = 4,
@@ -759,10 +819,9 @@ save(cens.Amel, file="cens.Amel.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Acas, file="cens.Acas.RData") # save model
-# load("cens.Acas.RData")
-  
-  cens.Akin <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+
+cens.Akin <- brm(
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Akin,
   family = student(),
   cores = 4,
@@ -774,10 +833,9 @@ save(cens.Acas, file="cens.Acas.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Akin, file="cens.Akin.RData") # save model
-# load("cens.Akin.RData")
-  
- cens.Aama <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+
+cens.Aama <- brm(
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Aama,
   family = student(),
   cores = 4,
@@ -789,10 +847,9 @@ save(cens.Akin, file="cens.Akin.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Aama, file="cens.Aama.RData") # save model
-# load("cens.Aama.RData")
 
  cens.Clar <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Clar,
   family = student(),
   cores = 4,
@@ -804,10 +861,9 @@ save(cens.Aama, file="cens.Aama.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Clar, file="cens.Clar.RData") # save model
-# load("cens.Clar.RData")
 
  cens.Coen <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Coen,
   family = student(),
   cores = 4,
@@ -819,10 +875,9 @@ save(cens.Clar, file="cens.Clar.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Coen, file="cens.Coen.RData") # save model
-# load("cens.Coen.RData")
 
  cens.Ccoe <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Ccoe,
   family = student(),
   cores = 4,
@@ -834,10 +889,9 @@ save(cens.Coen, file="cens.Coen.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Ccoe, file="cens.Ccoe.RData") # save model
-# load("cens.Ccoe.RData")
 
  cens.Ciri <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Ciri,
   family = student(),
   cores = 4,
@@ -849,10 +903,9 @@ save(cens.Ccoe, file="cens.Ccoe.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Ciri, file="cens.Ciri.RData") # save model
-# load("cens.Ciri.RData")
 
  cens.Cvio <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Cvio,
   family = student(),
   cores = 4,
@@ -864,10 +917,9 @@ save(cens.Ciri, file="cens.Ciri.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Cvio, file="cens.Cvio.RData") # save model
-# load("cens.Cvio.RData")
 
  cens.Ccor <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Ccor,
   family = student(),
   cores = 4,
@@ -879,10 +931,9 @@ save(cens.Cvio, file="cens.Cvio.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Ccor, file="cens.Ccor.RData") # save model
-# load("cens.Ccor.RData")
 
  cens.Eluc <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Eluc,
   family = student(),
   cores = 4,
@@ -894,10 +945,9 @@ save(cens.Ccor, file="cens.Ccor.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Eluc, file="cens.Eluc.RData") # save model
-# load("cens.Eluc.RData")
 
  cens.Econ <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Econ,
   family = student(),
   cores = 4,
@@ -909,10 +959,9 @@ save(cens.Eluc, file="cens.Eluc.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Econ, file="cens.Econ.RData") # save model
-# load("cens.Econ.RData")
 
  cens.Fmel <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Fmel,
   family = student(),
   cores = 4,
@@ -924,10 +973,9 @@ save(cens.Econ, file="cens.Econ.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Fmel, file="cens.Fmel.RData") # save model
-# load("cens.Fmel.RData")
 
  cens.Ghir <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Ghir,
   family = student(),
   cores = 4,
@@ -939,10 +987,9 @@ save(cens.Fmel, file="cens.Fmel.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Ghir, file="cens.Ghir.RData") # save model
-# load("cens.Ghir.RData")
 
  cens.Hame <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Hame,
   family = student(),
   cores = 4,
@@ -954,10 +1001,9 @@ save(cens.Ghir, file="cens.Ghir.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Hame, file="cens.Hame.RData") # save model
-# load("cens.Hame.RData")
 
  cens.Hmic <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Hmic,
   family = student(),
   cores = 4,
@@ -969,10 +1015,9 @@ save(cens.Hame, file="cens.Hame.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Hmic, file="cens.Hmic.RData") # save model
-# load("cens.Hmic.RData")
 
  cens.Hlea <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Hlea,
   family = student(),
   cores = 4,
@@ -984,10 +1029,9 @@ save(cens.Hmic, file="cens.Hmic.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Hlea, file="cens.Hlea.RData") # save model
-# load("cens.Hlea.RData")
 
  cens.Llaf <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Llaf,
   family = student(),
   cores = 4,
@@ -999,10 +1043,9 @@ save(cens.Hlea, file="cens.Hlea.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Llaf, file="cens.Llaf.RData") # save model
-# load("cens.Llaf.RData")
 
  cens.Lnun <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Lnun,
   family = student(),
   cores = 4,
@@ -1014,10 +1057,9 @@ save(cens.Llaf, file="cens.Llaf.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Lnun, file="cens.Lnun.RData") # save model
-# load("cens.Lnun.RData")
 
  cens.Meup <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Meup,
   family = student(),
   cores = 4,
@@ -1029,10 +1071,9 @@ save(cens.Lnun, file="cens.Lnun.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Meup, file="cens.Meup.RData") # save model
-# load("cens.Meup.RData")
 
  cens.Mpho <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Mpho,
   family = student(),
   cores = 4,
@@ -1044,10 +1085,9 @@ save(cens.Meup, file="cens.Meup.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Mpho, file="cens.Mpho.RData") # save model
-# load("cens.Mpho.RData")
 
  cens.Mtyr <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Mtyr,
   family = student(),
   cores = 4,
@@ -1059,10 +1099,9 @@ save(cens.Mpho, file="cens.Mpho.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Mtyr, file="cens.Mtyr.RData") # save model
-# load("cens.Mtyr.RData")
 
  cens.Ound <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Ound,
   family = student(),
   cores = 4,
@@ -1074,10 +1113,9 @@ save(cens.Mtyr, file="cens.Mtyr.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Ound, file="cens.Ound.RData") # save model
-# load("cens.Ound.RData")
 
  cens.Oest <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Oest,
   family = student(),
   cores = 4,
@@ -1089,10 +1127,9 @@ save(cens.Ound, file="cens.Ound.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Oest, file="cens.Oest.RData") # save model
-# load("cens.Oest.RData")
 
  cens.Omel <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Omel,
   family = student(),
   cores = 4,
@@ -1104,11 +1141,10 @@ save(cens.Oest, file="cens.Oest.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Omel, file="cens.Omel.RData") # save model
-# load("cens.Omel.RData")
 
 # Patagona gigas N 
 cens.Pgign <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Pgign,
   family = gaussian(), # student might fit a bit better than gaussian?
   cores = 4,
@@ -1120,11 +1156,10 @@ cens.Pgign <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.Pgign, file="cens.Pgign.RData") # save model
-# load("cens.Pgign.RData")
 
 # Patagona gigas S 
 cens.Pgigs <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Pgigs,
   family = gaussian(), # student might fit a bit better than gaussian?
   cores = 4,
@@ -1136,11 +1171,10 @@ cens.Pgigs <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.Pgigs, file="cens.gigs.RData") # save model
-# load("cens.Pgigs.RData")
 
 # Phaethornis guy
   cens.Pguy <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Pguy,
   family = student(),
   cores = 4,
@@ -1152,11 +1186,10 @@ save(cens.Pgigs, file="cens.gigs.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Pguy, file="cens.Pguy.RData") # save model
-# load("cens.Pguy.RData")
 
 # Phaethornis malaris
   cens.Pmal <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Pmal,
   family = student(),
   cores = 4,
@@ -1168,11 +1201,10 @@ save(cens.Pguy, file="cens.Pguy.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Pmal, file="cens.Pmal.RData") # save model
-# load("cens.Pmal.RData")
 
 # Thalurania furcata
   cens.Tfur <- brm(
-  formula = bf(hb ~ 1 + mcv + trbc),
+  formula = bf(hb ~ 1 + mcv.z + trbc.z),
   data = Tfur,
   family = student(),
   cores = 4,
@@ -1184,8 +1216,45 @@ save(cens.Pmal, file="cens.Pmal.RData") # save model
   sample_prior = TRUE # save priors
 )
 save(cens.Tfur, file="cens.Tfur.RData") # save model
-# load("cens.Tfur.RData")
 
+})
+```
+
+
+# IF YOU'VE ALREADY RUN MODELS, load in data to save time
+Send to job - takes longer than I'd anticipate to load in data.
+```{R}
+job::job({
+load("cens.Amel.RData")
+load("cens.Acas.RData")
+load("cens.Akin.RData")
+load("cens.Aama.RData")
+load("cens.Clar.RData")
+load("cens.Coen.RData")
+load("cens.Ccoe.RData")
+load("cens.Ciri.RData")
+load("cens.Cvio.RData")
+load("cens.Ccor.RData")
+load("cens.Eluc.RData")
+load("cens.Econ.RData")
+load("cens.Fmel.RData")
+load("cens.Ghir.RData")
+load("cens.Hame.RData")
+load("cens.Hmic.RData")
+load("cens.Hlea.RData")
+load("cens.Llaf.RData")
+load("cens.Lnun.RData")
+load("cens.Meup.RData")
+load("cens.Mpho.RData")
+load("cens.Mtyr.RData")
+load("cens.Ound.RData")
+load("cens.Oest.RData")
+load("cens.Omel.RData")
+load("cens.Pgign.RData")
+load("cens.Pgigs.RData")
+load("cens.Pguy.RData")
+load("cens.Pmal.RData")
+load("cens.Tfur.RData")
 })
 ```
 
@@ -1203,62 +1272,248 @@ save(cens.Tfur, file="cens.Tfur.RData") # save model
 # bayestestR::effective_sample(cens.Pgign) 
 # JUST LOOK AT BULK AND TAIL ESS FROM MODEL OUTPUT! 
 
-
-#### JESSIE LEFT OFF HERE: 
-# Add in fit metrics for each species-specific dataset
-# then, for posterior predictive checks, combine all species into one massive plot output, maybe 5 x 6 
-
-
 # Fit 
-mcmc_plot(cens.Pguy, type = "trace") 
-plot(cens.Pguy, N = 2, ask = FALSE)
-mcmc_plot(cens.Pguy, type = "acf_bar") # looks at autocorrelation
+# All look ok - no divergences to plot, nothing red-flaggy
+mcmc_plot(cens.Amel, type = "trace") 
+plot(cens.Amel, N = 2, ask = FALSE)
+mcmc_plot(cens.Amel, type = "acf_bar") 
+
+mcmc_plot(cens.Acas, type = "trace") 
+plot(cens.Acas, N = 2, ask = FALSE)
+mcmc_plot(cens.Acas, type = "acf_bar")
+
+mcmc_plot(cens.Akin, type = "trace") 
+plot(cens.Akin, N = 2, ask = FALSE)
+mcmc_plot(cens.Akin, type = "acf_bar")
+
+mcmc_plot(cens.Aama, type = "trace") 
+plot(cens.Aama, N = 2, ask = FALSE)
+mcmc_plot(cens.Aama, type = "acf_bar")
+
+mcmc_plot(cens.Clar, type = "trace") 
+plot(cens.Clar, N = 2, ask = FALSE)
+mcmc_plot(cens.Clar, type = "acf_bar")
+
+mcmc_plot(cens.Coen, type = "trace") 
+plot(cens.Coen, N = 2, ask = FALSE)
+mcmc_plot(cens.Coen, type = "acf_bar")
+
+mcmc_plot(cens.Ccoe, type = "trace") 
+plot(cens.Ccoe, N = 2, ask = FALSE)
+mcmc_plot(cens.Ccoe, type = "acf_bar")
+
+mcmc_plot(cens.Ciri, type = "trace") 
+plot(cens.Ciri, N = 2, ask = FALSE)
+mcmc_plot(cens.Ciri, type = "acf_bar")
+
+mcmc_plot(cens.Cvio, type = "trace") 
+plot(cens.Cvio, N = 2, ask = FALSE)
+mcmc_plot(cens.Cvio, type = "acf_bar")
+
+mcmc_plot(cens.Ccor, type = "trace") 
+plot(cens.Ccor, N = 2, ask = FALSE)
+mcmc_plot(cens.Ccor, type = "acf_bar")
+
+mcmc_plot(cens.Eluc, type = "trace") 
+plot(cens.Eluc, N = 2, ask = FALSE)
+mcmc_plot(cens.Eluc, type = "acf_bar")
+
+mcmc_plot(cens.Econ, type = "trace") 
+plot(cens.Econ, N = 2, ask = FALSE)
+mcmc_plot(cens.Econ, type = "acf_bar")
+
+mcmc_plot(cens.Fmel, type = "trace") 
+plot(cens.Fmel, N = 2, ask = FALSE)
+mcmc_plot(cens.Fmel, type = "acf_bar")
+
+mcmc_plot(cens.Ghir, type = "trace") 
+plot(cens.Ghir, N = 2, ask = FALSE)
+mcmc_plot(cens.Ghir, type = "acf_bar")
+
+mcmc_plot(cens.Hame, type = "trace") 
+plot(cens.Hame, N = 2, ask = FALSE)
+mcmc_plot(cens.Hame, type = "acf_bar")
+
+mcmc_plot(cens.Hmic, type = "trace") 
+plot(cens.Hmic, N = 2, ask = FALSE)
+mcmc_plot(cens.Hmic, type = "acf_bar")
+
+mcmc_plot(cens.Hlea, type = "trace") 
+plot(cens.Clar, N = 2, ask = FALSE)
+mcmc_plot(cens.Hlea, type = "acf_bar")
+
+mcmc_plot(cens.Llaf, type = "trace") 
+plot(cens.Llaf, N = 2, ask = FALSE)
+mcmc_plot(cens.Llaf, type = "acf_bar")
+
+mcmc_plot(cens.Lnun, type = "trace") 
+plot(cens.Lnun, N = 2, ask = FALSE)
+mcmc_plot(cens.Lnun, type = "acf_bar")
+
+mcmc_plot(cens.Meup, type = "trace") 
+plot(cens.Meup, N = 2, ask = FALSE)
+mcmc_plot(cens.Meup, type = "acf_bar")
+
+mcmc_plot(cens.Mpho, type = "trace") 
+plot(cens.Mpho, N = 2, ask = FALSE)
+mcmc_plot(cens.Mpho, type = "acf_bar")
 
 mcmc_plot(cens.Mtyr, type = "trace") 
 plot(cens.Mtyr, N = 2, ask = FALSE)
-mcmc_plot(cens.Mtyr, type = "acf_bar") # looks at autocorrelation
+mcmc_plot(cens.Mtyr, type = "acf_bar")
 
-mcmc_plot(cens.Pgigs, type = "trace") 
-plot(cens.Pgigs, N = 2, ask = FALSE)
-mcmc_plot(cens.Pgigs, type = "acf_bar") # looks at autocorrelation
+mcmc_plot(cens.Ound, type = "trace") 
+plot(cens.Ound, N = 2, ask = FALSE)
+mcmc_plot(cens.Ound, type = "acf_bar")
+
+mcmc_plot(cens.Oest, type = "trace") 
+plot(cens.Oest, N = 2, ask = FALSE)
+mcmc_plot(cens.Oest, type = "acf_bar")
+
+mcmc_plot(cens.Omel, type = "trace") 
+plot(cens.Omel, N = 2, ask = FALSE)
+mcmc_plot(cens.Omel, type = "acf_bar")
 
 mcmc_plot(cens.Pgign, type = "trace") 
 plot(cens.Pgign, N = 2, ask = FALSE)
-mcmc_plot(cens.Pgign, type = "acf_bar") # looks at autocorrelation
+mcmc_plot(cens.Pgign, type = "acf_bar")
+
+mcmc_plot(cens.Pgigs, type = "trace") 
+plot(cens.Pgigs, N = 2, ask = FALSE)
+mcmc_plot(cens.Pgigs, type = "acf_bar")
+
+mcmc_plot(cens.Pguy, type = "trace") 
+plot(cens.Pguy, N = 2, ask = FALSE)
+mcmc_plot(cens.Pguy, type = "acf_bar")
+
+mcmc_plot(cens.Pmal, type = "trace") 
+plot(cens.Pmal, N = 2, ask = FALSE)
+mcmc_plot(cens.Pmal, type = "acf_bar")
+
+mcmc_plot(cens.Tfur, type = "trace") 
+plot(cens.Tfur, N = 2, ask = FALSE)
+mcmc_plot(cens.Tfur, type = "acf_bar")
 
 
 # Posterior predictive checks 
-bayesplot::pp_check(cens.Pguy, resp = "hb", nsamples = 200) # pull draws from model and cast back to original data 
-bayesplot::pp_check(cens.Pguy, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20) # or stat = "median"
+# standardizing variables also has the effect of fixing sampling outliers a bit better
+color_scheme_set("blue") # nice default
+bayesplot::pp_check(cens.Amel, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Amel, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Acas, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Acas, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Akin, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Akin, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Aama, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Aama, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Clar, resp = "hb", nsamples = 200) # slightly weird at the top
+bayesplot::pp_check(cens.Clar, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Coen, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Coen, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Ccoe, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Ccoe, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Ciri, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Ciri, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Cvio, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Cvio, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Cvio, type = "scatter_avg")
+
+bayesplot::pp_check(cens.Ccor, resp = "hb", nsamples = 200) # fits really nicely
+bayesplot::pp_check(cens.Ccor, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Eluc, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Eluc, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Econ, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Econ, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Econ, type = "scatter_avg")
+
+bayesplot::pp_check(cens.Fmel, resp = "hb", nsamples = 200) # hmm
+bayesplot::pp_check(cens.Fmel, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Ghir, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Ghir, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Hame, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Hame, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Hame, type = "scatter_avg")
+
+bayesplot::pp_check(cens.Hmic, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Hmic, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Hlea, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Hlea, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Hlea, type = "scatter_avg")
+
+bayesplot::pp_check(cens.Llaf, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Llaf, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Lnun, resp = "hb", nsamples = 200) # less than ideal due to n=10
+bayesplot::pp_check(cens.Lnun, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Meup, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Meup, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+# stat_2d suggests one outlier; examining distribution doesn't highlight any obvious distributional outliers
+# likely related to n=10 sample size; CIs overlap zero anyways; conservatively leaving all data. 
+
+bayesplot::pp_check(cens.Mpho, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Mpho, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
 
 bayesplot::pp_check(cens.Mtyr, resp = "hb", nsamples = 200) 
 bayesplot::pp_check(cens.Mtyr, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
 
-bayesplot::pp_check(cens.Pgigs, resp = "hb", nsamples = 200) 
-bayesplot::pp_check(cens.Pgigs, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Ound, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Ound, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Oest, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Oest, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+# Two outlier-ish points, but appear to be related to low sample size (i.e., a couple outliery points); leaving
+
+bayesplot::pp_check(cens.Omel, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Omel, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
 
 bayesplot::pp_check(cens.Pgign, resp = "hb", nsamples = 200) 
 bayesplot::pp_check(cens.Pgign, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+bayesplot::pp_check(cens.Pgign, type = "scatter_avg")
 
+bayesplot::pp_check(cens.Pgigs, resp = "hb", nsamples = 200)
+bayesplot::pp_check(cens.Pgigs, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20)
+
+bayesplot::pp_check(cens.Pguy, resp = "hb", nsamples = 200)  
+bayesplot::pp_check(cens.Pguy, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20) # or stat = "median"
+
+bayesplot::pp_check(cens.Pmal, resp = "hb", nsamples = 200)  
+bayesplot::pp_check(cens.Pmal, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20) # or stat = "median"
+
+bayesplot::pp_check(cens.Tfur, resp = "hb", nsamples = 200)  
+bayesplot::pp_check(cens.Tfur, nsamples = 100, type = "stat_2d") + theme_bw(base_size = 20) # or stat = "median"
 
 # Estimates 
 #plot(conditional_effects(cens.Pguy), points = TRUE) # conditional effects 
-mcmc_plot(cens.Pguy)  
+# mcmc_plot(cens.Pguy)  
 ```
 
 
-Residual plots 
+# Residual plots (sub in the dataset of interest)
 ```{r}
 # Residual plots 
 # typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
 # associated with each residual
-Pguy %>%
-  add_residual_draws(cens.Pguy) %>%
+Hame %>%
+  add_residual_draws(cens.Hame) %>%
   ggplot(aes(x = .row, y = .residual)) +
   stat_pointinterval()
 
-Pguy %>%
-  add_predicted_draws(cens.Pguy) %>%
+Hame %>%
+  add_predicted_draws(cens.Hame) %>%
   summarise(
     p_residual = mean(.prediction < hb), # probability residual; Bayesian predictive p-value 
     z_residual = qnorm(p_residual) # quantile residuals 
@@ -1317,72 +1572,1185 @@ Pgign %>%
 ```
 
 
-Conditional effects plots 
+# Species-specific Conditional effects plots 
 ```{r}
-color_scheme_set("blue") # nice default
-cens.Pguy.p1 <- mcmc_plot(cens.Pguy, pars=c("b_mcv", "b_trbc"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "cens.Pguy: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("MCV","TRBC"))  
-cens.Pguy.p1
-ggsave(cens.Pguy.p1, filename = "cens.Pguy.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# Color options: 'arg' should be one of “blue”, “brightblue”, “darkgray”, “gray”, “green”, “orange”, “pink”, “purple”, “red”, “teal”, “yellow”, “viridis”, “viridisA”, “viridisB”, “viridisC”, “viridisD”, “viridisE”
+# color_scheme_set("blue") # nice default
 
-# Plot conditional effects 
-cens.Mtyr.p1 <- mcmc_plot(cens.Mtyr, pars=c("b_mcv", "b_trbc"),
+# I tried setting these to all the same x-axis limits but it looked weird; looks much better to have each species plot
+# with the axes that look best for it. 
+
+color_scheme_set("viridisD")
+
+cens.Amel.p1 <- mcmc_plot(cens.Amel, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "cens.Mtyr: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("MCV","TRBC"))  
+labs(x="Effect on [Hb]", title = "A. melanogenys") + 
+# xlim(0, 8) + # Set axis limits 
+# geom_vline(xintercept = 0) + # Horizontal line where data crosses 0 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Amel.p1
+ggsave(cens.Amel.p1, filename = "cens.Amel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Acas.p1 <- mcmc_plot(cens.Acas, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "A. castelnaudii") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Acas.p1
+ggsave(cens.Acas.p1, filename = "cens.Acas.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Akin.p1 <- mcmc_plot(cens.Akin, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "A. kingii") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Akin.p1
+ggsave(cens.Akin.p1, filename = "cens.Akin.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Aama.p1 <- mcmc_plot(cens.Aama, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "A. amazilia") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Aama.p1
+ggsave(cens.Aama.p1, filename = "cens.Aama.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Clar.p1 <- mcmc_plot(cens.Clar, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. largipennis") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left   
+cens.Clar.p1
+ggsave(cens.Clar.p1, filename = "cens.Clar.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Coen.p1 <- mcmc_plot(cens.Coen, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. oenone") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Coen.p1
+ggsave(cens.Coen.p1, filename = "cens.Coen.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Ccoe.p1 <- mcmc_plot(cens.Ccoe, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. coeligena") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Ccoe.p1
+ggsave(cens.Ccoe.p1, filename = "cens.Ccoe.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Ciri.p1 <- mcmc_plot(cens.Ciri, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. iris") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Ciri.p1
+ggsave(cens.Ciri.p1, filename = "cens.Ciri.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Cvio.p1 <- mcmc_plot(cens.Cvio, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. violifer") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Cvio.p1
+ggsave(cens.Cvio.p1, filename = "cens.Cvio.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Ccor.p1 <- mcmc_plot(cens.Ccor, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. coruscans") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Ccor.p1
+ggsave(cens.Ccor.p1, filename = "cens.Ccor.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Eluc.p1 <- mcmc_plot(cens.Eluc, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. luciani") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Eluc.p1
+ggsave(cens.Eluc.p1, filename = "cens.Eluc.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Econ.p1 <- mcmc_plot(cens.Econ, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "C. condamini") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left   
+cens.Econ.p1
+ggsave(cens.Econ.p1, filename = "cens.Econ.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Fmel.p1 <- mcmc_plot(cens.Fmel, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "F. mellivora") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Fmel.p1
+ggsave(cens.Fmel.p1, filename = "cens.Fmel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Ghir.p1 <- mcmc_plot(cens.Ghir, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "G. hirsutus") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Ghir.p1
+ggsave(cens.Ghir.p1, filename = "cens.Ghir.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Hame.p1 <- mcmc_plot(cens.Hame, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "H. amethysticollis") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Hame.p1
+ggsave(cens.Hame.p1, filename = "cens.Hame.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Hmic.p1 <- mcmc_plot(cens.Hmic, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "H. micrastur") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Hmic.p1
+ggsave(cens.Hmic.p1, filename = "cens.Hmic.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Hlea.p1 <- mcmc_plot(cens.Hlea, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "H. leadbeateri") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Hlea.p1
+ggsave(cens.Hlea.p1, filename = "cens.Hlea.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Llaf.p1 <- mcmc_plot(cens.Llaf, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "L. lafresnayi") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Llaf.p1
+ggsave(cens.Llaf.p1, filename = "cens.Llaf.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Lnun.p1 <- mcmc_plot(cens.Lnun, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "L. nuna") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Lnun.p1
+ggsave(cens.Lnun.p1, filename = "cens.Lnun.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Meup.p1 <- mcmc_plot(cens.Meup, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "M. eupogon") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Meup.p1
+ggsave(cens.Meup.p1, filename = "cens.Meup.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Mpho.p1 <- mcmc_plot(cens.Mpho, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "M. phoebe") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Mpho.p1
+ggsave(cens.Mpho.p1, filename = "cens.Mpho.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Mtyr.p1 <- mcmc_plot(cens.Mtyr, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "M. tyrianthina") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
 cens.Mtyr.p1
 ggsave(cens.Mtyr.p1, filename = "cens.Mtyr.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-# Pgig s
-cens.Pgigs.p1 <- mcmc_plot(cens.Pgigs, pars=c("b_mcv", "b_trbc"),
+cens.Ound.p1 <- mcmc_plot(cens.Ound, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "cens.Pgigs: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("MCV","TRBC"))  
-cens.Pgigs.p1
-ggsave(cens.Pgigs.p1, filename = "cens.Pgigs.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+labs(x="Effect on [Hb]", title = "O. underwoodii") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Ound.p1
+ggsave(cens.Ound.p1, filename = "cens.Ound.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Oest.p1 <- mcmc_plot(cens.Oest, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "O. estella") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Oest.p1
+ggsave(cens.Oest.p1, filename = "cens.Oest.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Omel.p1 <- mcmc_plot(cens.Omel, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "O. melanogaster") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Omel.p1
+ggsave(cens.Omel.p1, filename = "cens.Omel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
 # Pgign
-cens.Pgign.p1 <- mcmc_plot(cens.Pgign, pars=c("b_mcv", "b_trbc"),
+cens.Pgign.p1 <- mcmc_plot(cens.Pgign, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "cens.Pgign: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("MCV","TRBC"))  
+labs(x="Effect on [Hb]", title = "P. gigas (North)") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
 cens.Pgign.p1
 ggsave(cens.Pgign.p1, filename = "cens.Pgign.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
+# Pgig s
+cens.Pgigs.p1 <- mcmc_plot(cens.Pgigs, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "P. gigas (South)") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Pgigs.p1
+ggsave(cens.Pgigs.p1, filename = "cens.Pgigs.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Pguy.p1 <- mcmc_plot(cens.Pguy, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "P. guy") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left  
+cens.Pguy.p1
+ggsave(cens.Pguy.p1, filename = "cens.Pguy.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Pmal.p1 <- mcmc_plot(cens.Pmal, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "P. malaris") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Pmal.p1
+ggsave(cens.Pmal.p1, filename = "cens.Pmal.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+cens.Tfur.p1 <- mcmc_plot(cens.Tfur, pars=c("b_mcv.z", "b_trbc.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "T. furcata") + 
+scale_y_discrete(labels=c("MCV","TRBC")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(text = element_text(family="Helvetica",size=9)) # y axis labels
+            # ggtitle("A") + # Assign panel number/header
+            # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            # plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+cens.Tfur.p1
+ggsave(cens.Tfur.p1, filename = "cens.Tfur.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# PLOT ALL SPECIES-SPECIFIC OUTPUTS TOGETHER 
+library(patchwork)
+# Alternative layout option = BETTER, USE THIS ONE:
+SS_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.p1 + cens.Clar.p1 + cens.Coen.p1 + 
+                      cens.Ccoe.p1 + cens.Ciri.p1 + cens.Cvio.p1 + cens.Ccor.p1 + cens.Eluc.p1 + cens.Econ.p1 + 
+                      cens.Fmel.p1 + cens.Ghir.p1 + cens.Hame.p1 + cens.Hmic.p1 + cens.Hlea.p1 + cens.Llaf.p1 + 
+                      cens.Lnun.p1 + cens.Meup.p1 + cens.Mpho.p1 + cens.Mtyr.p1 + cens.Ound.p1 + cens.Oest.p1 + 
+                      cens.Omel.p1 + cens.Pgign.p1 + cens.Pgigs.p1 + cens.Pguy.p1 + cens.Pmal.p1 + cens.Tfur.p1 +
+                      plot_layout(guides = "collect"))
+plot(SS_PosteriorProbs)
+ggsave(SS_PosteriorProbs, filename = "CeNS_Species-Specific_PosteriorProbs_05-24-21.pdf", bg="transparent", height=7, width=12, units="in")
 ```
 
+JESSIE NOTE: Ideally need to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
 
-CeNs Index 
+# Bayes R^2 and model summaries  
 ```{r}
 # Pull model summaries 
-summary(cens.Pguy)
-summary(cens.Mtyr)
-summary(cens.Pgigs)
-summary(cens.Pgign)
+# summary(cens.Pguy)
+# summary(cens.Mtyr)
+# summary(cens.Pgigs)
+# summary(cens.Pgign)
 
 # R^2 values 
-bayes_R2(cens.Mtyr) # 0.276
-bayes_R2(cens.Pguy) # 0.276
-bayes_R2(cens.Pgigs) # 0.294
-bayes_R2(cens.Pgign) # 0.674
-
-# Cens index: TRBC [3] / MCV [2] + TRBC [3]
-cens.index.Pguy <- fixef(cens.Pguy)[3]/(fixef(cens.Pguy)[2]+fixef(cens.Pguy)[3]); cens.index.Pguy
-cens.index.Mtyr <- fixef(cens.Mtyr)[3]/(fixef(cens.Mtyr)[2]+fixef(cens.Mtyr)[3]); cens.index.Mtyr
-cens.index.Pgigs <- fixef(cens.Pgigs)[3]/(fixef(cens.Pgigs)[2]+fixef(cens.Pgigs)[3]); cens.index.Pgigs
-cens.index.Pgign <- fixef(cens.Pgign)[3]/(fixef(cens.Pgign)[2]+fixef(cens.Pgign)[3]); cens.index.Pgign
+round(bayes_R2(cens.Amel), 2) # 0.51
+bayes_R2(cens.Acas) # 0.43
+bayes_R2(cens.Akin) # 0.42
+bayes_R2(cens.Aama) # 0.70
+bayes_R2(cens.Clar) # 0.60
+bayes_R2(cens.Coen) # 0.62
+bayes_R2(cens.Ccoe) # 0.26
+bayes_R2(cens.Cvio) # 0.34
+bayes_R2(cens.Ccor) # 0.37
+bayes_R2(cens.Eluc) # 0.54
+bayes_R2(cens.Econ) # 0.39
+bayes_R2(cens.Fmel) # 0.94
+bayes_R2(cens.Ghir) # 0.84
+bayes_R2(cens.Hame) # 0.35
+bayes_R2(cens.Hmic) # 0.38
+bayes_R2(cens.Hlea) # 0.41
+bayes_R2(cens.Llaf) # 0.41
+bayes_R2(cens.Lnun) # 0.39
+bayes_R2(cens.Meup) # 0.29
+bayes_R2(cens.Mpho) # 0.55
+bayes_R2(cens.Mtyr) # 0.28
+bayes_R2(cens.Ound) # 0.60
+bayes_R2(cens.Oest) # 0.56
+bayes_R2(cens.Omel) # 0.42
+bayes_R2(cens.Pgign) # 0.68
+bayes_R2(cens.Pgigs) # 0.29
+bayes_R2(cens.Pguy) # 0.65
+bayes_R2(cens.Pmal) # 0.75
+bayes_R2(cens.Tfur) # 0.82
 ```
 
+
+# CeNS Index
+An index to evaluate the proportional contribution of TRBC relative to MCV in driving [Hb]
+A 0-1 index, calculated as *TRBC/(MCV+TRBC)*
+```{r}
+# Cens index: TRBC [3] / MCV [2] + TRBC [3]
+cens.index <- as.vector(c(
+cens.index.Amel <- fixef(cens.Amel)[3]/(fixef(cens.Amel)[2]+fixef(cens.Amel)[3]), 
+cens.index.Acas <- fixef(cens.Acas)[3]/(fixef(cens.Acas)[2]+fixef(cens.Acas)[3]), 
+cens.index.Akin <- fixef(cens.Akin)[3]/(fixef(cens.Akin)[2]+fixef(cens.Akin)[3]), 
+cens.index.Aama <- fixef(cens.Aama)[3]/(fixef(cens.Aama)[2]+fixef(cens.Aama)[3]), 
+cens.index.Clar <- fixef(cens.Clar)[3]/(fixef(cens.Clar)[2]+fixef(cens.Clar)[3]), 
+cens.index.Coen <- fixef(cens.Coen)[3]/(fixef(cens.Coen)[2]+fixef(cens.Coen)[3]), 
+cens.index.Ccoe <- fixef(cens.Ccoe)[3]/(fixef(cens.Ccoe)[2]+fixef(cens.Ccoe)[3]), 
+cens.index.Ciri <- fixef(cens.Ciri)[3]/(fixef(cens.Ciri)[2]+fixef(cens.Ciri)[3]), 
+cens.index.Cvio <- fixef(cens.Cvio)[3]/(fixef(cens.Cvio)[2]+fixef(cens.Cvio)[3]), 
+cens.index.Ccor <- fixef(cens.Ccor)[3]/(fixef(cens.Ccor)[2]+fixef(cens.Ccor)[3]), 
+cens.index.Eluc <- fixef(cens.Eluc)[3]/(fixef(cens.Eluc)[2]+fixef(cens.Eluc)[3]), 
+cens.index.Econ <- fixef(cens.Econ)[3]/(fixef(cens.Econ)[2]+fixef(cens.Econ)[3]), 
+cens.index.Fmel <- fixef(cens.Fmel)[3]/(fixef(cens.Fmel)[2]+fixef(cens.Fmel)[3]), 
+cens.index.Ghir <- fixef(cens.Ghir)[3]/(fixef(cens.Ghir)[2]+fixef(cens.Ghir)[3]), 
+cens.index.Hame <- fixef(cens.Hame)[3]/(fixef(cens.Hame)[2]+fixef(cens.Hame)[3]), 
+cens.index.Hmic <- fixef(cens.Hmic)[3]/(fixef(cens.Hmic)[2]+fixef(cens.Hmic)[3]), 
+cens.index.Hlea <- fixef(cens.Hlea)[3]/(fixef(cens.Hlea)[2]+fixef(cens.Hlea)[3]),
+cens.index.Llaf <- fixef(cens.Llaf)[3]/(fixef(cens.Llaf)[2]+fixef(cens.Llaf)[3]), 
+cens.index.Lnun <- fixef(cens.Lnun)[3]/(fixef(cens.Lnun)[2]+fixef(cens.Lnun)[3]), 
+cens.index.Meup <- fixef(cens.Meup)[3]/(fixef(cens.Meup)[2]+fixef(cens.Meup)[3]), 
+cens.index.Mpho <- fixef(cens.Mpho)[3]/(fixef(cens.Mpho)[2]+fixef(cens.Mpho)[3]), 
+cens.index.Mtyr <- fixef(cens.Mtyr)[3]/(fixef(cens.Mtyr)[2]+fixef(cens.Mtyr)[3]), 
+cens.index.Ound <- fixef(cens.Ound)[3]/(fixef(cens.Ound)[2]+fixef(cens.Ound)[3]), 
+cens.index.Oest <- fixef(cens.Oest)[3]/(fixef(cens.Oest)[2]+fixef(cens.Oest)[3]), 
+cens.index.Omel <- fixef(cens.Omel)[3]/(fixef(cens.Omel)[2]+fixef(cens.Omel)[3]),
+cens.index.Pgign <- fixef(cens.Pgign)[3]/(fixef(cens.Pgign)[2]+fixef(cens.Pgign)[3]), 
+cens.index.Pgigs <- fixef(cens.Pgigs)[3]/(fixef(cens.Pgigs)[2]+fixef(cens.Pgigs)[3]), 
+cens.index.Pguy <- fixef(cens.Pguy)[3]/(fixef(cens.Pguy)[2]+fixef(cens.Pguy)[3]), 
+cens.index.Pmal <- fixef(cens.Pmal)[3]/(fixef(cens.Pmal)[2]+fixef(cens.Pmal)[3]), 
+cens.index.Tfur <- fixef(cens.Tfur)[3]/(fixef(cens.Tfur)[2]+fixef(cens.Tfur)[3])
+)) 
+cens.index # vector of cens indices 
+
+# Note: I originally wondered if I calculated this wrong and needed a "1-" prefix; BUT, this just gets me relative 
+# contribution of MCV (which I also have below). Conclusion: Calculation is right and this gets us relative contribution 
+# of TRBC vs MCV in driving [Hb].
+
+# As a test, if we calculate proportional contribution of MCV relative to TRBC, we should find a complementary result: 
+# Cens index, oriented towards MCV: MCV [2] / MCV [2] + TRBC [3]
+cens.index.mcv <- as.vector(c(
+fixef(cens.Amel)[2]/(fixef(cens.Amel)[2]+fixef(cens.Amel)[3]), 
+fixef(cens.Acas)[2]/(fixef(cens.Acas)[2]+fixef(cens.Acas)[3]), 
+fixef(cens.Akin)[2]/(fixef(cens.Akin)[2]+fixef(cens.Akin)[3]), 
+fixef(cens.Aama)[2]/(fixef(cens.Aama)[2]+fixef(cens.Aama)[3]), 
+fixef(cens.Clar)[2]/(fixef(cens.Clar)[2]+fixef(cens.Clar)[3]), 
+fixef(cens.Coen)[2]/(fixef(cens.Coen)[2]+fixef(cens.Coen)[3]), 
+fixef(cens.Ccoe)[2]/(fixef(cens.Ccoe)[2]+fixef(cens.Ccoe)[3]), 
+fixef(cens.Ciri)[2]/(fixef(cens.Ciri)[2]+fixef(cens.Ciri)[3]), 
+fixef(cens.Cvio)[2]/(fixef(cens.Cvio)[2]+fixef(cens.Cvio)[3]), 
+fixef(cens.Ccor)[2]/(fixef(cens.Ccor)[2]+fixef(cens.Ccor)[3]), 
+fixef(cens.Eluc)[2]/(fixef(cens.Eluc)[2]+fixef(cens.Eluc)[3]), 
+fixef(cens.Econ)[2]/(fixef(cens.Econ)[2]+fixef(cens.Econ)[3]), 
+fixef(cens.Fmel)[2]/(fixef(cens.Fmel)[2]+fixef(cens.Fmel)[3]), 
+fixef(cens.Ghir)[2]/(fixef(cens.Ghir)[2]+fixef(cens.Ghir)[3]), 
+fixef(cens.Hame)[2]/(fixef(cens.Hame)[2]+fixef(cens.Hame)[3]), 
+fixef(cens.Hmic)[2]/(fixef(cens.Hmic)[2]+fixef(cens.Hmic)[3]), 
+fixef(cens.Hlea)[2]/(fixef(cens.Hlea)[2]+fixef(cens.Hlea)[3]),
+fixef(cens.Llaf)[2]/(fixef(cens.Llaf)[2]+fixef(cens.Llaf)[3]), 
+fixef(cens.Lnun)[2]/(fixef(cens.Lnun)[2]+fixef(cens.Lnun)[3]), 
+fixef(cens.Meup)[2]/(fixef(cens.Meup)[2]+fixef(cens.Meup)[3]), 
+fixef(cens.Mpho)[2]/(fixef(cens.Mpho)[2]+fixef(cens.Mpho)[3]), 
+fixef(cens.Mtyr)[2]/(fixef(cens.Mtyr)[2]+fixef(cens.Mtyr)[3]), 
+fixef(cens.Ound)[2]/(fixef(cens.Ound)[2]+fixef(cens.Ound)[3]), 
+fixef(cens.Oest)[2]/(fixef(cens.Oest)[2]+fixef(cens.Oest)[3]), 
+fixef(cens.Omel)[2]/(fixef(cens.Omel)[2]+fixef(cens.Omel)[3]),
+fixef(cens.Pgign)[2]/(fixef(cens.Pgign)[2]+fixef(cens.Pgign)[3]), 
+fixef(cens.Pgigs)[2]/(fixef(cens.Pgigs)[2]+fixef(cens.Pgigs)[3]), 
+fixef(cens.Pguy)[2]/(fixef(cens.Pguy)[2]+fixef(cens.Pguy)[3]), 
+fixef(cens.Pmal)[2]/(fixef(cens.Pmal)[2]+fixef(cens.Pmal)[3]), 
+fixef(cens.Tfur)[2]/(fixef(cens.Tfur)[2]+fixef(cens.Tfur)[3])
+)) 
+cens.index.mcv # vector of cens indices 
+
+# Now make a species mean dataset from the cens.ss species-specific subset you used for modeling SS species 
+cens.ss.mean <- cens.ss %>% group_by(species) %>% summarise(hb = mean(hb),   
+                                                  elev = mean(elev), 
+                                                  mass = mean(mass),
+                                                  wl = mean(wl),
+                                                  mcv = mean(mcv),
+                                                  mcv.z = mean(mcv.z),
+                                                  trbc = mean(trbc),
+                                                  trbc.z = mean(trbc.z),
+)
+# NEED TO USE CENS.SS for this because it contains all individual data for the pared-down species subset used for species-
+# specific CeNS modeling (i.e., cens.sp is a mean dataset but has too many species in it)
+
+# Add CeNS indices to species-specific mean CeNS data for plotting and later analysis 
+cens.ss.mean <- cbind(cens.ss.mean, cens.index)
+cens.ss.mean$mass.log <- log10(cens.ss.mean$mass)
+# cens.ss.mean <- cbind(cens.ss.mean, cens.index.mcv)
+
+write.csv(cens.ss.mean, "cens.ss.mean_ForCeNSmodeling_05-24-21.csv")
+```
+
+
+# Cens Plots
+```{r}
+# Scatterplot: CeNS index v. elevation  
+(p5 <- ggplot(cens.ss.mean, aes(x=elev, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+   geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
+  # geom_smooth(method = "lm", size = 1,colour="darkturquoise", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Mean Elevation (m)", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+ # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p5, filename="CeNSindex_by_MeanElev_05-24-21.pdf", height=7, width=9, units="in")
+
+
+# Scatterplot: CeNS index v. elevation  
+(p6 <- ggplot(cens.ss.mean, aes(x=wl, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
+  geom_smooth(method = "lm", size = 1,colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Wing Loading", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+ # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p6, filename="CeNSindex_by_WingLoading_05-24-21.pdf", height=7, width=9, units="in")
+
+# Scatterplot: CeNS index v. elevation  
+(p7 <- ggplot(cens.ss.mean, aes(x=mass.log, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
+  geom_smooth(method = "lm", size = 1,colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Log Mass (g)", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+ # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p7, filename="CeNSindex_by_Mass_05-24-21.pdf", height=7, width=9, units="in")
+
+# Since CeNS index suggests that middle elev birds are increasing Blood-O2 carrying capacity through higher TRBC while 
+# higher elev species increase blood-O2 carrying capacity through higher MCV, we would expect to see the opposite if 
+# the CeNS index was oriented towards MCV; that is, if we plot MCV/MCV+TRBC instead of TRBC/MCV+TRBC
+# If plotting cens.index.mcv, we therefore expect a concave shape in our plot; and:
+# cens.index and cens.index.mcv values should sum to one
+
+# (p36 <- ggplot(cens.ss.mean, aes(x=elev, y=cens.index.mcv)) + # Add shape=Clade here to get shapes to work properly
+#   geom_point(size=2.1, alpha=1.0) +
+#   #scale_colour_viridis(discrete=TRUE) + 
+#  # scale_color_manual(values = hum_colors) +
+#  # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+#   geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1,colour="darkturquoise", size=1.0) + 
+#   theme_classic() + 
+#   labs(x="Elevation (m)", y="CeNS Index (MCV-oriented)") + # CeNS index = (TRBC/MCV+TRBC)
+#        # theme(axis.text.x = element_text(hjust = 1)) +
+#   theme(legend.position = "right") + 
+#  # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+#   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+#          plot.title = element_text(face="bold")) + # This makes panel header bold 
+#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+#   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+#   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+#  )
+# ggsave(p36, filename="CeNSindex_MCVoriented_by_MeanElev_05-24-21.pdf", height=7, width=9, units="in")
+# # Boom! And that is excactly what we see. 
+
+# playing around w/ other stuff
+(p <- ggplot(cens.ss.mean, aes(x=elev, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.1, alpha=1.0) +
+  #geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1,colour="darkturquoise", size=1.0) +
+  geom_smooth(method = "lm", size = 1,colour="darkturquoise", size=1.0) +
+  theme_classic() +
+  labs(x="MCV", y="CeNS Index (TRBC/MCV+TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+```
+
+Some thoughts: Why did we choose to calculate cens index with estimates from models versus from raw data? Because we want each parameter's relative contribution to driving hemoglobin concentration, which we can't get without model estimates; pulling betas from models gives us the link to Hb. And perhaps what's interesting here is that after modeling this link, we actually find the opposite of what we do by analyzing the raw data: We do *not* see the concave/flipped parabola shape, which suggests that middle-elev species are increasing blood-O2 carrying capacity through higher MCV; instead what we find is that middle elev species are primarily increasing blood-O2 carrying capacity through increases in TRBC. This differs from the process of human acclimatization to altitude. Low and high elevation species both increase blood-o2 carrying capacity through increases through having bigger cells and fewer of them (higher MCV), but this effect is much stronger in high elevation hummingbird species, which have larger cells. 
+
+
+
+######
+
+
+# What predicts CeNS index? 
+```{r}
+# READ IN CENS TREE
+# I took tree.final file and pruned to the subset of species in the CeNS species-specific model set 
+# Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
+tree.cens <- read.tree("HumBlood_CeNS_Modeling_Tree_FINAL.tre") # a list 
+tree.cens$tip.label # Check 29 tips
+
+# Wrangle data for phylo CeNS modeling 
+# Remember that Patagona_gigas_S and N pose problems; drop S, rename N to Patagona_gigas, and conduct modeling w/ 29 spec.
+cens.mod <- cens.ss.mean
+cens.mod <- cens.mod[-which(cens.mod$species == "Patagona_gigas_S"),]
+levels(cens.mod$species)[levels(cens.mod$species)=="Patagona_gigas_N"] <- "Patagona_gigas"
+
+# Are the phylogeny tip labels in the data and vice-versa?
+tree.cens$tip.label %in% cens.mod$species # yes
+sum(tree.cens$tip.label %in% cens.mod$species) # sum = 29 
+summary(tree.cens$tip.label %in% cens.mod$species) # yes 
+
+# Standardize model inputs: 
+cens.mod$elev.z <- standardize(cens.mod$elev)
+cens.mod$mass.z <- standardize(cens.mod$mass.log) # standardized mean mass (log-transformed)
+cens.mod$wl.z <- standardize(cens.mod$wl)
+
+# Take a look at distribution of data 
+p <- ggpairs(subset(cens.mod, select = c(cens.index, elev.z, mass.z, mass.z, wl.z))); p
+
+# Correlation matrix 
+cor(cens.mod[,c("elev.z","mass.z", "wl.z", "cens.index")])
+# Wing loading correlated with elev
+```
+
+
+# CeNS Phylogenetic Signal and Contmaps 
+```{r}
+# CONTMAPS 
+
+# NOTE: See Lisa's tutorial on this, called amphibian_PhyloMethods_Mar2020.R" - more helpful than Phytools tutorials! 
+# IMPORTANT: don't forget to attach species names to the trait! 
+# AND, don't do this with rownames(), which changes data format. Do this as Lisa has done w/ 'names()'. 
+# You want the format to read 'Named num'; class = numeric; type = double 
+
+cens.contmap <- cens.mod %>% group_by(species) %>% summarise(cens.index = mean(cens.index))  
+just.cens <- cens.contmap$cens.index
+names(just.cens) <- cens.contmap$species 
+class(just.cens); typeof(just.cens) #; View(just.hct)
+
+# Make contmap object
+cens.cont.tree <- contMap(tree.cens, just.cens, plot=TRUE, outline=FALSE) 
+
+# Plot map and save to pdf w/ proper aesthetics 
+pdf(file="CeNS.index.contmap.pdf", width=6, height=6) # Write plot to pdf 
+#hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
+plot.contMap(cens.cont.tree, just.cens, res=200, fsize=0.4, lwd=2, leg.txt="CeNS Index", outline=FALSE) # Manually plot using phytools
+dev.off()
+
+
+# PHYLO SIGNAL 
+# Compute two metrics of phylogenetic signal: Blomberg's K and Pagel's lamda 
+# Pagel's lambda: 0 = no phylo singal in the trait and 1 = phylo signal in the trait
+# Blomberg's K: computed w/ p-val by comparing real data to null distribution obtained by random permuations. 
+    # Values of K range from 0 to inf; K=1 = Brownian motion evol; k>1 = spp more similar than expected under random drift; 
+    # k<1 = spp less similar than expected under random drift. The larger the K, the stronger the phylo signal. 
+    # Generally, only K-values with significant p-vals indicate phylo signal
+
+# x must be a vector of a continuously distributed trait; use 'just.cens' vector of mean values created for contmaps 
+# w/ phylosig(), default is method="K" and nsim=1000
+
+set.seed(5555)
+
+# Compute Blomberg's K
+phylosig(tree=tree.cens, x=just.cens, method="K", test=TRUE) # K=0.446, p=0.404
+
+# Compute Pagel's lambda using maximum likelihood
+phylosig(tree=tree.cens, x=just.cens, method="lambda", test=TRUE) # lambda=<0, p=1
+
+# --> NO PHYLO SIGNAL IN OUR CENS DATA!
+```
+
+
+
+# CENS PREDICTION MODELS 
+In addition to the above contmaps and tests of phylo signal, I ran a first pass at models w/ phylogeny incorporated. Buerkner's hypothesis test supported lack of phylo signal, and only ~4% of the variance was explained by phylogeny. Since this is a poor predictor, remove this from our model plan. 
+```{r}
+# cens.index is alarmingly normally distributed, so start with gaussian 
+
+# Remember to use 'cens.ss.mean' because the 'cens.mod' dataframe has no Patagona_gigas_S! (Was for phylo modeling only)
+
+job::job({ # Send to a job to free up console
+
+  # MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+cens.m1 <- brm(
+  formula = bf(cens.index ~ 1),
+  data = cens.ss.mean,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
+#load("hb.m1_CeNS_Intercept-Only.Rdata") # If loading from pre-saved file and not re-running
+
+
+# MODEL 2: FULL MODEL, NO QUADRATIC
+cens.m2 <- brm(
+  formula = bf(cens.index ~ 1 + elev.z + mass.z + wl.z),
+  data = cens.ss.mean,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, 
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m2, file="cens.m2_CeNS_FullModel_PredictorsWithoutQuadratic.RData") # save model
+# load("cens.m2_CeNS_FullModel_PredictorsWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
+
+# MODEL 3: FULL MODEL WITH QUADRATIC
+cens.m3 <- brm(
+  formula = bf(cens.index ~ 1 + I(elev.z^2) + mass.z + wl.z),
+  data = cens.ss.mean,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, 
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m3, file="cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # save model
+# load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # If loading from pre-saved file and not re-running
+
+})
+```
+
+
+# Cens: Summarize and check fit for full models 
+Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
+```{r}
+# FIT AND CONVERGENCE 
+mcmc_plot(cens.m3, type = "trace") 
+plot(cens.m3, N = 2, ask = FALSE)
+mcmc_plot(cens.m3, type = "acf_bar")
+
+bayesplot::pp_check(cens.m3, resp = "cens.index", nsamples = 200) 
+bayesplot::pp_check(cens.m3, type = "stat_2d", nsamples = 100)
+
+# conditional effects
+plot(conditional_effects(cens.m2), points = TRUE) 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI:
+mcmc_plot(cens.m2)  # adjust prob to get 95% CI
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+cens.ss.mean %>%
+  add_residual_draws(cens.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+cens.ss.mean %>%
+  add_predicted_draws(cens.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < cens.index), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+
+# Cens: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Plot: Posterior mean estimates and 95% credible intervals for predictors.
+# Plot these nicely and without intercepts, which throws off scale: 
+# This is a graphical way to look at model fit as opposed to just dumping out model output
+# Circle = point estimate (model summary, print(hb.m6))
+# Thin bars = default 90% CI; adjust prob_outer=0.95 to get 95% CI 
+# Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
+# x-axis should be scale based on value of estimates coming out of the model 
+
+# Model 2 
+#pairs(hb.m3)
+color_scheme_set("blue") # nice default
+cens.m2.p1 <- mcmc_plot(cens.m2, pars=c("b_elev.z", "b_mass.z","b_wl.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "cens.m2") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Wing Loading"))  
+cens.m2.p1
+ggsave(cens.m2.p1, filename = "cens.m2.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m2)
+
+# Model 3 
+cens.m3.p1 <- mcmc_plot(cens.m3, pars=c("b_Ielev.zE2","b_mass.z","b_wl.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "cens.m3") + 
+scale_y_discrete(labels=c("Elevation^2","Mass", "Wing Loading"))  
+cens.m3.p1
+ggsave(cens.m3.p1, filename = "cens.m3.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m3)
+
+# Summary of reduced models: 
+# m4 (reduced m2) will be: elev.z + wl.z
+# m5 (reduced m3) will be: I(elev.z^2)
+```
+
+
+# Hb: Collate model summaries and WAIC scores for full models (m1-m6)
+```{r}
+# Print model summaries 
+sink("hb_brms_model_summaries.txt",append = TRUE)
+summary(cens.m1, waic=TRUE)
+summary(cens.m2, waic=TRUE)
+summary(cens.m3, waic=TRUE)
+sink()
+# print(cens.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+cens.m1.waic <- waic(cens.m1)
+cens.m2.waic <- waic(cens.m2)
+cens.m3.waic <- waic(cens.m3)
+cens.waics <- cbind(cens.m1.waic, cens.m2.waic, cens.m3.waic); cens.waics
+write.csv(cens.waics, "cens_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# cens: RUN REDUCED MODELS (m4-m5)
+```{r}
+# MODEL 5: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
+cens.m4 <- brm(
+  formula = bf(cens.index ~ 1 + elev.z + wl.z), 
+  data = cens.ss.mean,
+  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m4, file="cens.m4_CeNS_ReducedModel_PredictorsOnly.RData") # save model
+#load("cens.m4_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+
+# MODEL 5: REDUCED MODEL 
+cens.m5 <- brm(
+  formula = bf(cens.index ~ 1 + I(elev.z^2)),
+  data = cens.ss.mean,
+  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m5, file="cens.m5_CeNS_ReducedModel.RData") # save model
+# load("cens.m5_CeNS_ReducedModel.RData") 
+```
+
+
+# cens: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Plot: Posterior mean estimates and 95% credible intervals for predictors.
+# Plot these nicely and without intercepts, which throws off scale: 
+# This is a graphical way to look at model fit as opposed to just dumping out model output
+# Circle = point estimate (model summary, print(cens.m6))
+# Thin bars = default 90% CI; adjust prob_outer=0.95 to get 95% CI 
+# Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
+# x-axis should be scale based on value of estimates coming out of the model 
+
+# Model 4 
+color_scheme_set("blue") # nice default
+cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_wl.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on Cens Index", title = "cens.m4") + 
+scale_y_discrete(labels=c("Elev", "Wing Loading"))  
+cens.m4.p1
+ggsave(cens.m4.p1, filename = "hb.m4.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m4)
+
+# Model 5
+#color_scheme_set("red") # nice default
+cens.m5.p1 <- mcmc_plot(cens.m5, pars=c("b_Ielev.zE2"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on Cens Index", title = "cens.m5") + 
+scale_y_discrete(labels=c("Elevation^2"))   
+cens.m5.p1
+ggsave(cens.m5.p1, filename = "cens.m5.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m5)
+```
+
+
+# Hb: Collate model summaries and WAIC scores for reduced models (m5-m6)
+```{r}
+# Print model summaries 
+sink("cens_reduced_brms_model_summaries.txt",append = TRUE)
+summary(cens.m4, waic=TRUE)
+summary(cens.m5, waic=TRUE)
+sink()
+# print(cens.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+cens.m4.waic <- waic(cens.m4)
+cens.m5.waic <- waic(cens.m5)
+cens.waics.red <- cbind(cens.m4.waic, cens.m5.waic); cens.waics.red
+write.csv(cens.waics.red, "cens_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# cens: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("cens_brms_models_all_looic.txt", append=FALSE)
+LOO(cens.m1, cens.m2, cens.m3, cens.m4, cens.m5, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(cens.m2) # 0.23
+bayes_R2(cens.m3) # 0.23
+bayes_R2(cens.m4) # 0.17
+bayes_R2(cens.m5) # 0.115
+
+# Model comparisons:
+#         elpd_diff se_diff
+# cens.m5  0.0       0.0   
+# cens.m4 -0.3       2.5   
+# cens.m1 -0.4       2.1   
+# cens.m2 -0.5       2.6   
+# cens.m3 -1.2       2.6  
+
+# Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
+# job::job({ # Send to a job to free up console
+# hb.m4.unstandardized <- 
+#   update(hb.m4,
+#         newdata = final.hb,
+#         formula = hb ~ 1 + elev + elev_position + mass.log + tempPC1 + precipPC1 + genotype + # use non .z names!!!!
+#                intravar.mass + intravar.temp + intravar.precip + (1|species),
+#         chains = 4, cores = 4)
+# save(hb.m4.unstandardized, file="hb.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
+# })
+# # load("hb.m4.unstandardized_Predictors_SpeciesRE.RData")
+
+# Look at magnitude of unstandardized coefficients 
+# summary(hb.m4.unstandardized)
+# fixef(hb.m4.unstandardized)[2] # For every 1 m increase in elev, we expect Hb will increase by 0.0003885536
+# round(fixef(hb.m4.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, [Hb] will increase by 0.39 g/dl. 
+# fixef(hb.m4.unstandardized)[3] # elev_position
+# Not sure if other variables are worth reporting, as they have really obscure units
+```
+
+Quick summary of top 3 models in order of ranking: 
+1) Model 5: Reduced model with elevation^2 predictor only. Only marginally better than others. 
+2) Model 4: Reduced model with elev and wing loading only. Only marginally better than others. 
+3) Model 1: Null model. 
+
+Top-ranked models are only *slightly* better than lower-ranked models. All models are NOT substantially better than the intercept-only model. No phylogenetic signal in CeNS data. 
+
+
+**Some CeNS take-homes for our paper:**
+- There is a quadratic relationship in CeNS index and elev; namely, middle elevation species appear to adjust blood-O2 carrying capacity through increased TRBC. Lower and high elevation species adjust blood-O2 carrying capacity through increased MCV. 
+- Strong relationship between CeNS index and mass and between CeNS index and wing loading
+- Strong relationship between wing loading and elvation 
+- Of models comparing predictors of CeNS, the top model had elev^2 only, suggesting that elevation is the most important predictor of CeNS index (but also note that the CIs of elev^2 overlapped zero in that reduced model). 
+- No phylogenetic signal in CeNS index 
+
+
+-----
+
+QUESTIONS FOR CHRIS 5/24/21: 
+- Why are these results seemingly opposite of what we expect?! 
+- Our data seem to suggest that higher altitude species increase MCV primarily as a way of increasing blood-O2 carrying capacity. But does this even make sense?! I thought the whole thing was that species want smaller cells at altitude? 
+- Questions for myself, out of curiosity: Does the magnitude of difference between TRBC and MCV in driving Hb differ as you move up and down in elev? 
+
+
+If I take the raw data values for TRBC/MCV+TRBC (maybe after standardizing), what do plots look like? 
+```{R}
+# Answer: It's nonsensical 
+# test <- cens.ss.mean
+# test$cindex <- 1-(test$trbc.z/(test$mcv.z + test$trbc.z))
+```
 
 
 
