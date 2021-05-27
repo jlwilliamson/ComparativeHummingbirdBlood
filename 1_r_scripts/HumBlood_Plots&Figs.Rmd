@@ -434,7 +434,8 @@ Figure 2 - 6-panel fig w/ relationship between predictors and elevation (USING S
   scale_color_manual(values = hum_colors) +
  # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
 #  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
   labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="[Hb] g/dl") +
@@ -456,7 +457,8 @@ ggsave(p21, filename="p21_ScatterplotBasic_Elev_by_Hb_SPM.pdf", height=7, width=
   # scale_colour_viridis(discrete=TRUE) + 
   scale_color_manual(values = hum_colors) +
 #  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
   labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="Hct (%)") +
@@ -471,13 +473,15 @@ ggsave(p21, filename="p21_ScatterplotBasic_Elev_by_Hb_SPM.pdf", height=7, width=
  )
 ggsave(p22, filename="p22_ScatterplotBasic_Elev_by_Hct_SPM.pdf", height=7, width=9, units="in")
 
+
 # Scatterplot: TRBC v. elev
 (p23 <- ggplot(spm.trbc, aes(x=elev.mean, y=trbc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
   geom_point(size=1.6, alpha=0.8) +
   #scale_colour_viridis(discrete=TRUE) + 
   scale_color_manual(values = hum_colors) +
   #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
      x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
@@ -518,6 +522,7 @@ ggsave(p24, filename="p24_ScatterplotBasic_Elev_by_MCV_SPM.pdf", height=7, width
 # ANNOYING: space between plot area and legend is supposedly adjusted w/ "legend.box.spacing" arg but little documentation and it's
 # being stubborn. I manually exported legend, will make 6-panel fig w/out legend and will add legend on in Illustrator
 
+
 # Scatterplot: MCH v. elev
 (p25 <- ggplot(spm.mch, aes(x=elev.mean, y=mch.mean,  colour=Clade)) + # Add shape=Clade here to get shapes to work properly
   geom_point(size=1.6, alpha=0.8) +
@@ -546,6 +551,7 @@ ggsave(p25, filename="p25_ScatterplotBasic_Elev_by_MCH_SPM.pdf", height=7, width
   scale_color_manual(values = hum_colors) +
   #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
   geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
   labs(x="Elevation (m)", y="MCHC (g/dl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
@@ -572,7 +578,7 @@ library(patchwork)
 # Alternative layout option = BETTER, USE THIS ONE: 
 Fig2_BloodVElev_6panel_Species_mean <- (p21 + p22 + p23 + p24 + p25 + p26 + plot_layout(guides = "collect"))
 plot(Fig2_BloodVElev_6panel_Species_mean)
-ggsave(Fig2_BloodVElev_6panel_Species_mean, filename = "Fig2_BloodVElev_6panel_Species_mean_03-29-21.pdf", bg="transparent", height=7, width=11, units="in")
+ggsave(Fig2_BloodVElev_6panel_Species_mean, filename = "Fig2_BloodVElev_6panel_Species_mean_05-27-21.pdf", bg="transparent", height=7, width=11, units="in")
 # Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
 
 # Fig2_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2) # Old method 
@@ -596,7 +602,6 @@ final.hmt <- na.omit(final.hmt)
 # test <- final %>% mutate(o2cc = mcv * trbc * (1/3))
 # As it turns out, we don't need this; see plot below
 ```
-
 
 Mock up of Figure 3, relationships among blood parameters 
 See Hawkey et al. 1991 for inspiration.

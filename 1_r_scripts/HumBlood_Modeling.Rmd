@@ -782,6 +782,7 @@ theme_set(theme_bw() +
               ,panel.grid.major = element_blank()
               ,panel.grid.minor = element_blank()
               ,panel.background = element_blank()
+             # ,panel.border = element_blank()
               ,axis.text.x  = element_text(angle=90, vjust=0.5, size=8)
             ))
 
@@ -794,9 +795,12 @@ theme_set(theme_bw() +
 
 # Save final post-processing file for modeling; this will be read into other downstream docs
 ```{r}
-#write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_04-26-21.csv")
+# write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_05-27-21.csv")
 ```
 
+
+
+-------
 
 
 # MODELING 
@@ -938,7 +942,7 @@ hb.m4 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(hb.m4, file="hb.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("hb.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+#load("hb.m4_FullModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -1645,7 +1649,7 @@ hct.m4 <- brm(
   # )
 )
 save(hct.m4, file="hct.m4_FullModel_SpeciesREOnly.RData") # save model
-# load("hct.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+# load("hct.m4_FullModel_SpeciesREOnly.RData") 
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
@@ -2125,7 +2129,7 @@ trbc.m4 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(trbc.m4, file="trbc.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("trbc.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+#load("trbc.m4_FullModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2520,6 +2524,7 @@ get_prior(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + intravar.
 # Gaussian appears to fit better than student's t distribution
 
 # MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+job::job({ 
 mcv.m1 <- brm(formula = bf(mcv ~ 1),
   data = final.mcv,
   family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
@@ -2532,7 +2537,7 @@ mcv.m1 <- brm(formula = bf(mcv ~ 1),
   sample_prior = TRUE # save priors 
 )
 save(mcv.m1, file="mcv.m1_Intercept-Only.RData") # save model
-load("mcv.m1_Intercept-Only.Rdata") 
+#load("mcv.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECT)
@@ -2586,23 +2591,24 @@ mcv.m4 <- brm(formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + pre
 )
 save(mcv.m4, file="mcv.m4_FullModel_SpeciesREOnly.RData") # save model
 load("mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+})
 
-
-# m4 WITH QUADRATIC ELEV
-mcv.m4.quad <- brm(formula = bf(mcv ~ 1 + elev.z + I(elev.z^2) + elev.pos.z + mass.z + temp.z + precip.z + genotype +
-               intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species)),
-  data = final.mcv,
-  family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
-  cores = 4,
-  chains = 4,
-  thin = 10,
-  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, # nora had 20000, EBL used 10000
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
-  sample_prior = TRUE # save priors 
-)
-save(mcv.m4.quad, file="mcv.m4.quad_FullModel_SpeciesREOnly.RData") # save model
-#load("mcv.m4.quad_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+# # m4 WITH QUADRATIC ELEV
+# Commented out because we don't *really* see a quadratic relationship in the individual-level data, nor do we expect one.
+# mcv.m4.quad <- brm(formula = bf(mcv ~ 1 + elev.z + I(elev.z^2) + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+#                intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species)),
+#   data = final.mcv,
+#   family = skew_normal(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+#   iter = 10000, # nora had 20000, EBL used 10000
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors 
+# )
+# save(mcv.m4.quad, file="mcv.m4.quad_FullModel_SpeciesREOnly.RData") # save model
+# #load("mcv.m4.quad_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 ```
 
 
@@ -2708,21 +2714,21 @@ ggsave(mcv.m4.p1, filename = "mcv.m4.p1_PosteriorEstimates&CredibleIntervals.pdf
 summary(mcv.m4)
 # Predictors whose 95% CIs do NOT overlap zero (for reduced model): temp.z
 
-# Model 4 - quadratic
-#color_scheme_set("red") # nice default
-mcv.m4.p1.quad <- mcmc_plot(mcv.m4.quad, pars=c("b_elev.z", "b_Ielev.zE2", 
-                                                "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
-                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
-                                    "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
-                                    prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
-                                    point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [mcv]", title = "mcv.m4.quad: Posterior mean estimates & 95% Credible Intervals") + 
-scale_y_discrete(labels=c("Elevation", "Elev Quad", "Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
-mcv.m4.p1.quad
-ggsave(mcv.m4.p1.quad, filename = "mcv.m4.p1.quad_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(mcv.m4.quad)
-# Predictors whose 95% CIs do NOT overlap zero (for reduced model): elev.z + temp.z
+# # Model 4 - quadratic
+# #color_scheme_set("red") # nice default
+# mcv.m4.p1.quad <- mcmc_plot(mcv.m4.quad, pars=c("b_elev.z", "b_Ielev.zE2", 
+#                                                 "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+#                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
+#                                     "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
+#                                     prob_outer=0.95, # 95% outer CI 
+#                                     prob=0.50, # 50% inner CI 
+#                                     point_est="mean") + # mean point est; default is median 
+# labs(x="Effect on [mcv]", title = "mcv.m4.quad: Posterior mean estimates & 95% Credible Intervals") + 
+# scale_y_discrete(labels=c("Elevation", "Elev Quad", "Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+# mcv.m4.p1.quad
+# ggsave(mcv.m4.p1.quad, filename = "mcv.m4.p1.quad_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# summary(mcv.m4.quad)
+# # Predictors whose 95% CIs do NOT overlap zero (for reduced model): elev.z + temp.z
 
 ####
 
@@ -2741,7 +2747,7 @@ summary(mcv.m1, waic=TRUE)
 summary(mcv.m2, waic=TRUE)
 summary(mcv.m3, waic=TRUE)
 summary(mcv.m4, waic=TRUE)
-summary(mcv.m4.quad, waic=TRUE)
+#summary(mcv.m4.quad, waic=TRUE)
 sink()
 # print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -2750,8 +2756,8 @@ mcv.m1.waic <- waic(mcv.m1)
 mcv.m2.waic <- waic(mcv.m2)
 mcv.m3.waic <- waic(mcv.m3)
 mcv.m4.waic <- waic(mcv.m4)
-mcv.m4.quad.waic <- waic(mcv.m4.quad)
-mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m4.waic, mcv.m4.quad.waic); mcv.waics
+#mcv.m4.quad.waic <- waic(mcv.m4.quad)
+mcv.waics <- cbind(mcv.m1.waic, mcv.m2.waic, mcv.m3.waic, mcv.m4.waic); mcv.waics
 write.csv(mcv.waics, "mcv_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 ```
 
@@ -2774,10 +2780,10 @@ hyp.sp.mcv.m4 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) 
 plot(hyp.sp.mcv.m4)
 # 14% variance explained by species 
 
-# m4.quad species variance 
-hyp.sp.mcv.m4.quad <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
-(hyp.sp.mcv.m4.quad <- hypothesis(mcv.m4.quad, hyp.sp.mcv.m4.quad, class = NULL))
-plot(hyp.sp.mcv.m4.quad)
+# # m4.quad species variance 
+# hyp.sp.mcv.m4.quad <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.mcv.m4.quad <- hypothesis(mcv.m4.quad, hyp.sp.mcv.m4.quad, class = NULL))
+# plot(hyp.sp.mcv.m4.quad)
 # 14% variance explained by species 
 ```
 
@@ -2798,7 +2804,7 @@ mcv.m5 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(mcv.m5, file="mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
-#load("mcv.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+load("mcv.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 mcv.m6 <- brm(
@@ -2814,7 +2820,7 @@ mcv.m6 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(mcv.m6, file="mcv.m6_ReducedModel_SpeciesREOnly.RData") # save model
-#load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
 
 # # MODEL 6.QUAD: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 # We don't want to incorporate quadratic models for individual-level data
@@ -2971,7 +2977,7 @@ plot(final.mcv$mass.z, final.mcv$mcv, xlab="Mass (standardized)", ylab="MCV", pc
 
 library(loo)
 sink("mcv_brms_models_all_looic.txt", append=FALSE)
-LOO(mcv.m1, mcv.m2, mcv.m3, mcv.m4, mcv.m5, mcv.m6, mcv.m4.quad, reloo=TRUE) 
+LOO(mcv.m1, mcv.m2, mcv.m3, mcv.m4, mcv.m5, mcv.m6, reloo=TRUE) 
 sink()
 # reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
 # you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
@@ -2989,14 +2995,14 @@ bayes_R2(mcv.m4.quad) # 0.115
 bayes_R2(mcv.m5) # 0.008
 bayes_R2(mcv.m6) # 0.094
 
-# Model comparisons - original comparison without quadratic models:
+# Model comparisons:
 #        elpd_diff se_diff
 # mcv.m6   0.0       0.0  
-# mcv.m2  -0.5       1.0  
-# mcv.m4  -0.9       3.6  
+# mcv.m2  -0.6       1.1  
+# mcv.m4  -0.8       3.6  
 # mcv.m5 -23.3       7.1  
-# mcv.m1 -24.9       6.9  
-# mcv.m3 -26.5       7.3   
+# mcv.m1 -24.8       6.9  
+# mcv.m3 -26.5       7.3  
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
@@ -3116,7 +3122,7 @@ mch.m4 <- brm(
 )
 save(mch.m4, file="mch.m4_FullModel_SpeciesREOnly.RData") # save model
 # ~3 mins
-#load("mch.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+#load("mch.m4_FullModel_SpeciesREOnly.RData") 
 
 ```
 
@@ -3304,7 +3310,7 @@ mch.m6 <- brm(
   sample_prior = TRUE # save priors
 )
 save(mch.m6, file="mch.m6_ReducedModel_PhyloREOnly.RData") # save model
-# load("mch.m6_ReducedModel_PhyloREOnly.RData") # If loading from pre-saved file and not re-running
+# load("mch.m6_ReducedModel_PhyloREOnly.RData") 
 ```
 
 
@@ -3925,22 +3931,39 @@ All models with species effect ranked much higher than models w/out, suggesting 
 
 #######
 
-# FIGURE 4 - 6-panel blood posterior probability fig 
+### FIGURE 4 - 6-panel blood posterior probability fig 
+
+#Set up some figure aesthetics and load in data: 
 ```{r}
 library(tidyverse)
 library(patchwork)
 
+# Quick load to be able to make plots
+load("hb.m4_FullModel_SpeciesREOnly.RData")
+load("hct.m4_FullModel_SpeciesREOnly.RData")
+load("trbc.m4_FullModel_SpeciesREOnly.RData") 
+load("mcv.m4_FullModel_SpeciesREOnly.RData")
+load("mcv.m6_ReducedModel_SpeciesREOnly.RData")
+load("mch.m4_FullModel_SpeciesREOnly.RData")
+load("mch.m6_ReducedModel_PhyloREOnly.RData")
+load("mchc.m4_FullModel_SpeciesREOnly.RData") 
+load("mchc.m6_ReducedModel_SpeciesREOnly.RData")
+
 # Set color scheme 
-color_scheme_set("viridisE") # Looks most sophisticated for fig; ViridisC looks a little clownish
+color_scheme_set("viridisD")
+# color_scheme_set("viridisE") # Looks most sophisticated for fig; ViridisC looks a little clownish
 # Options: blue, teal, red, brightblue, purple, gray, mix-blue-red, pink; ViridisC & E are my favorite
 # See help function of color_scheme_set for full list and how to mix colors 
 
-# Note that if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
+# Note: if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
 # Narrow and pdf is slightly different; either use family "Helvetica" (or any other), or follow instructions here: 
 # https://github.com/thomasp85/ggraph/issues/152
+```
 
+# Print Figure 4
+```{R}
 # HB - panel A
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 hb.m4.fig4a <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
             "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
             prob_outer=0.95, # 95% outer CI 
@@ -3950,6 +3973,10 @@ hb.m4.fig4a <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_
             scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", 
                                       "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
             theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
             theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
             ggtitle("A") + # Assign panel number/header
             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -3961,7 +3988,7 @@ ggsave(hb.m4.fig4a, filename = "hb.m4.fig4a_Hb_PosteriorEstimates&CredibleInterv
 
 
 # HCT - Panel B
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 hct.m4.fig4b <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
             "b_genotypeGlyMSer", "b_genotypeSerMSer","b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
             prob_outer=0.95, # 95% outer CI 
@@ -3969,9 +3996,13 @@ hct.m4.fig4b <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","
             point_est="mean") + # mean point est; default is median 
             labs(x="Effect on Hct", title = " ") + 
             # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", 
-            #                         "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +  
-            scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+            # "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +  
+            scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
             theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
             theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
             ggtitle("B") + # Assign panel number/header
             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -3982,17 +4013,21 @@ hct.m4.fig4b
 ggsave(hct.m4.p1, filename = "hct.m4.fig4b_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
 # TRBC - Panel C
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 trbc.m4.fig4c <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
               "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
               prob_outer=0.95, # 95% outer CI 
               prob=0.50, # 50% inner CI 
               point_est="mean") + # mean point est; default is median 
               labs(x="Effect on TRBC", title = " ") + 
-              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
-              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
-              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip","Genotype (Gly-Ser)",
+              # "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
               theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
               theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
               ggtitle("C") + # Assign panel number/header
               theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -4004,7 +4039,7 @@ ggsave(trbc.m4.fig4c, filename = "trbc.m4.fig4c_trbc_PosteriorEstimates&Credible
 
 
 # MCV - panel D
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 mcv.m4.fig4d <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
              prob_outer=0.95, # 95% outer CI 
@@ -4012,8 +4047,12 @@ mcv.m4.fig4d <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","
              point_est="mean") + # mean point est; default is median 
              labs(x="Effect on MCV", title = " ") + 
              scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
-                                        "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+                                        "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp","Intra Var: Precip")) +
              theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
              theme(text = element_text(family="Helvetica",size=9)) + # y axis labels 
              ggtitle("D") + # Assign panel number/header
              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -4031,10 +4070,14 @@ mcv.m6.fig4d.inset <- mcmc_plot(mcv.m6, pars=c("b_temp.z"),
                    point_est="mean") + # mean point est; default is median
                    labs(x="Effect on MCV", title = " ") +
                    scale_y_discrete(labels=c("Temp")) + 
-                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
-                   theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                   theme_bw() +  #theme with white background
+                   theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                      panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+                   theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # panel header size
+                   theme(text = element_text(family="Helvetica", size=6)) + # y axis labels; must go AFTER AXIS CODE
                    # ggtitle("C") + # Assign panel number/header
-                   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                   theme(plot.title.position = "plot", # "plot" specifies that you want "title" flush with y-axis
                    plot.title = element_text(face="bold"))  # This makes panel header bold 
                    # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
                    #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
@@ -4048,9 +4091,8 @@ mcv.m4.fig4d.withinset <- mcv.m4.fig4d + inset_element(mcv.m6.fig4d.inset,
 mcv.m4.fig4d.withinset
 
 
-
 # MCH - panel E
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 mch.m4.fig4e <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
              prob_outer=0.95, # 95% outer CI 
@@ -4058,9 +4100,13 @@ mch.m4.fig4e <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","
              point_est="mean") + # mean point est; default is median 
              labs(x="Effect on MCH", title = " ") + 
               # scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
-              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
-             scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+              #"Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+             scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
              theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
              theme(text = element_text(family="Helvetica",size=9)) + # y axis labels 
              ggtitle("E") + # Assign panel number/header
              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -4077,11 +4123,15 @@ mch.m6.fig4e.inset <- mcmc_plot(mch.m6, pars=c("b_elev.z", "b_temp.z"),
                    prob=0.50, # 50% inner CI
                    point_est="mean") + # mean point est; default is median
                    labs(x="Effect on MCH", title = " ") +
-                   scale_y_discrete(labels=c("Elev", "Temp")) + 
-                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
-                   theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                   scale_y_discrete(labels=c("Elev", "Temp")) +
+                   theme_bw() +  #theme with white background
+                   theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                      panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+                   theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+                   theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font=panel header size
+                   theme(text = element_text(family="Helvetica",size=6)) + # y axis labels; MUST GO AFTER AXIS TEXT
                    # ggtitle("C") + # Assign panel number/header
-                   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                   theme(plot.title.position = "plot", # "plot" specifies that you want "title" flush with y-axis
                    plot.title = element_text(face="bold"))  # This makes panel header bold 
                    # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
                    #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
@@ -4095,19 +4145,22 @@ mch.m4.fig4e.withinset <- mch.m4.fig4e + inset_element(mch.m6.fig4e.inset,
 mch.m4.fig4e.withinset
 
 
-
 # MCHC - panel F
-color_scheme_set("viridisE")
+color_scheme_set("viridisD")
 mchc.m4.fig4f <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
               "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
               prob_outer=0.95, # 95% outer CI 
               prob=0.50, # 50% inner CI 
               point_est="mean") + # mean point est; default is median 
               labs(x="Effect on MCHC", title = "") + 
-              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
-              #                           "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
-              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace labels w/ blanks for multipanel fig
+              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip","Genotype (Gly-Ser)",
+              #"Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
               theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
               theme(text = element_text(family="Helvetica",size=9)) + # y axis labels
               ggtitle("F") + # Assign panel number/header
               theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -4125,10 +4178,15 @@ mchc.m6.fig4f.inset <- mcmc_plot(mchc.m6, pars=c("b_intravar.mass.z", "b_intrava
                     point_est="mean") + # mean point est; default is median
                     labs(x="Effect on MCHC", title = "") +
                     scale_y_discrete(labels=c("Intra Var: \n Mass", "Intra Var: \n Temp")) + 
-                    theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + # font = panel header size
-                    theme(text = element_text(family="Helvetica",size=6)) + # y axis labels
+                    theme_bw() +  #theme with white background
+                    theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                          panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), 
+                          panel.border=element_blank()) +
+                    theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+                    theme(plot.title = element_text(family = "Helvetica", color="black",size=8)) + #font=panel header size
+                    theme(text = element_text(family="Helvetica",size=6)) + # y axis labels; MUST GO AFTER AXIS TEXT
                     # ggtitle("C") + # Assign panel number/header
-                    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+                    theme(plot.title.position = "plot", # "plot" specifies that you want "title" flush with y-axis
                     plot.title = element_text(face="bold"))  # This makes panel header bold 
                     # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
                     #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
@@ -4151,8 +4209,9 @@ Fig4_PosteriorProbs_6panel <- (hb.m4.fig4a + hct.m4.fig4b + trbc.m4.fig4c +
                               mcv.m4.fig4d.withinset + mch.m4.fig4e.withinset + mchc.m4.fig4f.withinset + 
                               plot_layout(guides = "collect"))
 plot(Fig4_PosteriorProbs_6panel)
-ggsave(Fig4_PosteriorProbs_6panel, filename = "Fig4_PosteriorProbs_6panel_03-24-21.pdf", bg="transparent", height=7, width=11, units="in")
+ggsave(Fig4_PosteriorProbs_6panel, filename = "Fig4_PosteriorProbs_6panel_05-26-21.pdf", bg="transparent", height=7, width=11, units="in")
 # Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
+# I originally had this set to height=7 and width=11 but somehow between March and May 2021, aesthetics got wonky
 
 # Model summaries: 
 # summary(hb.m4) # Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z

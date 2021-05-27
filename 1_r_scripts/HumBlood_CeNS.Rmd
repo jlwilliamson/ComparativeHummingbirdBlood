@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 5/21/21"
+date: "4/26/2021; last revised 5/24/21"
 output: html_document
 ---
 
@@ -157,7 +157,7 @@ final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if rea
 # We could alternatively use 'final' dataset and model will remove NAs for us, but this is a little bit cleaner. 
 censdat <- subset(final, select=c(species, rowID, nk, department, elev, mass, wl, hb, mcv, mcv.log, trbc)) 
   # dept needed for filtering of patagona for species mean data
-censdat <- na.omit(censdat) # 688 observations 
+censdat <- na.omit(censdat) # 661 observations 
 
 # We don't need to check normality and transform because we did that during pre-processing in HumBlood_Modeling. 
 # We know MCV has heavy tails, respons well to skew_normal, but *might* fit better with mcv.log variable - we'll see below.
