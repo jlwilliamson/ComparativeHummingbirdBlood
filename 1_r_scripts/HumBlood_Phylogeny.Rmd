@@ -1183,11 +1183,11 @@ Notes on the above code chunk:
 # Adjust branch lengths 
 Calculate branch lengths with t = D/2r
 t = time
-D = # base pair differences
+D = genetic distance (= proportion of bp that differ between 2 sequences or lineages)
 2 = number of diverging lineages
-r = rate (~2% per million years, or 0.029)
+r = rate of divergence (for ND2 this is 0.029, or ~2.9% per million years; Lerner et al. 2011)
 ```{r}
- # CALCULATE RATES 
+# CALCULATE RATES 
 # Branch length for Oreotrochilus estella and Oreotrochilus leucopleurus
 # Genetic distance of D=0.0084 taken from Table 1 of Sornoza-Molina et al. 2018 (ND2 sequenced)
 # r=0.029 for ND2 taken from Lerner et al. 2011 rates
@@ -1292,35 +1292,62 @@ tree.mchc$tip.label # 73 tips
 ```
 
 
-# MAKE CENS TREE FOR ASSESSMENT OF PHYLO SIGNAL
+# MAKE A SPECIES MEAN TREE WITH PGIGN AND PGIGS
+Because we'll analyze Patagona_gigas_S and Patagona_gigas_N as functionally different, add in Patagona_gigas_S to final pruned tree and adjust branch lengths to reflect known percent divergence based on our preliminary ND2 data. 
 ```{r}
-# Since I haven't worked with this script for a while, read in final tree
 tree.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
 is.rooted(tree.final) # verify that tree is rooted; TRUE = tree is rooted (we want this)
+plot(tree.final)
+
+spm.tree1 <- tree.final # Start making species mean tree 
+spm.tree1$tip.label[38] <- "Patagona_gigas_N" # Change name of Patagona tip to Patagona_gigas_N
+plot(spm.tree1)
+spm.tree1$edge.length
+
+# Get divergence estimates for PgigasN and PgigasS
+pgig.div <- round(0.07399794/(2*0.029), 6); pgig.div 
+# This is ~7.3% divergence; ~72/973 bp of ND2
+
+# Add tip for Patagona_gigas_S sister to Patagona_gigas_N
+# With divergence time of 1.275827 Ma and duration (edge length) of 1.275827
+pgign.node <- which(spm.tree1$tip.label=="Patagona_gigas_N") 
+spm.tree2 <- bind.tip(spm.tree1, tip.label="Patagona_gigas_S", where=pgign.node, position=pgig.div, edge.length=pgig.div)
+# where = which node to add new tip to; position = place in time to add new tip to; edge length = how long is branch?
+
+plotTree(spm.tree2, ftype="i") # Check this final tree w/ adjusted branch lengths  
+edgelabels(round(spm.tree2$edge.length,3), cex=0.4) # Check all edge labels to verify they updated 
+
+# Looks good! Save new species mean tree w/ PgigN and PgigS:
+tree.spm.final <- spm.tree2
+ape::write.tree(tree.spm.final, file="McGuirePruned_AllHummingbirdComparativeTree_SpeciesMeans_PgigN&PgigS_FINAL.tre") # write out file 
+```
+
+
+# MAKE CENS TREE FOR ASSESSMENT OF PHYLO SIGNAL
+Tree pruned to the subset of 32 species used in the species-specific CeNS analysis. 
+```{r}
+# Since I haven't worked with this script for a while, read in final tree
+# tree.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
+tree.spm.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_SpeciesMeans_PgigN&PgigS_FINAL.tre") # a list 
+is.rooted(tree.spm.final) # verify that tree is rooted; TRUE = tree is rooted (we want this)
+plot(tree.spm.final)
 
 # Must have the file 'cens.ss.mean' loaded (may have done this from HumBlood_CeNS.Rmd file). If not, load it here: 
 # cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_05-24-21.csv", stringsAsFactors = TRUE)
 
 # PREP KEEP.TIP DATA
-# We want to create a pruned tree with just species tips for CeNS modeling. But, we split Patagona into PgigN and PgigS. 
-# We don't want to combine them since functional differences were the basis for classifying as 2 different haplotypes. 
-# Drop PgigS and change name of PgigN back to P gigas
+# We want to create a pruned tree with just species tips for CeNS modeling. 
 cens.data.for.tree <- cens.ss.mean
-cens.data.for.tree <- cens.data.for.tree[-which(cens.data.for.tree$species == "Patagona_gigas_S"),]
-levels(cens.data.for.tree$species)[levels(cens.data.for.tree$species)=="Patagona_gigas_N"] <- "Patagona_gigas"
-
-# Check data structures 
-# To use keep.tip, variable "species" MUST BE A CHARACTER, not a factor! 
-str(cens.data.for.tree)
-cens.data.for.tree$species <- as.character(cens.data.for.tree$species)
+str(cens.data.for.tree) # Check data structures 
+cens.data.for.tree$species <- as.character(cens.data.for.tree$species) # w/ keep.tip, "species" MUST BE CHAR, not factor! 
 
 # Prune CeNS sub-tree
-tree.cens <- keep.tip(tree.final, cens.data.for.tree$species)
+tree.cens <- keep.tip(tree.spm.final, cens.data.for.tree$species)
 
 # Check to make sure things look ok
 plot(tree.cens)
 class(tree.cens)
-tree.cens$tip.label # fantastic; just the 29 tip labels we want 
+tree.cens$tip.label # fantastic; just the 32 tip labels we want 
 
 # Write out final file you'll use for CeNS modeling
 ape::write.tree(tree.cens, file="HumBlood_CeNS_Modeling_Tree_FINAL.tre") 
@@ -1335,8 +1362,6 @@ sessionInfo() # List of packages and versions in use
 ###########
 
 ## END 
-
-
 
 
 ------
