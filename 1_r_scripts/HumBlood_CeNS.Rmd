@@ -147,7 +147,7 @@ final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if rea
 ```{r}
 # Subset the data to just blood variables of interest
 # We could alternatively use 'final' dataset and model will remove NAs for us, but this is a little bit cleaner. 
-censdat <- subset(final, select=c(species, rowID, nk, department, month, elev, mass, wl, hb, mcv, mcv.log, trbc)) 
+censdat <- subset(final, select=c(species, rowID, nk, department, month, elev, mass, wl, hb, mcv, mcv.log, trbc, mchc, genotype)) 
   # dept needed for filtering of patagona for species mean data
 censdat <- na.omit(censdat) # 661 observations 
 
@@ -212,12 +212,14 @@ cens.sp <- cens.sp %>% group_by(species) %>% summarise(hb = mean(hb),
                                                   wl = mean(wl),
                                                   mcv = mean(mcv),
                                                   mcv.log = mean(mcv.log),
-                                                  trbc = mean(trbc)
+                                                  trbc = mean(trbc),
+                                                  mchc = mean(mchc)
                                                   ) 
 
 # Standardize predictors 
 cens.sp$mcv.z <- standardize(cens.sp$mcv)
 cens.sp$trbc.z <- standardize(cens.sp$trbc)
+cens.sp$mchc.z <- standardize(cens.sp$mchc)
 cens.sp$mass.log <- log10(cens.sp$mass)
 
 # This dataset now contains species mean values for Hb, TRBC, MCV for all species with 3 or more individuals sampled. 
@@ -283,7 +285,7 @@ Tfur <- as.data.frame(cens.ss.list[[32]])
 # Pguy <- censdat[which(censdat$species == "Phaethornis_guy"),] # another clunky subset alternative
 
 # Predictor dataset - take a look at distributions
-#p <- ggpairs(subset(Ccoe, select = c(elev, hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
+#p <- ggpairs(subset(Ccoe, select = c(elev, hb, mcv, trbc, mcv.log, mcv.z, trbc.z, mchc))); print(p)
 # 
 # p <- (ggplot(Amel, aes(x=trbc)) + 
 #        geom_density(alpha=.2, fill="#FF6666") +
@@ -388,8 +390,8 @@ cens.il.m1 <- brm(
   cores = 4,
   chains = 4,
   thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, 
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
@@ -420,8 +422,8 @@ cens.il.m2 <- brm(
   cores = 4,
   chains = 4,
   thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
@@ -490,7 +492,7 @@ ggsave(cens.il.m2.p1, filename = "cens.il.m2.p1_PosteriorEstimates&CredibleInter
 summary(cens.il.m2)
 # Both MCV and TRBC have strong positive effects on Hb.
 # As TRBC increases, Hb increases. As MCV increases, Hb increases.
-# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 2.05; MCV = 1.93)
+# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 2.05; MCV = 1.92)
 # So, it seems that individuals increase Hb by increasing TRBC. 
 ```
 
@@ -570,10 +572,10 @@ summary(cens.il.m2.unstandardized)
 ```
 
 Quick summary of top model comparison: 
-- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 13%. R^2 = 0.56. 
+- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 14%. R^2 = 0.56. 
 
 Standardized Estimates: 
-MCV = 1.93
+MCV = 1.92
 TRBC = 2.05
 
 Unstandardized Estimates: 
@@ -603,8 +605,8 @@ cens.sm.m1 <- brm(
   cores = 4,
   chains = 4,
   thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000, 
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
@@ -619,8 +621,8 @@ cens.sm.m2 <- brm(
   cores = 4,
   chains = 4,
   thin = 10,
-  warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-  iter = 10000,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
@@ -689,7 +691,7 @@ ggsave(cens.sm.m2.p1, filename = "cens.sm.m2.p1_PosteriorEstimates&CredibleInter
 summary(cens.sm.m2)
 # Both MCV and TRBC have strong positive effects on Hb.
 # As TRBC increases, Hb increases. As MCV increases, Hb increases.
-# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 1.45; MCV = 1.40)
+# Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 1.45; MCV = 1.41)
 # So, it seems that species increase Hb by increasing TRBC. 
 ```
 
@@ -728,7 +730,7 @@ bayes_R2(cens.sm.m2) # 0.62
 # Model comparisons:
 #            elpd_diff se_diff
 # cens.sm.m2   0.0       0.0  
-# cens.sm.m1 -21.4       5.2     
+# cens.sm.m1 -21.5       5.3      
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
@@ -743,7 +745,7 @@ save(cens.sm.m2.unstandardized, file="cens.sm.m2.unstandardized_Predictors_Speci
 
 summary(cens.sm.m2.unstandardized)
 # mcv = 0.14; trbc = 2.13; what this tells us: 
-# For every unit increase in TRBC, [Hb] increases by 2.13 g/dl
+# For every unit increase in TRBC, [Hb] increases by 2.15 g/dl
 # For every unit increase in MCV, [Hb] increases by 0.14 g/dl
 ```
 
@@ -751,14 +753,14 @@ Quick summary of top model comparison:
 - Model 2, full model fits best by var! R^2 = 0.62. 
 
 Standardized Estimates: 
-MCV = 1.40
+MCV = 1.41
 TRBC = 1.45
 
 Unstandardized Estimates: 
 MCV = 0.14
-TRBC = 2.13
+TRBC = 2.15
 - For every increase in MCV of one fl, we expect [Hb] will increase by 0.14 g/dl. 
-- For every increase in TRBC of one unit, we expect [Hb] will increase by 2.13 g/dl. 
+- For every increase in TRBC of one unit, we expect [Hb] will increase by 2.15 g/dl. 
 
 
 ########
@@ -2805,20 +2807,27 @@ cens.ss.mean <- cens.ss %>% group_by(species) %>% summarise(hb = mean(hb),
                                                   mcv.z = mean(mcv.z),
                                                   trbc = mean(trbc),
                                                   trbc.z = mean(trbc.z),
+                                                  mchc = mean(mchc) # need to add mchc.z to cens.ss if you want it
                                                   )
 # NEED TO USE CENS.SS for this because it contains all individual data for the pared-down species subset used for species-
 # specific CeNS modeling (i.e., cens.sp is a mean dataset but has too many species in it)
 
+# Get genotypes for our CeNS subset 
+cens.genotypes <- cens.ss %>% group_by(species, genotype) %>% summarise(count = length(nk)) # Obs/species for ss dataset
+cens.genotypes <- cens.genotypes[ , !(colnames(cens.genotypes) %in% c("species"))] # drop species column
+# Count is # individuals included per species 
+
 # Add CeNS indices to species-specific mean CeNS data for plotting and later analysis 
-cens.ss.mean <- cbind(cens.ss.mean, cens.trbc, cens.mcv, cens.R2, cens.unst.trbc, cens.unst.mcv)
+cens.ss.mean <- cbind(cens.ss.mean, cens.trbc, cens.mcv, cens.R2, cens.unst.trbc, cens.unst.mcv, cens.genotypes)
 cens.ss.mean$mass.log <- log10(cens.ss.mean$mass)
 
 # Cens index: TRBC [3] / MCV [2] + TRBC [3]
 # Calculate MCV-oriented CeNS version with: "1-cens.index"
 cens.ss.mean$cens.index <- (cens.ss.mean$cens.trbc)/(cens.ss.mean$cens.mcv + cens.ss.mean$cens.trbc)
 
-# write.csv(cens.ss.mean, "cens.ss.mean_ForCeNSmodeling_06-02-21.csv")
+# write.csv(cens.ss.mean, "cens.ss.mean_ForCeNSmodeling_06-03-21.csv")
 ```
+
 
 
 # CeNS Plots
@@ -2844,7 +2853,7 @@ What does our CeNS index look like in relation to other variables?
   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p5, filename="CeNSindex_by_MeanElev_06-02-21.pdf", height=7, width=9, units="in")
+ggsave(p5, filename="CeNSindex_by_MeanElev_06-03-21.pdf", height=7, width=9, units="in")
 
 
 # Scatterplot: CeNS index v. wing loading  
@@ -2867,7 +2876,7 @@ ggsave(p5, filename="CeNSindex_by_MeanElev_06-02-21.pdf", height=7, width=9, uni
   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p6, filename="CeNSindex_by_WingLoading_06-02-21.pdf", height=7, width=9, units="in")
+ggsave(p6, filename="CeNSindex_by_WingLoading_06-03-21.pdf", height=7, width=9, units="in")
 
 # Scatterplot: CeNS index v. Mass  
 (p7 <- ggplot(cens.ss.mean, aes(x=mass.log, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
@@ -2889,7 +2898,7 @@ ggsave(p6, filename="CeNSindex_by_WingLoading_06-02-21.pdf", height=7, width=9, 
   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p7, filename="CeNSindex_by_Mass_06-02-21.pdf", height=7, width=9, units="in")
+ggsave(p7, filename="CeNSindex_by_Mass_06-03-21.pdf", height=7, width=9, units="in")
 
 # Since CeNS index suggests that middle elev birds are increasing Blood-O2 carrying capacity through higher TRBC while 
 # higher elev species increase blood-O2 carrying capacity through higher MCV, we would expect to see the opposite if 
@@ -2927,7 +2936,7 @@ ggsave(p, filename="CeNSindex_by_TRBC.pdf", height=7, width=9, units="in")
 # The higher your contribution to using TRBC to increase [Hb], the lower your TRBC value. 
 
 # Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "trbc")]) # -.42
+cor(cens.ss.mean[,c("cens.index", "trbc")]) # -.43
 
 # Quick linear model 
 cens.trbc.link.model <- glm(cens.index ~ trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
@@ -3049,6 +3058,57 @@ ggsave(p, filename="MCV_versus_Mass.pdf", height=7, width=9, units="in")
 
 # Correlation matrix 
 cor(cens.ss.mean[,c("mcv", "mass.log")]) # 0.17
+
+
+# Hemoglobin genotype and CeNS Index
+(p22 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
+       # facet_wrap(~sex, nrow=2) + 
+        geom_boxplot(aes(fill = factor(genotype)), outlier.size=2.0, alpha=0.7) +
+        geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
+        stat_summary(fun=mean, colour="firebrick1", geom="point", shape=18, size=6) + # Red diamonds at mean 
+        theme_classic() +   # theme_classic() removes all gridlines; theme_bw() retains subtle nice gridlines           
+        theme(panel.grid.minor = element_blank()) +
+        labs(y="CeNS Index", # Hella confusing formatting for x and y axis labels 
+             x="Clade") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        theme(legend.position = "none") +
+        theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+
+
+# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
+(p <- ggplot(cens.ss.mean, aes(x=mchc, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+  #geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="MCHC", y="CeNS Index") + # Remove CeNS index y-axis label for shared plot
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=34.2, y=0.70, label = "italic(R) ^ 2 == 0.004", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=34.2, y=0.66, label = "italic(r) == -0.06", parse = TRUE) + # Add r correlation coefficient
+  # ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p, filename="CeNSIndex_Versus_MCHC.pdf", height=7, width=9, units="in")
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "mchc")])
+# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.06
+
+# Quick linear model 
+cens.index.mchc.model <- glm(cens.index ~ mchc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.index.mchc.model)
+Anova(cens.index.mchc.model, type=3) # No, MCHC not predictor of CENS
+lm_diag_plots(cens.index.mchc.model)
+(1 - (cens.index.mchc.model$deviance/cens.index.mchc.model$null.deviance)) # R^2 = 0.004
+
+# Answer: Yes, cens.index is strongly negatively correlated with unstandardized MCV estimates 
+# The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
 ```
 
 
@@ -3249,25 +3309,9 @@ FigureS4_5panel_CeNSDiagnostics <- (s4.1 | s4.2 + s4.3 + s4.4 + s4.5 +
                                     plot_layout(guides = "collect"))
 plot(FigureS4_5panel_CeNSDiagnostics)
 ggsave(FigureS4_5panel_CeNSDiagnostics, filename = "FigureS4_5panel_CeNSDiagnostics_06-03_21.pdf", bg="transparent", height=6.8, width=12, units="in")
-
 ```
 
 Some thoughts: Why did we choose to calculate cens index with estimates from models versus from raw data? Because we want each parameter's relative contribution to driving hemoglobin concentration, which we can't get without model estimates; pulling betas from models gives us the link to Hb. And perhaps what's interesting here is that after modeling this link, we actually find the opposite of what we do by analyzing the raw data: We do *not* see the concave/flipped parabola shape, which suggests that middle-elev species are increasing blood-O2 carrying capacity through higher MCV; instead what we find is that middle elev species are primarily increasing blood-O2 carrying capacity through increases in TRBC. This differs from the process of human acclimatization to altitude. Low and high elevation species both increase blood-o2 carrying capacity through increases through having bigger cells and fewer of them (higher MCV), but this effect is much stronger in high elevation hummingbird species, which have larger cells. 
-
-
-
-
-
-
-
-
-
-
-
-
-JESSIE LEFT OFF HERE on 6/2/21 NEED TO MAKE NEW CENS TREEES WITH PATAGONA GIGAS SOUTH INCLUDED. 
-
-
 
 
 ######
@@ -3279,19 +3323,13 @@ JESSIE LEFT OFF HERE on 6/2/21 NEED TO MAKE NEW CENS TREEES WITH PATAGONA GIGAS 
 # READ IN CENS TREE
 # I took tree.final file and pruned to the subset of species in the CeNS species-specific model set 
 # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
-tree.cens <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_SpeciesMeans_PgigN&PgigS_FINAL.tre") # a list 
-tree.cens$tip.label # Check 29 tips
-
-# Wrangle data for phylo CeNS modeling 
-# Remember that Patagona_gigas_S and N pose problems; drop S, rename N to Patagona_gigas, and conduct modeling w/ 29 spec.
-cens.mod <- cens.ss.mean
-cens.mod <- cens.mod[-which(cens.mod$species == "Patagona_gigas_S"),]
-levels(cens.mod$species)[levels(cens.mod$species)=="Patagona_gigas_N"] <- "Patagona_gigas"
+tree.cens <- read.tree("HumBlood_CeNS_Modeling_Tree_FINAL.tre") # a list 
+tree.cens$tip.label # Check 32 tips
 
 # Are the phylogeny tip labels in the data and vice-versa?
-tree.cens$tip.label %in% cens.mod$species # yes
-sum(tree.cens$tip.label %in% cens.mod$species) # sum = 29 
-summary(tree.cens$tip.label %in% cens.mod$species) # yes 
+tree.cens$tip.label %in% cens.ss.mean$species # yes
+sum(tree.cens$tip.label %in% cens.ss.mean$species) # sum = 32
+summary(tree.cens$tip.label %in% cens.ss.mean$species) # yes 
 
 # Standardize model inputs: 
 cens.ss.mean$elev.z <- standardize(cens.ss.mean$elev)
@@ -3303,7 +3341,7 @@ cens.ss.mean$wl.z <- standardize(cens.ss.mean$wl)
 # Check distributions and correlations
 ```{r}
 # Take a look at distribution of data 
-p <- ggpairs(subset(cens.ss.mean, select = c(cens.index, elev.z, mass.z, wl.z))); p
+p <- ggpairs(subset(cens.ss.mean, select = c(cens.index, elev.z, mass.z, wl.z, genotype))); p
 
 # Correlation matrix 
 cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index")])
@@ -3320,7 +3358,7 @@ cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index")])
 # AND, don't do this with rownames(), which changes data format. Do this as Lisa has done w/ 'names()'. 
 # You want the format to read 'Named num'; class = numeric; type = double 
 
-cens.contmap <- cens.mod %>% group_by(species) %>% summarise(cens.index = mean(cens.index))  
+cens.contmap <- cens.ss.mean %>% group_by(species) %>% summarise(cens.index = mean(cens.index))  
 just.cens <- cens.contmap$cens.index
 names(just.cens) <- cens.contmap$species 
 class(just.cens); typeof(just.cens) #; View(just.hct)
@@ -3349,7 +3387,7 @@ dev.off()
 set.seed(5555)
 
 # Compute Blomberg's K
-phylosig(tree=tree.cens, x=just.cens, method="K", test=TRUE) # K=0.446, p=0.404
+phylosig(tree=tree.cens, x=just.cens, method="K", test=TRUE) # K=0.44, p=0.241
 
 # Compute Pagel's lambda using maximum likelihood
 phylosig(tree=tree.cens, x=just.cens, method="lambda", test=TRUE) # lambda=<0, p=1
@@ -3385,7 +3423,6 @@ cens.m1 <- brm(
 save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
 # load("hb.m1_CeNS_Intercept-Only.Rdata") 
 
-
 # MODEL 2: FULL MODEL, NO QUADRATIC
 cens.m2 <- brm(
   formula = bf(cens.index ~ 1 + elev.z + mass.z + wl.z),
@@ -3418,6 +3455,21 @@ cens.m3 <- brm(
 save(cens.m3, file="cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # save model
 # load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # If loading from pre-saved file and not re-running
 
+# MODEL 4: FULL MODEL WITH QUADRATIC
+cens.m4 <- brm(
+  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z + wl.z + genotype),
+  data = cens.ss.mean,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, 
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(cens.m4, file="cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # save model
+# load("cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -3430,7 +3482,7 @@ mcmc_plot(cens.m3, type = "trace")
 plot(cens.m3, N = 2, ask = FALSE)
 mcmc_plot(cens.m3, type = "acf_bar")
 
-bayesplot::pp_check(cens.m2, resp = "cens.index", nsamples = 200) 
+bayesplot::pp_check(cens.m3, resp = "cens.index", nsamples = 200) 
 bayesplot::pp_check(cens.m3, type = "stat_2d", nsamples = 100)
 
 # conditional effects
@@ -3484,7 +3536,7 @@ scale_y_discrete(labels=c("Elevation","Mass", "Wing Loading"))
 cens.m2.p1
 ggsave(cens.m2.p1, filename = "cens.m2.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m2)
-# Predictors that don't overlap zero: elev.z; strong trend of wing loading 
+# Predictors that don't overlap zero: None
 
 # Model 3 
 cens.m3.p1 <- mcmc_plot(cens.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z","b_wl.z"),
@@ -3496,10 +3548,23 @@ scale_y_discrete(labels=c("Elevation", "Elevation^2","Mass", "Wing Loading"))
 cens.m3.p1
 ggsave(cens.m3.p1, filename = "cens.m3.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m3)
+# Predictors that don't overlap zero: elev, elev quadratic, mass
+
+# Model 4 
+cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z","b_wl.z","b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on CeNS Index", title = "cens.m4") + 
+scale_y_discrete(labels=c("Elevation", "Elevation^2","Mass", "Wing Loading", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))
+cens.m4.p1
+ggsave(cens.m4.p1, filename = "cens.m4.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m4)
+# Predictors that don't overlap zero: elev, elev quadratic
 
 # Summary of reduced models: 
-# m4 (reduced m2) will be: elev.z
 # m5 (reduced m3) will be: elev.z + I(elev.z^2) + mass.z
+# m6 (reduced m4) will be: elev.z + I(elev.z^2)
 ```
 
 
@@ -3510,6 +3575,7 @@ sink("hb_brms_model_summaries.txt",append = TRUE)
 summary(cens.m1, waic=TRUE)
 summary(cens.m2, waic=TRUE)
 summary(cens.m3, waic=TRUE)
+summary(cens.m4, waic=TRUE)
 sink()
 # print(cens.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
@@ -3517,16 +3583,17 @@ sink()
 cens.m1.waic <- waic(cens.m1)
 cens.m2.waic <- waic(cens.m2)
 cens.m3.waic <- waic(cens.m3)
-cens.waics <- cbind(cens.m1.waic, cens.m2.waic, cens.m3.waic); cens.waics
+cens.m4.waic <- waic(cens.m4)
+cens.waics <- cbind(cens.m1.waic, cens.m2.waic, cens.m3.waic, cens.m4.waic); cens.waics
 write.csv(cens.waics, "cens_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 ```
 
 
-# cens: RUN REDUCED MODELS (m4-m5)
+# cens: RUN REDUCED MODELS (m5-m6)
 ```{r}
 # MODEL 5: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
-cens.m4 <- brm(
-  formula = bf(cens.index ~ 1 + elev.z),
+cens.m5 <- brm(
+  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z),
   data = cens.ss.mean,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
   cores = 4,
@@ -3537,12 +3604,12 @@ cens.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(cens.m4, file="cens.m4_CeNS_ReducedModel_PredictorsOnly.RData") # save model
-#load("cens.m4_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(cens.m5, file="cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # save model
+#load("cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
-# MODEL 5: REDUCED MODEL 
-cens.m5 <- brm(
-  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z),
+# MODEL 6: REDUCED MODEL 
+cens.m6 <- brm(
+  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2)),
   data = cens.ss.mean,
   family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
   cores = 4,
@@ -3553,8 +3620,8 @@ cens.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(cens.m5, file="cens.m5_CeNS_ReducedModel.RData") # save model
-# load("cens.m5_CeNS_ReducedModel.RData") 
+save(cens.m6, file="cens.m6_CeNS_ReducedModel.RData") # save model
+# load("cens.m6_CeNS_ReducedModel.RData") 
 ```
 
 
@@ -3568,29 +3635,29 @@ save(cens.m5, file="cens.m5_CeNS_ReducedModel.RData") # save model
 # Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
 # x-axis should be scale based on value of estimates coming out of the model 
 
-# # Model 4 
+# # Model 5 
 color_scheme_set("viridisD") # nice default
-cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
+cens.m5.p1 <- mcmc_plot(cens.m5, pars=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
-labs(x="Effect on Cens Index", title = "cens.m4") +
+labs(x="Effect on Cens Index", title = "cens.m5") +
 scale_y_discrete(labels=c("Elevation", "Elevation Quadratic", "Mass"))
-cens.m4.p1
-ggsave(cens.m4.p1, filename = "hb.m4.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(cens.m4)
+cens.m5.p1
+ggsave(cens.m5.p1, filename = "hb.m5.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m5)
 
-# Model 5
+# Model 6
 #color_scheme_set("red") # nice default
-cens.m5.p1 <- mcmc_plot(cens.m5, pars=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
+cens.m6.p1 <- mcmc_plot(cens.m6, pars=c("b_elev.z", "b_Ielev.zE2"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on Cens Index", title = "cens.m5") + 
-scale_y_discrete(labels=c("Elevation", "Elevation Quadratic", "Mass"))   
-cens.m5.p1
-ggsave(cens.m5.p1, filename = "cens.m5.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-summary(cens.m5)
+labs(x="Effect on Cens Index", title = "cens.m6") + 
+scale_y_discrete(labels=c("Elevation", "Elevation Quadratic"))   
+cens.m6.p1
+ggsave(cens.m6.p1, filename = "cens.m6.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(cens.m6)
 ```
 
 
@@ -3598,15 +3665,15 @@ summary(cens.m5)
 ```{r}
 # Print model summaries 
 sink("cens_reduced_brms_model_summaries.txt",append = TRUE)
-summary(cens.m4, waic=TRUE)
 summary(cens.m5, waic=TRUE)
+summary(cens.m6, waic=TRUE)
 sink()
 # print(cens.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
-cens.m4.waic <- waic(cens.m4)
 cens.m5.waic <- waic(cens.m5)
-cens.waics.red <- cbind(cens.m4.waic, cens.m5.waic); cens.waics.red
+cens.m6.waic <- waic(cens.m6)
+cens.waics.red <- cbind(cens.m5.waic, cens.m5.waic); cens.waics.red
 write.csv(cens.waics.red, "cens_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 ```
 
@@ -3618,7 +3685,7 @@ write.csv(cens.waics.red, "cens_brms_models_waics.red.csv") # totally unintellig
 
 library(loo)
 sink("cens_brms_models_all_looic.txt", append=FALSE)
-LOO(cens.m1, cens.m2, cens.m3, cens.m4, cens.m5, reloo=FALSE) 
+LOO(cens.m1, cens.m2, cens.m3, cens.m4, cens.m5, cens.m6, reloo=TRUE) 
 sink()
 # According to LOO, model 5 is top model 
 
@@ -3626,18 +3693,20 @@ sink()
 # loo_compare(en.loo) # Top ranked model includes no random effects 
 
 # Calculate Bayesian R^2:
-bayes_R2(cens.m2) # 0.23
-bayes_R2(cens.m3) # 0.38
-# bayes_R2(cens.m4) # 0.29
-bayes_R2(cens.m5) # 0.29
+bayes_R2(cens.m2) # 0.20
+bayes_R2(cens.m3) # 0.36
+bayes_R2(cens.m4) # 0.40
+bayes_R2(cens.m5) # 0.34
+bayes_R2(cens.m6) # 0.16
 
 # Model comparisons:
 #         elpd_diff se_diff
-# cens.m3  0.0       0.0   
-# cens.m5 -1.1       2.0   
-# cens.m1 -2.2       3.6   
-# cens.m2 -2.4       2.5   
-# cens.m4 -3.0       3.7  
+# cens.m5  0.0       0.0   
+# cens.m3 -0.3       1.3   
+# cens.m4 -1.9       1.7   
+# cens.m1 -3.0       3.6   
+# cens.m6 -3.0       2.7   
+# cens.m2 -3.4       3.3 
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 # job::job({ # Send to a job to free up console
@@ -3660,12 +3729,13 @@ bayes_R2(cens.m5) # 0.29
 ```
 
 Quick summary of top 3 models in order of ranking: 
-1) Model 3: Full with quadratic elevation. R^2 = 0.38. 
-2) Model 5: Reduced model with elev, elev quadratic, and mass. R^2= 0.29. 
-3) Model 1: Null model. 
-**All models, including null, are better than non quadratic model. 
+1) Model 5: Reduced model w/ elev, elev quadratic, and mass. R^2 = 0.34.
+2) Model 3: Full model w/ elev, elev quadratic, and no genotype term. R^2 = 0.36. 
+3) Model 4: Other full model w/ elev quadratic and genotype term. R^2 = 0.40
 
-Top-ranked models are only *slightly* better than lower-ranked models. All models are NOT substantially better than the intercept-only model. No phylogenetic signal in CeNS data. 
+
+
+All models are NOT substantially better than the intercept-only model. No phylogenetic signal in CeNS data. 
 
 
 **Some CeNS take-homes for our paper:**
@@ -3673,6 +3743,14 @@ Top-ranked models are only *slightly* better than lower-ranked models. All model
 - Strong relationship between CeNS index and mass (CeNS increases w/ increased mass)
 - Moderate relationship between CeNS index and wing loading (CeNS increases w/ increased WL)
 - No phylogenetic signal in CeNS index 
+
+
+
+
+
+
+
+
 
 
 -----

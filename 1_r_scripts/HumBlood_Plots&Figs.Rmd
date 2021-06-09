@@ -251,7 +251,390 @@ hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
 
 
 
-# FIGURE 2 - BLOOD CHARACTERISTICS WITH ELEVATION 
+
+# FIGURE 2: COMBINED INDIVIDUAL-LEVEL AND SPECIES MEAN DATA IN ONE MASTER PLOT 
+Figure 2 - 6-panel fig w/ relationship between predictors and elevation 
+```{r}
+# IMPORTANT! Read in 'final' dataset, set levels and colors for hum_colors above
+
+# Read in species mean datasets (made in HumBlood_Modeling_SpeciesMeans.Rmd)
+read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv")
+spm.hb <- read.csv("HumBlood_SpeciesMeans_spm.hb_06-02-21.csv")
+spm.hct <- read.csv("HumBlood_SpeciesMeans_spm.hct_06-02-21.csv")
+spm.trbc <- read.csv("HumBlood_SpeciesMeans_spm.trbc_06-02-21.csv")
+spm.mcv <- read.csv("HumBlood_SpeciesMeans_spm.mcv_06-02-21.csv")
+spm.mch <- read.csv("HumBlood_SpeciesMeans_spm.mch_06-02-21.csv")
+smp.mchc <- read.csv("HumBlood_SpeciesMeans_spm.mchc_06-02-21.csv")
+
+# Set levels. I'm sure there's a FAR less tedious and ultra-repetitive way to do this, but I'm in the mood to make plots, 
+# not struggle w/ syntax challenges. 
+# NO MOUNTAIN-GEM IN SPECIES MEAN DATA (because of n=1)
+spm.hb$Clade <- factor(spm.hb$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+spm.hct$Clade <- factor(spm.hct$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+spm.trbc$Clade <- factor(spm.trbc$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+spm.mcv$Clade <- factor(spm.mcv$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+spm.mch$Clade <- factor(spm.mch$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+spm.mchc$Clade <- factor(spm.mchc$Clade, levels = c("Coquette", "Brilliant", "Patagona", "Bee", 
+                                                "Emerald", "Mango", "Topaz", "Hermit"))
+
+# species_mean_colors
+spec_mean_colors <- c( "#04A5A5", # Turquoise (Coquette)
+                 "#9E9285", # brown (Brilliant)
+                 "#EE4024", # red (Patagona)
+                 "#F4CD0B", # Gold (Bee)
+                # "#E786B7", # pink (Mountain-gem)
+                 "#97B25B", # green (Emerald)  
+                 "#F79E0F", # orange (Mango)
+                 "#03446B", # navy blue (Topaz)
+                 "#916EF9" # purple (Hermit)
+                    )
+```
+
+
+# Plot master figure 2
+```{r}
+# Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
+# Code to set shapes by clade, but this was totally overwhelming
+  # scale_shape_manual(values=c("Bee"=4, "Brilliant"=17, "Coquette"=15, # Shapes are a little overwhelming, honestly
+  #                             "Emerald"=18, "Hermit"=25, "Mango"=8, "Mountain-gem"=3,
+  #                             "Patagona"=16, "Topaz"=9)) +
+ #   scale_shape_manual(values=shapes) + # Another way to do this is set colors above 
+
+# PANEL A: Scatterplot: Hb v. elev 
+(p1 <- ggplot(final, aes(x=elev, y=hb, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="[Hb] (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") + 
+  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb.pdf", height=7, width=9, units="in")
+# The 166 rows of missing values come from many NA Hb values; don't worry about these 
+
+
+# PANEL B: Scatterplot: Hct v. elev
+(p2 <- ggplot(final, aes(x=elev, y=hct, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  # scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="Hct (%)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct.pdf", height=7, width=9, units="in")
+
+
+# PANEL C: Scatterplot: TRBC v. elev
+(p3 <- ggplot(final, aes(x=elev, y=trbc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+   labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,right=5,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p3, filename="p3_ScatterplotBasic_Elev_by_TRBC.pdf", height=7, width=9, units="in")
+
+
+# PANEL D: Scatterplot: mcv v. elev
+(p4 <- ggplot(final, aes(x=elev, y=mcv, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCV (fl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p4, filename="p4_ScatterplotBasic_Elev_by_MCV.pdf", height=7, width=9, units="in")
+
+
+# PANEL E: Scatterplot: MCH v. elev
+(p5 <- ggplot(final, aes(x=elev, y=mch, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", y="MCH (pg)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p5, filename="p5_ScatterplotBasic_Elev_by_MCH.pdf", height=7, width=9, units="in")
+
+
+# PANEL F: Scatterplot: MCHC v. elev
+(p6 <- ggplot(final, aes(x=elev, y=mchc, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=final, size=1.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", y="MCHC (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("F") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,right=5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(p6, filename="p6_ScatterplotBasic_Elev_by_MCHC.pdf", height=7, width=9, units="in")
+
+
+### SPECIES MEAN PLOTS ####
+
+# Scatterplots of each of the 6 blood characteristics with elevation, colored by clade but w/ species mean data 
+
+# PANEL G: Scatterplot: Hb v. elev 
+(p21 <- ggplot(spm.hb, aes(x=elev.mean, y=hb.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=0.6) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="[Hb] (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") + 
+  ggtitle("G") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-8)), axis.title.x=element_text(size=6))
+# r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p21, filename="p21_ScatterplotBasic_Elev_by_Hb_SPM.pdf", height=7, width=9, units="in")
+# The 166 rows of missing values come from many NA Hb values; don't worry about these 
+
+
+# PANEL H: Scatterplot: Hct v. elev
+(p22 <- ggplot(spm.hct, aes(x=elev.mean, y=hct.mean, colour=Clade)) + # Add shape=Clade here to shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  # scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=0.6) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="Hct (%)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("H") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-8)), axis.title.x=element_text(size=6))
+  # r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p22, filename="p22_ScatterplotBasic_Elev_by_Hct_SPM.pdf", height=7, width=9, units="in")
+
+
+# PANEL I: Scatterplot: TRBC v. elev
+(p23 <- ggplot(spm.trbc, aes(x=elev.mean, y=trbc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=0.6) + # line used to be dark turquoise 
+    # USING LINEAR FIT BECUASE QUADRATIC OVERLAPPED ZERO IN FULL SPECIES MEAN MODEL
+  theme_classic() + 
+   labs(y=expression(atop("TRBC","("~RBC~x~10^{6}~"/"~mm^{3}~")")), # atop() is KEY for splitting expression onto 2 lines
+  # labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # one line y-axis formatting  
+     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+    # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("I") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-6)), axis.title.x=element_text(size=6))
+  # r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p23, filename="p23_ScatterplotBasic_Elev_by_TRBC_SPM.pdf", height=7, width=9, units="in")
+
+
+# PANEL J: Scatterplot: mcv v. elev
+(p24 <- ggplot(spm.mcv, aes(x=elev.mean, y=mcv.mean, colour=Clade)) + # shape=Clade here to get shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise
+     # REMOVE TREND LINE BECAUSE NOT A SIGNIFICANT PREDICTOR IN MODELS
+  theme_classic() + 
+  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCV (fl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("J") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-8)), axis.title.x=element_text(size=6))
+  # r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p24, filename="p24_ScatterplotBasic_Elev_by_MCV_SPM.pdf", height=7, width=9, units="in")
+
+
+# PANEL K: Scatterplot: MCH v. elev
+(p25 <- ggplot(spm.mch, aes(x=elev.mean, y=mch.mean,  colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+ # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=0.6) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="", y="MCH (pg)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("K") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.1,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-8)), axis.title.x=element_text(size=6))
+  # r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p25, filename="p25_ScatterplotBasic_Elev_by_MCH_SPM.pdf", height=7, width=9, units="in")
+
+
+# PANEL L: Scatterplot: MCHC v. elev
+(p26 <- ggplot(spm.mchc, aes(x=elev.mean, y=mchc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=0.8, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = spec_mean_colors) +
+  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
+  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+    # REMOVE TREND LINE BECAUSE NOT A SIGNIFICANT PREDICTOR IN MODELS
+  #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", y="MCHC (g/dl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "none") +
+  ggtitle("L") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.0,0.2,0.2,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=6), axis.text.x=element_text(size=6), axis.title.y=element_text(size=6, margin = 
+  margin(r=-8)), axis.title.x=element_text(size=10))
+  # r=0 specifies that you want the right side of the y-axis label flush with tick marks
+ )
+ggsave(p26, filename="p26_ScatterplotBasic_Elev_by_MCHC_SPM.pdf", height=7, width=9, units="in")
+
+
+# COMBINE ALL PLOTS TO MAKE 12-PANEL FIGURE: 
+# library(patchwork)
+Fig2_v2_all_data <- (
+          p1 + p2 + p3 + p4 + p5 + p6 + plot_layout(widths = c(0.8,0.8,0.8))
+          + inset_element(p21 / p22 / p23 / p24 / p25 / p26, 
+                          left = 1.0, # Increased #s move left edge to the right; decreased to the left
+                          bottom = -0.19, 
+                          right = 1.72, # Increased #s move right edge right; decreased to the left
+                          top = 2.38) 
+          )  
+print(Fig2_v2_all_data)
+ggsave(Fig2_v2_all_data, filename = "Fig2_v2_all_data_06-04-21.pdf", bg="transparent", height=6.7, width=12, units="in")
+# A little janky, but I set up the species mean panel as an inset in order to get the formatting to work
+# SYNTAX VERY TRICKY! 
+# Only big problem with this is that I can't figure out how to get guides="collect" to put common A-F legend on RIGHT
+# side of my giant inset - legend wants to appear over the top of the inset. 
+
+
+
+# OLD SYNTAX
+# Fig2_v2_all_data <- (
+#                     p1 + p2 + p3 + p4 + p5 + p6 |
+#                     p21 / p22 / p23 / p24 / p25 / p26
+#                     #+ plot_layout(guides = "collect")
+#                      #, heights = unit(c(5,5, 1), c('cm', 'cm', 'null')))
+#                     #+ plot_layout(widths = c(2,2,2,1))
+#                     )
+# plot(Fig2_v2_all_data)
+# Don't want ncol argument becuase ncol=3 without parenthesis in the right place treats the | pipe as separate
+# test <- p1 + p2 + p3 + p4 + p5 + p6 + plot_layout(widths = c(2, 2, 1))
+# plot(test)
+# This works fine and legends are ok (would look fine if you commented out species mean legends maybe)
+```
+
+
+
+
+# FIGURE 2 - INDIVIDUAL-LEVEL BLOOD CHARACTERISTICS WITH ELEVATION 
 Figure 2 - 6-panel fig w/ relationship between predictors and elevation 
 ```{r}
 # Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
@@ -423,165 +806,7 @@ Tutorial to using patchwork to make plots: https://patchwork.data-imaginist.com/
 # FIGURE 2 WITH SPECIES MEANS - BLOOD CHARACTERISTICS WITH ELEVATION 
 Figure 2 - 6-panel fig w/ relationship between predictors and elevation (USING SPECIES MEAN DATA)
 ```{r}
-# Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
-
-# MAKE SURE THESE DATASETS ARE READ IN FROM SPECIES MEAN MODELING FILE OR UP TOP IN THIS SCRIPT! 
-
-# Scatterplot: Hb v. elev 
-(p21 <- ggplot(spm.hb, aes(x=elev.mean, y=hb.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
- # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
-#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
-       y="[Hb] g/dl") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p21, filename="p21_ScatterplotBasic_Elev_by_Hb_SPM.pdf", height=7, width=9, units="in")
-# The 166 rows of missing values come from many NA Hb values; don't worry about these 
-
-# Scatterplot: Hct v. elev
-(p22 <- ggplot(spm.hct, aes(x=elev.mean, y=hct.mean, colour=Clade)) + # Add shape=Clade here to shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  # scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
-#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  #geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
-       y="Hct (%)") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") +
-  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p22, filename="p22_ScatterplotBasic_Elev_by_Hct_SPM.pdf", height=7, width=9, units="in")
-
-
-# Scatterplot: TRBC v. elev
-(p23 <- ggplot(spm.trbc, aes(x=elev.mean, y=trbc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
-  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-   labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
-    # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") +
-  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.0,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p23, filename="p23_ScatterplotBasic_Elev_by_TRBC_SPM.pdf", height=7, width=9, units="in")
-
-# Scatterplot: mcv v. elev
-(p24 <- ggplot(spm.mcv, aes(x=elev.mean, y=mcv.mean, colour=Clade)) + # shape=Clade here to get shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
-#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
-       y="MCV (fl)") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") +
-  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
-  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p24, filename="p24_ScatterplotBasic_Elev_by_MCV_SPM.pdf", height=7, width=9, units="in")
-
-# ANNOYING: space between plot area and legend is supposedly adjusted w/ "legend.box.spacing" arg but little documentation and it's
-# being stubborn. I manually exported legend, will make 6-panel fig w/out legend and will add legend on in Illustrator
-
-
-# Scatterplot: MCH v. elev
-(p25 <- ggplot(spm.mch, aes(x=elev.mean, y=mch.mean,  colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
- # geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x="Elevation (m)", y="MCH (pg)") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") +
-  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.0,0.1,0.2,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p25, filename="p25_ScatterplotBasic_Elev_by_MCH_SPM.pdf", height=7, width=9, units="in")
-
-
-# Scatterplot: MCHC v. elev
-(p26 <- ggplot(spm.mchc, aes(x=elev.mean, y=mchc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=1.6, alpha=0.8) +
-  #scale_colour_viridis(discrete=TRUE) + 
-  scale_color_manual(values = hum_colors) +
-  #geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.5) + # jitter to fill plot space 
-  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
-  #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
-  theme_classic() + 
-  labs(x="Elevation (m)", y="MCHC (g/dl)") +
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") +
-  ggtitle("F") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.0,0.2,0.2,0.1), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(p26, filename="p26_ScatterplotBasic_Elev_by_MCHC_SPM.pdf", height=7, width=9, units="in")
-
-
-library(patchwork)
-# Combine all plots to make one 6-panel figure:
-# Fig2_BloodVElev_6panel <- ((p1 + p2) / (p3 + p4) / (p5 + p6) +  # the / literally means put p14 on top of p15
-#                                   plot_layout(guides = "collect")) # "collates" and combines one common legend 
-#                                   # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
-# plot(Fig2_BloodVElev_6panel)
-# ggsave(Fig2_BloodVElev_6panel, filename = "Fig2_BloodVElev_6panel_03-01-21.pdf", bg="transparent", height=7, width=7, units="in")
-# This looks ok, but horizontal format (below) is better
-
-# Alternative layout option = BETTER, USE THIS ONE: 
-Fig2_BloodVElev_6panel_Species_mean <- (p21 + p22 + p23 + p24 + p25 + p26 + plot_layout(guides = "collect"))
-plot(Fig2_BloodVElev_6panel_Species_mean)
-ggsave(Fig2_BloodVElev_6panel_Species_mean, filename = "Fig2_BloodVElev_6panel_Species_mean_05-27-21.pdf", bg="transparent", height=7, width=11, units="in")
-# Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
-
-# Fig2_BloodVElev_6panel <- grid.arrange(p1,p2,p3,p4,p5,p6, ncol=2) # Old method 
+c
 ```
 
 
@@ -992,6 +1217,441 @@ plot(Fig_BloodVElevPosition_6panel)
 ggsave(Fig_BloodVElevPosition_6panel, filename = "Fig_BloodVElevPosition_6panel_03-01-21.pdf", bg="transparent", height=7, width=11, units="in")
 # Why I like this format: primary blood indices align clearly in Panels A-C; secondary indices on bottom in D-F
 ```
+
+
+
+### FIGURE 4v2 - 6-panel blood posterior probability fig 
+An attempt at making a 6-panel posterior probability plot figure with individual-level data showing full models of species-mean data in insets within each plot. 
+
+#Set up some figure aesthetics and load in data: 
+```{r}
+library(tidyverse)
+library(patchwork)
+
+# Load in individual-level models for plots 
+load("hb.m4_FullModel_SpeciesREOnly.RData")
+load("hct.m4_FullModel_SpeciesREOnly.RData")
+load("trbc.m4_FullModel_SpeciesREOnly.RData") 
+load("mcv.m4_FullModel_SpeciesREOnly.RData")
+load("mch.m4_FullModel_SpeciesREOnly.RData")
+load("mchc.m4_FullModel_SpeciesREOnly.RData") 
+
+# Quick load to be able to make plots for big species mean comparison plot: 
+# For quick pasting for final plot 
+load("spm.hb.m2_FullModel.RData") 
+load("spm.hct.m2_FullModel.RData") 
+load("spm.trbc.m3_FullModelWithQuadratic.RData")
+load("spm.mcv.m3_FullModelWithQuadratic.RData") 
+load("spm.mch.m3_FullModelWithQuadratic.RData")  
+load("spm.mchc.m3_FullModelWithQuadratic.RData")
+
+# Set color scheme 
+color_scheme_set("viridisD")
+# color_scheme_set("viridisE") # Looks most sophisticated for fig; ViridisC looks a little clownish
+# Options: blue, teal, red, brightblue, purple, gray, mix-blue-red, pink; ViridisC & E are my favorite
+# See help function of color_scheme_set for full list and how to mix colors 
+
+# Note: if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
+# Narrow and pdf is slightly different; either use family "Helvetica" (or any other), or follow instructions here: 
+# https://github.com/thomasp85/ggraph/issues/152
+```
+
+# Print Figure 4v2
+```{R}
+# HB - panel A
+color_scheme_set("viridisD")
+fig4a_hb_main <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z",  "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"), 
+            prob_outer=0.95, # 95% outer CI 
+            prob=0.50, # 50% inner CI 
+            point_est="mean") + # mean point est; default is median 
+            labs(x="Effect on [Hb] - Intraspecific", title = " ") + 
+            scale_y_discrete(labels=c("Elev", "Temp", "Precip", "Mass", "Genotype (Ser-Ser)", "Genotype (Gly-Ser)", 
+            "Elev Position", "Intra Var: Temp", "Intra Var: Precip", "Intra Var: Mass")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+            theme(text = element_text(family="Helvetica",size=10)) + # y axis labels
+            ggtitle("A") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+fig4a_hb_main
+ggsave(fig4a_hb_main, filename = "fig4a_hb_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+# HB Inset plot (Final model, M4)
+color_scheme_set("brightblue")
+fig4a_hb_inset <- mcmc_plot(spm.hb.m2, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer"),
+            prob_outer=0.95, # 95% outer CI
+            prob=0.50, # 50% inner CI
+            point_est="mean", 
+              point_size=2, inner_size=1) +
+            labs(x="Effect on [Hb] - Interspecific", title = " ") +
+            scale_y_discrete(labels=c("Elev","Temp", "Precip", "Mass", "Gen. (Ser-Ser)","Gen. (Gly-Ser)")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+            theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+            #ggtitle("A") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4a_hb_inset
+ggsave(fig4a_hb_inset, filename = "fig4a_hb_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
+
+# HB PANEL A WITH INSET
+fig4a_hb_panel <- fig4a_hb_main + inset_element(fig4a_hb_inset,
+                                                       right = 1.03, # THIS IS LEFT 
+                                                       bottom = 0.58, 
+                                                       left = 0.60, # THIS IS RIGHT 
+                                                       top = 1.2)
+fig4a_hb_panel
+
+###
+
+# HCT - Panel B
+color_scheme_set("viridisD")
+fig4b_hct_main <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z",  "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"),
+            prob_outer=0.95, # 95% outer CI 
+            prob=0.50, # 50% inner CI 
+            point_est="mean") + # mean point est; default is median 
+            labs(x="Effect on Hct - Intraspecific", title = " ") + 
+            # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", 
+            # "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +  
+            scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
+            theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+            theme(text = element_text(family="Helvetica", size=10)) + # y axis labels
+            ggtitle("B") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold 
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+fig4b_hct_main
+ggsave(fig4b_hct_main, filename = "fig4b_hct_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+
+#HCT Inset plot 
+color_scheme_set("brightblue")
+fig4b_hct_inset <- mcmc_plot(spm.hct.m2, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer"),
+            prob_outer=0.95, # 95% outer CI
+            prob=0.50, # 50% inner CI
+            point_est="mean", 
+              point_size=2, inner_size=1) +
+            labs(x="Effect on Hct - Interspecific", title = " ") +
+            scale_y_discrete(labels=c("Elev","Temp", "Precip", "Mass", "Gen. (Ser-Ser)","Gen. (Gly-Ser)")) +
+            # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
+            theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+            theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+            #ggtitle("B") + # Assign panel number/header
+            theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+            plot.title = element_text(face="bold"))  # This makes panel header bold
+            # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+            #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4b_hct_inset
+ggsave(fig4b_hct_inset, filename = "fig4b_hct_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
+
+
+# HB PANEL A WITH INSET
+fig4b_hct_panel <- fig4b_hct_main + inset_element(fig4b_hct_inset,
+                                                       right = 1.03, # THIS IS LEFT
+                                                       bottom = 0.58,
+                                                       left = 0.60, # THIS IS RIGHT
+                                                       top = 1.2)
+# RIGHT IS LEFT AND LEFT IS RIGHT; THIS IS VERY CONFUSING
+fig4b_hct_panel
+
+
+###
+
+
+# TRBC - Panel C
+color_scheme_set("viridisD")
+fig4c_trbc_main <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z",  "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"),
+              prob_outer=0.95, # 95% outer CI 
+              prob=0.50, # 50% inner CI 
+              point_est="mean") + # mean point est; default is median 
+              labs(x="Effect on TRBC - Intraspecific", title = " ") + 
+              #scale_y_discrete(labels=c("Elev", "Elev^2", "Temp", "Precip", "Mass", "Genotype\n(Ser-Ser)", 
+              # "Genotype\n(Gly-Ser)")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel
+              theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+              theme(text = element_text(family="Helvetica", size=10)) + # y axis labels
+              ggtitle("C") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold 
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+fig4c_trbc_main
+ggsave(fig4c_trbc_main, filename = "fig4c_trbc_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+
+# TRBC Inset plot (Null model, M1)
+color_scheme_set("brightblue")
+fig4c_trbc_inset <- mcmc_plot(spm.trbc.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+              "b_genotypeSerMSer", "b_genotypeGlyMSer"),
+              prob_outer=0.95, # 95% outer CI
+              prob=0.50, # 50% inner CI
+              point_est="mean", 
+              point_size=2, inner_size=1) +
+              labs(x="Effect on TRBC - Interspecific", title = " ") +
+              scale_y_discrete(labels=c("Elev"," Elev^2", "Mass", "Temp", "Precip","Gen. (Gly-Ser)",
+              "Gen. (Ser-Ser)")) +
+              # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel 
+              theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+              theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+              # ggtitle("C") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4c_trbc_inset
+ggsave(fig4c_trbc_inset, filename = "fig4c_trbc_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
+
+# TRBC PANEL A WITH INSET
+fig4c_trbc_panel <- fig4c_trbc_main + inset_element(fig4c_trbc_inset,
+                                                       right = 1.03, # THIS IS LEFT 
+                                                       bottom = 0.58, 
+                                                       left = 0.60, # THIS IS RIGHT 
+                                                       top = 1.2)
+fig4c_trbc_panel
+
+###
+
+# MCV - panel D
+color_scheme_set("viridisD")
+fig4d_mcv_main <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z", "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"),
+             prob_outer=0.95, # 95% outer CI 
+             prob=0.50, # 50% inner CI 
+             point_est="mean") + # mean point est; default is median 
+             labs(x="Effect on MCV - Intraspecific", title = " ") + 
+             scale_y_discrete(labels=c("Elev", "Temp", "Precip", "Mass", "Genotype (Ser-Ser)", "Genotype (Gly-Ser)", 
+            "Elev Position", "Intra Var: Temp", "Intra Var: Precip", "Intra Var: Mass")) +
+             theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(text = element_text(family="Helvetica", size=10)) + # y axis labels 
+             ggtitle("D") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold 
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left 
+fig4d_mcv_main # + inset_element(mcv.m6.fig4d.inset, 0.6, 0.6, 1, 1)
+ggsave(fig4d_mcv_main, filename = "fig4d_mcv_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCV Inset plot (Final model, M6)
+color_scheme_set("brightblue")
+fig4d_mcv_inset <- mcmc_plot(spm.mcv.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+            "b_genotypeSerMSer", "b_genotypeGlyMSer"),
+             prob_outer=0.95, # 95% outer CI
+             prob=0.50, # 50% inner CI
+             point_est="mean", 
+              point_size=2, inner_size=1) +
+             labs(x="Effect on MCV - Interspecific", title = " ") +
+             scale_y_discrete(labels=c("Elev", "Elev^2", "Temp", "Precip", "Mass", "Gen. (Ser-Ser)", 
+              "Gen. (Gly-Ser)")) +
+             theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+            theme_bw() +  #theme with white background
+            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+             # ggtitle("D") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4d_mcv_inset # + inset_element(mcv.m6.fig4d.inset, 0.6, 0.6, 1, 1)
+ggsave(fig4d_mcv_inset, filename = "fig4d_mcv_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCV PANEL D WITH INSET 
+fig4d_mcv_panel <- fig4d_mcv_main + inset_element(fig4d_mcv_inset, 
+                                                       right = 1.03, 
+                                                       bottom = 0.58, 
+                                                       left = 0.60, 
+                                                       top = 1.2)
+# RIGHT IS LEFT AND LEFT IS RIGHT; THIS IS VERY CONFUSING
+fig4d_mcv_panel
+
+###
+
+# MCH - panel E
+color_scheme_set("viridisD")
+fig4e_mch_main <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z",  "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"),
+             prob_outer=0.95, # 95% outer CI 
+             prob=0.50, # 50% inner CI 
+             point_est="mean") + # mean point est; default is median 
+             labs(x="Effect on MCH - Intraspecific", title = " ") + 
+              # scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)",
+              #"Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+             scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
+             theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(text = element_text(family="Helvetica", size=10)) + # y axis labels 
+             ggtitle("E") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold 
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4e_mch_main
+ggsave(fig4e_mch_main, filename = "fig4e_mch_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCH INSET PLOT 
+color_scheme_set("brightblue")
+fig4e_mch_inset <- mcmc_plot(spm.mch.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+            "b_genotypeSerMSer", "b_genotypeGlyMSer"),
+             prob_outer=0.95, # 95% outer CI
+             prob=0.50, # 50% inner CI
+             point_est="mean", 
+             point_size=2, inner_size=1) + 
+             labs(x="Effect on MCH - Interspecific", title = " ") +
+              scale_y_discrete(labels=c("Elev", "Elev^2", "Temp", "Precip", "Mass", "Gen. (Ser-Ser)", 
+              "Gen. (Gly-Ser)")) +
+             # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
+             theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+             # ggtitle("E") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig4e_mch_inset
+ggsave(fig4e_mch_inset, filename = "fig4e_mch_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCH PANEL E WITH INSET 
+fig4e_mch_panel <- fig4e_mch_main + inset_element(fig4e_mch_inset, 
+                                                  right = 1.03, # RIGHT IS LEFT 
+                                                  bottom = 0.58, 
+                                                  left = 0.60, # LEFT IS RIGHT
+                                                  top = 1.2)
+fig4e_mch_panel
+
+###
+
+# MCHC - panel F
+color_scheme_set("viridisD")
+fig4f_mchc_main <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z", "b_mass.z", "b_genotypeSerMSer", 
+            "b_genotypeGlyMSer","b_elev.pos.z",  "b_intravar.temp.z", "b_intravar.precip.z", "b_intravar.mass.z"),
+              prob_outer=0.95, # 95% outer CI 
+              prob=0.50, # 50% inner CI 
+              point_est="mean") + # mean point est; default is median 
+              labs(x="Effect on MCHC - Intraspecific", title = "") + 
+              # scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip","Genotype (Gly-Ser)",
+              #"Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
+              scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
+              theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+              theme(text = element_text(family="Helvetica", size=10)) + # y axis labels
+              ggtitle("F") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold 
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              theme(plot.margin = unit(c(0.4,0.4,0.0,0.4), "cm")) +  # top, right, bottom, left
+fig4f_mchc_main
+ggsave(fig4f_mchc_main, filename = "fig4f_mchc_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
+
+# MCHC inset element 
+color_scheme_set("brightblue")
+fig4f_mchc_inset <- mcmc_plot(spm.mchc.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+            "b_genotypeSerMSer", "b_genotypeGlyMSer"),
+              prob_outer=0.95, # 95% outer CI
+              prob=0.50, # 50% inner CI
+              point_est="mean", 
+              point_size=2, inner_size=1) + 
+              labs(x="Effect on MCHC - Interspecific", title = "") +
+              scale_y_discrete(labels=c("Elev", "Elev^2", "Temp", "Precip", "Mass", "Gen. (Ser-Ser)", 
+              "Gen. (Gly-Ser)")) +
+              # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel 
+              theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+              theme_bw() +  #theme with white background
+              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+              theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+              # theme(text = element_text(family="Helvetica", size=7), 
+              #       axis.title=element_text(size=7)) + # y axis labels
+              # ggtitle("F") + # Assign panel number/header
+              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+              plot.title = element_text(face="bold"))  # This makes panel header bold
+              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+              theme(plot.margin = unit(c(top=0.4, right=0.4, bottom=0.4,left=0.4), "cm"))   # top, right, bottom, left
+fig4f_mchc_inset
+ggsave(fig4f_mchc_inset, filename = "fig4f_mchc_inset_SpeciesMean.pdf", bg="transparent", height=3, width=6, units="in")
+
+# MCHC PANEL E WITH INSET 
+fig4f_mchc_panel <- fig4f_mchc_main + inset_element(fig4f_mchc_inset, 
+                                                    right = 1.03, # RIGHT IS LEFT 
+                                                    bottom = 0.58, 
+                                                    left = 0.60, # LEFT IS RIGHT 
+                                                    top = 1.2)
+fig4f_mchc_panel
+
+
+#### FINAL PLOT #####
+
+Fig4_v2_Indiv_and_SpeciesMean <- (fig4a_hb_panel + 
+                                  fig4b_hct_panel + 
+                                  fig4c_trbc_panel + 
+                                  fig4d_mcv_panel + 
+                                  fig4e_mch_panel + 
+                                  fig4f_mchc_panel +
+                                  plot_layout(guides = "collect"))
+plot(Fig4_v2_Indiv_and_SpeciesMean)
+ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_06_04_21.pdf", bg="transparent", height=6.8, width=12.5, units="in")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
