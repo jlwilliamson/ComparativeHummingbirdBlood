@@ -1240,10 +1240,10 @@ load("mchc.m4_FullModel_SpeciesREOnly.RData")
 # For quick pasting for final plot 
 load("spm.hb.m2_FullModel.RData") 
 load("spm.hct.m2_FullModel.RData") 
-load("spm.trbc.m3_FullModelWithQuadratic.RData")
-load("spm.mcv.m3_FullModelWithQuadratic.RData") 
-load("spm.mch.m3_FullModelWithQuadratic.RData")  
-load("spm.mchc.m3_FullModelWithQuadratic.RData")
+load("spm.trbc.m4_FullModelWithQuadratic.RData")
+load("spm.mcv.m4_FullModelWithQuadratic.RData") 
+load("spm.mch.m4_FullModelWithQuadratic.RData")  
+load("spm.mchc.m4_FullModelWithQuadratic.RData")
 
 # Set color scheme 
 color_scheme_set("viridisD")
@@ -1409,7 +1409,7 @@ ggsave(fig4c_trbc_main, filename = "fig4c_trbc_main_IndivLevel.pdf", bg="transpa
 
 # TRBC Inset plot (Null model, M1)
 color_scheme_set("brightblue")
-fig4c_trbc_inset <- mcmc_plot(spm.trbc.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+fig4c_trbc_inset <- mcmc_plot(spm.trbc.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
               "b_genotypeSerMSer", "b_genotypeGlyMSer"),
               prob_outer=0.95, # 95% outer CI
               prob=0.50, # 50% inner CI
@@ -1469,7 +1469,7 @@ ggsave(fig4d_mcv_main, filename = "fig4d_mcv_main_IndivLevel.pdf", bg="transpare
 
 # MCV Inset plot (Final model, M6)
 color_scheme_set("brightblue")
-fig4d_mcv_inset <- mcmc_plot(spm.mcv.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+fig4d_mcv_inset <- mcmc_plot(spm.mcv.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
             "b_genotypeSerMSer", "b_genotypeGlyMSer"),
              prob_outer=0.95, # 95% outer CI
              prob=0.50, # 50% inner CI
@@ -1530,7 +1530,7 @@ ggsave(fig4e_mch_main, filename = "fig4e_mch_main_IndivLevel.pdf", bg="transpare
 
 # MCH INSET PLOT 
 color_scheme_set("brightblue")
-fig4e_mch_inset <- mcmc_plot(spm.mch.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+fig4e_mch_inset <- mcmc_plot(spm.mch.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
             "b_genotypeSerMSer", "b_genotypeGlyMSer"),
              prob_outer=0.95, # 95% outer CI
              prob=0.50, # 50% inner CI
@@ -1591,7 +1591,7 @@ ggsave(fig4f_mchc_main, filename = "fig4f_mchc_main_IndivLevel.pdf", bg="transpa
 
 # MCHC inset element 
 color_scheme_set("brightblue")
-fig4f_mchc_inset <- mcmc_plot(spm.mchc.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
+fig4f_mchc_inset <- mcmc_plot(spm.mchc.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_temp.z", "b_precip.z", "b_mass.z", 
             "b_genotypeSerMSer", "b_genotypeGlyMSer"),
               prob_outer=0.95, # 95% outer CI
               prob=0.50, # 50% inner CI
@@ -1636,7 +1636,7 @@ Fig4_v2_Indiv_and_SpeciesMean <- (fig4a_hb_panel +
                                   fig4f_mchc_panel +
                                   plot_layout(guides = "collect"))
 plot(Fig4_v2_Indiv_and_SpeciesMean)
-ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_06_04_21.pdf", bg="transparent", height=6.8, width=12.5, units="in")
+ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_06_09_21.pdf", bg="transparent", height=6.8, width=12.5, units="in")
 ```
 
 

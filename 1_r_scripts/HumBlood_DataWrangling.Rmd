@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Data Wrangling"
 author: "Jessie Williamson"
-date: "11/23/2020"
+date: "11/23/2020; last revised 6/10/21"
 output:
   md_document:
     variant: markdown_github
@@ -101,7 +101,7 @@ More on benefits of 'here()' here: http://jenrichmond.rbind.io/post/how-to-use-t
 source(here::here("./1_r_scripts/ada_functions.R")) # Erik's ADA functions for clean & collated lm diag plots
 
 # All hummingbird blood data
-blood <- read.csv(here::here("All_hummingbird_blood_data_forJLWcomparison_07-02-20.csv"))
+blood <- read.csv(here::here("All_hummingbird_blood_data_forJLWcomparison_06-10-21.csv"))
 # Note: all variables read in with "X0_" (just "0_" in Excel) are variables that will be dropped once you run code for 
 # blood calculations below. This prefix indicates DROP ME, NOT PART OF FINAL ANYTHING.
 
@@ -441,6 +441,14 @@ length(unique(full$species)) # number of unique species
 # Now drop 'preparator' column, which throws things off below: 
 full <- full[ , !(colnames(full) %in% c("preparator"))] 
 # THIS IS NECESSARY BECAUSE BELOW YOU CALL COL #S TO FILL IN MISSING ELEVS AND ADDING THIS THROWS OFF #S
+```
+
+
+# Write out 'full' w/ ALL data as Table S2, big supplementary specimen table
+```{r}
+# write.csv(full, "TableS2_SpecimenTable_2021_06-10.csv")
+# Remember that you don't want to write over this fresh each time because you'll convert to .xlsx and 
+# manually add Arctos links, etc
 ```
 
 
@@ -1729,11 +1737,11 @@ BIO19 = Precipitation of Coldest Quarter
 Optional code for making a non-Patagona subset (because Patagona is a body size outlier)
 ```{r, message=FALSE, warning=FALSE}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-10-21.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
 final.nopgig <- final[-which(final$species == "Patagona gigas"),]
-write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_03-01-21.csv")
+write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_06-10-21.csv")
 ```
 
 
