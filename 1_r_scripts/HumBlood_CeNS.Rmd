@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 6/02/21"
+date: "4/26/2021; last revised 6/10/21"
 output: html_document
 ---
 
@@ -99,6 +99,11 @@ library(phytools)
 # library(broom)
 # library(stargazer) # model output tables
 # library(ggeffects) # for estimating model predictions from mixed effects models
+
+# Load functions 
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
+  # Erik's ADA functions for clean & collated lm diag plots
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
 ```
 
 
@@ -113,13 +118,8 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 
 # Load in datasets
 ```{R}
-# Load functions 
-source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
-  # Erik's ADA functions for clean & collated lm diag plots
-source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
-
 # Final hummingbird blood dataset (remember that you completed pre-processing in HumBlood_Modeling file)
-final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_04-26-21.csv", stringsAsFactors = FALSE)
+final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-10-21.csv", stringsAsFactors = FALSE)
   # Keep stringsasfactors=FALSE because species and dept need to be characters in order for Patagona rename loop to work
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
@@ -396,7 +396,7 @@ cens.il.m1 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.il.m1, file="cens.il.m1_InterceptOnly.RData") # save model
-#load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
+# load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
 # # INTERCEPT + SPECIES GROUPING VARIABLE 
 # cens.il.m2 <- brm(
@@ -428,7 +428,7 @@ cens.il.m2 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.il.m2, file="cens.il.m2_Predictors_SpeciesRE.RData") # save model
-#load("cens.il.m2_Predictors_SpeciesRE.RData")
+# load("cens.il.m2_Predictors_SpeciesRE.RData")
 })
 ```
 
@@ -552,7 +552,7 @@ bayes_R2(cens.il.m2) # 0.56
 # Model comparisons:
 #            elpd_diff se_diff
 # cens.il.m2    0.0       0.0 
-# cens.il.m1 -243.3      19.1  
+# cens.il.m1 -243.5      19.1  
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
@@ -611,7 +611,7 @@ cens.sm.m1 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.sm.m1, file="cens.sm.m1_InterceptOnly.RData") # save model
-# load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
+#load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
 # PREDICTORS 
 cens.sm.m2 <- brm(
@@ -627,7 +627,7 @@ cens.sm.m2 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.sm.m2, file="cens.sm.m2_Predictors_SpeciesRE.RData") # save model
-#load("cens.sm.m2_Predictors_SpeciesRE.RData")
+# load("cens.sm.m2_Predictors_SpeciesRE.RData")
 })
 ```
 
@@ -1627,7 +1627,8 @@ Pgign %>%
 ```
 
 
-# Species-specific Conditional effects plots 
+# FIGURE S3: Species-specific Conditional effects plots 
+This will be Figure S3 in paper. May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
 ```{r}
 # Color options: 'arg' should be one of “blue”, “brightblue”, “darkgray”, “gray”, “green”, “orange”, “pink”, “purple”, “red”, “teal”, “yellow”, “viridis”, “viridisA”, “viridisB”, “viridisC”, “viridisD”, “viridisE”
 # color_scheme_set("blue") # nice default
@@ -1641,11 +1642,15 @@ cens.Amel.p1 <- mcmc_plot(cens.Amel, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "A. melanogenys") + 
+#labs(x="", subtitle = expression(paste(italic("A. melanogenys")))) + 
+ggtitle(expression(paste(bold("A"),~~~~italic("A. melanogenys")))) + 
+  theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+  # This makes panel header bold 
 # xlim(0, 8) + # Set axis limits 
 # geom_vline(xintercept = 0) + # Horizontal line where data crosses 0 
 scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1659,9 +1664,12 @@ cens.Acas.p1 <- mcmc_plot(cens.Acas, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "A. castelnaudii") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("B"),~~~~italic("A. castelnaudii")))) + 
+  theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1675,9 +1683,12 @@ cens.Akin.p1 <- mcmc_plot(cens.Akin, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "A. kingii") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("C"),~~~~italic("A. kingii")))) + 
+  theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1691,9 +1702,12 @@ cens.Aama.p1 <- mcmc_plot(cens.Aama, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "A. amazilia") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("D"),~~~~italic("A. amazilia")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1707,9 +1721,12 @@ cens.Clar.p1 <- mcmc_plot(cens.Clar, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. largipennis") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "C. largipennis") + 
+ggtitle(expression(paste(bold("E"),~~~~italic("C. largipennis")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1723,9 +1740,12 @@ cens.Coen.p1 <- mcmc_plot(cens.Coen, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. oenone") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "C. oenone") +
+ggtitle(expression(paste(bold("F"),~~~~italic("C. oenone")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1739,9 +1759,12 @@ cens.Ccoe.p1 <- mcmc_plot(cens.Ccoe, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. coeligena") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "C. coeligena") + 
+ggtitle(expression(paste(bold("C"),~~~~italic("C. coeligena")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1755,9 +1778,12 @@ cens.Ciri.p1 <- mcmc_plot(cens.Ciri, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. iris") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("H"),~~~~italic("C. iris")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1767,13 +1793,18 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Ciri.p1
 ggsave(cens.Ciri.p1, filename = "cens.Ciri.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
+# SECOND LINE 
+
 cens.Cvio.p1 <- mcmc_plot(cens.Cvio, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. violifer") + 
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("I"),~~~~italic("C. violifer")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
 scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1787,9 +1818,12 @@ cens.Ccor.p1 <- mcmc_plot(cens.Ccor, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. coruscans") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "C. coruscans") + 
+ggtitle(expression(paste(bold("J"),~~~~italic("C. coruscans")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1803,9 +1837,12 @@ cens.Eluc.p1 <- mcmc_plot(cens.Eluc, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. luciani") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "C. luciani") + 
+ggtitle(expression(paste(bold("K"),~~~~italic("C. luciani")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1819,9 +1856,12 @@ cens.Econ.p1 <- mcmc_plot(cens.Econ, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "C. condamini") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("L"),~~~~italic("C. condamini")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1835,9 +1875,12 @@ cens.Fmel.p1 <- mcmc_plot(cens.Fmel, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "F. mellivora") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("M"),~~~~italic("F. mellivora")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1851,9 +1894,12 @@ cens.Ghir.p1 <- mcmc_plot(cens.Ghir, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "G. hirsutus") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("N"),~~~~italic("G. hirsutus")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1867,9 +1913,12 @@ cens.Hame.p1 <- mcmc_plot(cens.Hame, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "H. amethysticollis") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("O"),~~~~italic("H. amethysticollis")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1883,9 +1932,12 @@ cens.Hmic.p1 <- mcmc_plot(cens.Hmic, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "H. micrastur") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "H. micrastur") +
+ggtitle(expression(paste(bold("P"),~~~~italic("H. micrastur")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1895,13 +1947,18 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Hmic.p1
 ggsave(cens.Hmic.p1, filename = "cens.Hmic.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
+# THIRD LINE 
+
 cens.Hlea.p1 <- mcmc_plot(cens.Hlea, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "H. leadbeateri") + 
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("Q"),~~~~italic("H. leadbeateri")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
 scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1915,9 +1972,12 @@ cens.Llaf.p1 <- mcmc_plot(cens.Llaf, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "L. lafresnayi") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("R"),~~~~italic("L. lafresnayi")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1931,9 +1991,12 @@ cens.Lnun.p1 <- mcmc_plot(cens.Lnun, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "L. nuna") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("S"),~~~~italic("L. nuna")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1947,9 +2010,12 @@ cens.Lvic.p1 <- mcmc_plot(cens.Lvic, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "L. victoriae") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("T"),~~~~italic("L. victoriae")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1963,9 +2029,12 @@ cens.Meup.p1 <- mcmc_plot(cens.Meup, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "M. eupogon") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") +
+ggtitle(expression(paste(bold("U"),~~~~italic("M. eupogon")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1979,9 +2048,12 @@ cens.Mpho.p1 <- mcmc_plot(cens.Mpho, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "M. phoebe") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") +
+ggtitle(expression(paste(bold("V"),~~~~italic("M. phoebe")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1995,9 +2067,12 @@ cens.Mtyr.p1 <- mcmc_plot(cens.Mtyr, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "M. tyrianthina") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("W"),~~~~italic("M. tyrianthina")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2011,9 +2086,12 @@ cens.Ound.p1 <- mcmc_plot(cens.Ound, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "O. underwoodii") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="", title = "") + 
+ggtitle(expression(paste(bold("X"),~~~~italic("O. underwoodii")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2023,13 +2101,18 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Ound.p1
 ggsave(cens.Ound.p1, filename = "cens.Ound.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
+# FOURTH LINE 
+
 cens.Oest.p1 <- mcmc_plot(cens.Oest, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "O. estella") + 
+labs(x="Effect on [Hb]", title = "") +
+ggtitle(expression(paste(bold("Y"),~~~~italic("O. estella")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
 scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2043,9 +2126,12 @@ cens.Omel.p1 <- mcmc_plot(cens.Omel, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "O. melanogaster") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("Z"),~~~~italic("O. melanogaster")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2060,9 +2146,12 @@ cens.Pgign.p1 <- mcmc_plot(cens.Pgign, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "P. gigas (North)") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AA"),~~~~italic("P. gigas (North)")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2077,9 +2166,12 @@ cens.Pgigs.p1 <- mcmc_plot(cens.Pgigs, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "P. gigas (South)") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AB"),~~~~italic("P. gigas (South)")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2093,9 +2185,12 @@ cens.Pguy.p1 <- mcmc_plot(cens.Pguy, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "P. guy") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AC"),~~~~italic("P. guy")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2109,9 +2204,12 @@ cens.Pmal.p1 <- mcmc_plot(cens.Pmal, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "P. malaris") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AD"),~~~~italic("P. malaris")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2125,9 +2223,12 @@ cens.Pcya.p1 <- mcmc_plot(cens.Pcya, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "P. cyanopterus") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AE"),~~~~italic("P. cyanopterus")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2141,9 +2242,12 @@ cens.Tfur.p1 <- mcmc_plot(cens.Tfur, pars=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="Effect on [Hb]", title = "T. furcata") + 
-scale_y_discrete(labels=c("MCV","TRBC")) +
-            theme(plot.title = element_text(family = "Helvetica", color="black",size=12)) + # font = panel header size
+labs(x="Effect on [Hb]", title = "") + 
+ggtitle(expression(paste(bold("AF"),~~~~italic("T. furcata")))) + 
+        theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
+        plot.title = element_text(face="bold")) +
+scale_y_discrete(labels=c("","x")) +
+            theme(plot.title = element_text(family = "Helvetica", color="black",size=9)) + # font = panel header size
             theme(text = element_text(family="Helvetica",size=9)) # y axis labels
             # ggtitle("A") + # Assign panel number/header
             # theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -2156,15 +2260,15 @@ ggsave(cens.Tfur.p1, filename = "cens.Tfur.p1_PosteriorEstimates&CredibleInterva
 # PLOT ALL SPECIES-SPECIFIC OUTPUTS TOGETHER 
 library(patchwork)
 # Alternative layout option = BETTER, USE THIS ONE:
-SS_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.p1 + cens.Clar.p1 + cens.Coen.p1 + 
+FigS3_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.p1 + cens.Clar.p1 + cens.Coen.p1 + 
                       cens.Ccoe.p1 + cens.Ciri.p1 + cens.Cvio.p1 + cens.Ccor.p1 + cens.Eluc.p1 + cens.Econ.p1 + 
                       cens.Fmel.p1 + cens.Ghir.p1 + cens.Hame.p1 + cens.Hmic.p1 + cens.Hlea.p1 + cens.Llaf.p1 + 
                       cens.Lnun.p1 + cens.Lvic.p1 + cens.Meup.p1 + cens.Mpho.p1 + cens.Mtyr.p1 + cens.Ound.p1 +   
                       cens.Oest.p1 + cens.Omel.p1 + cens.Pgign.p1 + cens.Pgigs.p1 + cens.Pguy.p1 + cens.Pmal.p1 + 
                       cens.Pcya.p1 + cens.Tfur.p1 +
-                      plot_layout(guides = "collect"))
-plot(SS_PosteriorProbs)
-ggsave(SS_PosteriorProbs, filename = "CeNS_Species-Specific_PosteriorProbs_06-02-21.pdf", bg="transparent", height=7, width=12, units="in")
+                      plot_layout(guides = "collect", nrow=4))
+plot(FigS3_PosteriorProbs)
+ggsave(FigS3_PosteriorProbs, filename = "FigS3_CeNS_Species-Specific_PosteriorProbs_06-10-21.pdf", bg="transparent", height=7, width=12, units="in")
 ```
 
 JESSIE NOTE: Ideally need to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
@@ -2829,6 +2933,16 @@ cens.ss.mean$cens.index <- (cens.ss.mean$cens.trbc)/(cens.ss.mean$cens.mcv + cen
 ```
 
 
+###
+
+
+# IF JUST PLOTTING AND RUNNING CENS PREDICTION MODELS, READ IN DATA HERE! 
+Otherwise you risk R crashing when reloading all cumbersome models and files. 
+```{r}
+# cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-03-21.csv", stringsAsFactors = FALSE)
+```
+
+
 
 # CeNS Plots
 What does our CeNS index look like in relation to other variables? 
@@ -2864,7 +2978,7 @@ ggsave(p5, filename="CeNSindex_by_MeanElev_06-03-21.pdf", height=7, width=9, uni
  # scale_color_manual(values = hum_colors) +
  # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
-  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+ #  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
   theme_classic() + 
   labs(x="Wing Loading", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
@@ -2906,8 +3020,14 @@ ggsave(p7, filename="CeNSindex_by_Mass_06-03-21.pdf", height=7, width=9, units="
 # If plotting cens.index.mcv, we therefore expect a concave shape in our plot; and:
 # cens.index and cens.index.mcv values should sum to one
 
-### Plot CeNS index against raw MCV and raw TRBC 
 
+```
+
+
+
+### Plot CeNS index against raw MCV and raw TRBC 
+Diagnostics to see how things are correlated. 
+```{r}
 # Scatterplot: CeNS index v. TRBC  
 (p <- ggplot(cens.ss.mean, aes(x=trbc, y=cens.index)) + # Had previously colored by MCV
   geom_point(size=3.4, alpha=1.0) +
@@ -3114,6 +3234,7 @@ lm_diag_plots(cens.index.mchc.model)
 
 
 # FIGURE S4: CENS DIAGNOSTIC PLOT - correlations between R^2, TRBC estimates, and MCV estimates
+***consider moving this into plots and figs script once things are settled! 
 ```{r}
 # Firstly, Let's assess possible correlation between the CeNS index and better fitting models - do better or worse fitting # models consistently have certain CeNS values? 
 
@@ -3367,7 +3488,7 @@ class(just.cens); typeof(just.cens) #; View(just.hct)
 cens.cont.tree <- contMap(tree.cens, just.cens, plot=TRUE, outline=FALSE) 
 
 # Plot map and save to pdf w/ proper aesthetics 
-pdf(file="CeNS.index.contmap.pdf", width=6, height=6) # Write plot to pdf 
+pdf(file="CeNS.index.contmap_06-10-21.pdf", width=6, height=6) # Write plot to pdf 
 #hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
 plot.contMap(cens.cont.tree, just.cens, res=200, fsize=0.4, lwd=2, leg.txt="CeNS Index", outline=FALSE) # Manually plot using phytools
 dev.off()
@@ -3421,7 +3542,7 @@ cens.m1 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
-# load("hb.m1_CeNS_Intercept-Only.Rdata") 
+# load("cens.m1_CeNS_Intercept-Only.Rdata") 
 
 # MODEL 2: FULL MODEL, NO QUADRATIC
 cens.m2 <- brm(
@@ -3453,7 +3574,7 @@ cens.m3 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m3, file="cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # save model
-# load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # If loading from pre-saved file and not re-running
+#load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 4: FULL MODEL WITH QUADRATIC
 cens.m4 <- brm(
@@ -3469,7 +3590,7 @@ cens.m4 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m4, file="cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # save model
-# load("cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # If loading from pre-saved file and not re-running
+#load("cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -3605,7 +3726,7 @@ cens.m5 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.m5, file="cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # save model
-#load("cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+# load("cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL 
 cens.m6 <- brm(
@@ -3706,7 +3827,7 @@ bayes_R2(cens.m6) # 0.16
 # cens.m4 -1.9       1.7   
 # cens.m1 -3.0       3.6   
 # cens.m6 -3.0       2.7   
-# cens.m2 -3.4       3.3 
+# cens.m2 -3.4       3.3   
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 # job::job({ # Send to a job to free up console

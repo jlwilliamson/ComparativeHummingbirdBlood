@@ -112,7 +112,7 @@ source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/
 # Don't need to load if already loaded from another script 
 # Unlike tree file, you want all categorical variables to be factors for modeling
 # final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_08-26-20.csv", stringsAsFactors = TRUE)
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv", stringsAsFactors = TRUE)
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-10-21.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
 final$rowID <- 1:nrow(final) # Re-add row ID; this somehow got a bit messed up
@@ -795,7 +795,7 @@ theme_set(theme_bw() +
 
 # Save final post-processing file for modeling; this will be read into other downstream docs
 ```{r}
-# write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_05-27-21.csv")
+#write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-10-21.csv")
 ```
 
 
@@ -2479,13 +2479,14 @@ trbc.m4.unstandardized <-
         chains = 4, cores = 4)
 save(trbc.m4.unstandardized, file="trbc.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("trbc.m4.unstandardized_Predictors_SpeciesRE.RData")
+load("trbc.m4.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(trbc.m4.unstandardized)
 fixef(trbc.m4.unstandardized)[2] # For every 1 m increase in elev, we expect TRBC will increase by 0.0003072614
 round(fixef(trbc.m4.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, TRBC will increase by 0.31 units. 
-# Not sure if other variables are worth reporting, as they have really obscure units
+round(fixef(trbc.m4.unstandardized)[2]*1000, 2)*(10^6) # Convert to raw # cells per microliter (can also *1000000)
+# SO: For every 1,000 m increase in elev, TRBC will increase by 310,000 cells per microliter 
 ```
 
 TRBC, Quick summary of top 3 models in order of ranking: 
@@ -3468,7 +3469,7 @@ save(mch.m6.unstandardized, file="mch.m6.unstandardized_Predictors_SpeciesRE.RDa
 # Look at magnitude of unstandardized coefficients 
 summary(mch.m6.unstandardized)
 fixef(mch.m6.unstandardized)[2] # For every 1 m increase in elev, we expect MCH will decrease by -0.0004775075 pg
-round(fixef(mch.m6.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, MCH will decrease by -0.48 pg. 
+round(fixef(mch.m6.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, MCH will decrease by 0.48 pg. 
 # Not sure if other variables are worth reporting, as they have really obscure units
 ```
 

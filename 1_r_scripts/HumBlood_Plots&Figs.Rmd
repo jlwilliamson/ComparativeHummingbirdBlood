@@ -94,14 +94,14 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv")
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-10-21.csv")
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 spmeans <- read.csv("AllHummingbird_SpeciesMeanBloodData_03-01-21.csv")
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
-final.nopgig <- read.csv("HumBlood.final.nopgig_03-01-21.csv")
+final.nopgig <- read.csv("HumBlood.final.nopgig_06-10-21.csv")
 final.nopgig <- final.nopgig[ , !(colnames(final.nopgig) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
 # Phylogeny pruned from McGuire and adjusted (see script HumBlood_Phylogeny.Rmd)
@@ -1642,6 +1642,165 @@ ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_
 
 
 
+# FIGURE 5 - CENS RESULTS 
+```{r}
+# Load in data required to create plot 
+load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") 
+load("cens.m5_CeNS_ReducedModel_PredictorsOnly.RData")
+
+
+
+
+```
+
+
+PRINT PLOT 
+```{r}
+
+# PANEL A: Full CeNS model with top model inset 
+
+# Main: Best full CeNS model (M3) 
+color_scheme_set("viridisD")
+fig5a_main <- mcmc_plot(cens.m3, pars=c("b_wl.z", "b_mass.z", "b_elev.z", "b_Ielev.zE2"),
+              prob_outer=0.95, # 95% outer CI 
+              prob=0.50, # 50% inner CI 
+              point_est="mean") + # mean point est; default is median 
+              labs(x="Effect on CeNS Index", title = "") + 
+              scale_y_discrete(labels=c("Wing Loading", "Mass", "Elevation", "Elevation^2")) + 
+              theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                  panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(text = element_text(family="Helvetica", size=10)) + # y axis labels 
+             ggtitle("A") + # Assign panel number/header
+             theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+             plot.title = element_text(face="bold"))  # This makes panel header bold 
+             # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig5a_main
+ggsave(fig5a_main, filename = "fig5a_main_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+
+# Inset (M5, which is reduced M3)
+color_scheme_set("brightblue")
+fig5a_inset <- mcmc_plot(cens.m5, pars=c("b_mass.z", "b_elev.z", "b_Ielev.zE2"),
+               prob_outer=0.95, # 95% outer CI
+               prob=0.50, # 50% inner CI
+               point_est="mean", # mean point est; default is median
+               point_size=1.5, inner_size=0.8) + # Adjust line and point thickness for inset formatting
+               labs(x="Effect on CeNS Index", title = "") +
+               scale_y_discrete(labels=c("Mass", "Elevation", "Elevation^2")) + 
+               theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
+               theme_bw() +  #theme with white background
+               theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+                    panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
+               theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+               theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
+               # ggtitle("E") + # Assign panel number/header
+               theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+               plot.title = element_text(face="bold"))  # This makes panel header bold
+               # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+               #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+fig5a_inset
+ggsave(fig5a_inset, filename = "fig5a_inset_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+
+# FINAL PANEL A WITH INSET 
+fig5a_final <- fig5a_main + inset_element(fig5a_inset, 
+                                                  right = 1.0, # RIGHT IS LEFT 
+                                                  bottom = 0.7, 
+                                                  left = 0.6, # LEFT IS RIGHT
+                                                  top = 1.075)
+fig5a_final
+
+
+# PANEL B: CENS V. ELEVATION 
+(fig5b <- ggplot(cens.ss.mean, aes(x=elev, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=3.4, alpha=1.0) + # cens.ss.mean$mcv/10 = to size by MCV but they don't look super variable
+#  geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+   geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # quadratic 
+  # geom_smooth(method = "lm", size = 1,colour="darkturquoise", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Mean Elevation (m)", y="CeNS Index") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=9), axis.text.x=element_text(size=9), axis.title=element_text(size=9))
+ )
+ggsave(fig5b, filename="fig5b_CeNSindex_by_MeanElev_06-11-21.pdf", height=7, width=9, units="in")
+
+
+# PANEL C: CENS V. MASS 
+# Scatterplot: CeNS index v. Mass  
+(fig5c <- ggplot(cens.ss.mean, aes(x=mass.log, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=3.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
+  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Log Mass (g)", y="CeNS Index") + # CeNS index = (TRBC/MCV+TRBC) 
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=9), axis.text.x=element_text(size=9), axis.title=element_text(size=9))
+ )
+ggsave(fig5c, filename="fig5c_CeNSindex_by_Mass_06-11-21.pdf", height=7, width=9, units="in")
+
+
+# PANEL D (MIGHT CUT LATER) - CENS V. WING LOADING 
+# Scatterplot: CeNS index v. wing loading  
+(fig5d <- ggplot(cens.ss.mean, aes(x=wl, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=3.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # scale_colour_viridis(discrete=F) + 
+ # scale_color_manual(values = hum_colors) +
+ # geom_jitter(width=0.5, height=0.5, alpha=0.8, size=1.1) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
+ #  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="Wing Loading", y="CeNS Index") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=9), axis.text.x=element_text(size=9), axis.title=element_text(size=9))
+ )
+ggsave(fig5d, filename="fig5d_CeNSindex_by_WingLoading_06-11-21.pdf", height=7, width=9, units="in")
+
+
+#### FINAL PLOT #####
+
+library(patchwork)
+# Alternative layout option = BETTER, USE THIS ONE:
+Figure5_CeNS_Results <- (fig5a_final | fig5b / fig5c + fig5d) +
+                                    plot_layout(widths=c(2,1)) 
+# Not sure why column width doesn't work when panels are stacked vertically with "/" between B, C, D
+# Very mysteriously: When I only include "/" between B and C, it does exactly what I want (3 panels stacked vertically)
+# AND, widths are correct
+plot(Figure5_CeNS_Results)
+ggsave(Figure5_CeNS_Results, filename = "Figure5_CeNS_Results_06-11-21.pdf", bg="transparent", height=6.8, width=12, units="in")
+
+# # this is same as what I have above but in multiple steps 
+# patch <- fig5b / fig5c / fig5d; plot(patch)
+# test <- fig5a_final + patch; plot(test)
+```
 
 
 
@@ -1651,11 +1810,9 @@ ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_
 
 
 
+EVERYTHING BELOW THIS LINE IS UNPOLISHED 
 
 
-
-
-JESSIE WORKING HERE 
 
 # Trial with species mean values 
 If you want to do this, need to read in species mean value dataset from modeling rmd file 
