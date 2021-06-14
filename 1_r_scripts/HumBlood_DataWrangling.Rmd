@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Data Wrangling"
 author: "Jessie Williamson"
-date: "11/23/2020; last revised 6/10/21"
+date: "11/23/2020; last revised 6/14/21"
 output:
   md_document:
     variant: markdown_github
@@ -653,11 +653,17 @@ library(tidyr)
 
 # Need to merge with full dataset
 # and copy down species mean values for all the species records 
+# Wing loading = body mass (g)/total wing area (mm^2 or cm^2)
+# Since we'll use total wing area in cm^2, our wing loading units will be g/cm^2
+
+# Don't trust Excel! Redo calculations in R to make sure that we've got the right numbers and right units. 
+wload$wing_area_cm2 <- wload$wing_area_mm2/10 # convert total wing area in mm^2 to cm^2
+wload$wing_loading <- wload$mass/wload$wing_area_cm2
 
 # Now change column names 
-names(wload)[names(wload) == "mass_g"] <- "wm" # wing mass: units = grams 
-names(wload)[names(wload) == "wing_area_mm2"] <- "wa" # wing area: units = mm2
-names(wload)[names(wload) == "wing_loading"] <- "wl" # wing loading
+names(wload)[names(wload) == "mass_g"] <- "wl_mass" # body mass (g) for wing loading calculations
+names(wload)[names(wload) == "wing_area_cm2"] <- "wa" # total wing area (cm^2)
+names(wload)[names(wload) == "wing_loading"] <- "wl" # wing loading (g/cm^2)
 # the 'n' clolumn corresponds to # samples used to calculate wing loading (data that went into Skandalis et al. 2017)
 
 # Merge full data w/ MSB wing loading data 
@@ -1306,7 +1312,7 @@ apply(final, 2, percent.missing)
 # yay! No missing mass data. 
 
 # Final dataset without Hb genotypes:
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_11-09-20.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_06-14-21.csv")
 ```
 
 Vignette on handling missing values w/ brms: 
@@ -1652,7 +1658,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-# write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_03-01-21.csv")
+#write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_06-14-21.csv")
 ```
 
 
@@ -1737,11 +1743,11 @@ BIO19 = Precipitation of Coldest Quarter
 Optional code for making a non-Patagona subset (because Patagona is a body size outlier)
 ```{r, message=FALSE, warning=FALSE}
 # FINAL FINAL: This is the 'final' dataset w/ PCA reduced-BioClimVars
-write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-10-21.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-14-21.csv")
 
 # Patagona-free subset (for possible modeling of mass, where Patagona is a huge body size outlier):
 final.nopgig <- final[-which(final$species == "Patagona gigas"),]
-write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_06-10-21.csv")
+write.csv(final.nopgig, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/HumBlood.final.nopgig_06-14-21.csv")
 ```
 
 

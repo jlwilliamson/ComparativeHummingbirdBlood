@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Modeling"
 author: "Jessie Williamson"
-date: "11/09/2020; Last Updated: 3/2/21"
+date: "11/09/2020; Last Updated: 6/14/21"
 output:
   md_document:
     variant: markdown_github
@@ -111,8 +111,7 @@ source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
 # Unlike tree file, you want all categorical variables to be factors for modeling
-# final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_NoHbGenotypes_08-26-20.csv", stringsAsFactors = TRUE)
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-10-21.csv", stringsAsFactors = TRUE)
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-14-21.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
 final$rowID <- 1:nrow(final) # Re-add row ID; this somehow got a bit messed up
