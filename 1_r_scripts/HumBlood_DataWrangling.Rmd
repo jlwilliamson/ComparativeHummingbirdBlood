@@ -657,7 +657,7 @@ library(tidyr)
 # Since we'll use total wing area in cm^2, our wing loading units will be g/cm^2
 
 # Don't trust Excel! Redo calculations in R to make sure that we've got the right numbers and right units. 
-wload$wing_area_cm2 <- wload$wing_area_mm2/10 # convert total wing area in mm^2 to cm^2
+wload$wing_area_cm2 <- wload$wing_area_mm2/100 # convert total wing area in mm^2 to cm^2
 wload$wing_loading <- wload$mass/wload$wing_area_cm2
 
 # Now change column names 
@@ -1658,7 +1658,7 @@ final$bio18 <- raster::extract(peru_chile$layer.18, locality.coords)
 final$bio19 <- raster::extract(peru_chile$layer.19, locality.coords)
 
 # Now write out this dataset, which represents the near-final version of what you'll want for analysis
-#write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_06-14-21.csv")
+write.csv(final, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_06-14-21.csv")
 ```
 
 

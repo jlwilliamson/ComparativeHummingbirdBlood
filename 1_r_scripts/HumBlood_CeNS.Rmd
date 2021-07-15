@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 6/10/21"
+date: "4/26/2021; last revised 7/15/21"
 output: html_document
 ---
 
@@ -29,6 +29,13 @@ Script to try to get to the bottom of 'cell size vs. cell number' and create the
 knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
 knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
 knitr::opts_chunk$set(cache = TRUE, autodep=TRUE)
+```
+
+
+# Clear workspace and set WD
+```{R}
+rm(list=ls(all=TRUE)) # clear workspace 
+setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 ```
 
 
@@ -109,17 +116,10 @@ source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/
 
 ---
 
-# Clear workspace and set WD
-```{R}
-rm(list=ls(all=TRUE)) # clear workspace 
-setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
-```
-
-
 # Load in datasets
 ```{R}
 # Final hummingbird blood dataset (remember that you completed pre-processing in HumBlood_Modeling file)
-final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-10-21.csv", stringsAsFactors = FALSE)
+final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-14-21.csv", stringsAsFactors = FALSE)
   # Keep stringsasfactors=FALSE because species and dept need to be characters in order for Patagona rename loop to work
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
@@ -157,6 +157,7 @@ censdat <- na.omit(censdat) # 661 observations
 # Standardize predictors 
 censdat$mcv.z <- standardize(censdat$mcv)
 censdat$trbc.z <- standardize(censdat$trbc)
+censdat$mchc.z <- standardize(censdat$mchc)
 
 # Correlation matrix 
 cor(censdat[,c("hb", "mcv.z", "trbc.z")])
@@ -341,8 +342,57 @@ Mpho <- Mpho[-which(Mpho$nk == 162840),]
 Ound <- Ound[-which(Ound$nk == 167872),]
 
 # Check distributions 
-# p <- ggpairs(subset(test, select = c(elev, hb, mcv, trbc, mcv.log, mcv.z, trbc.z))); print(p)
+p <- ggpairs(subset(censdat, select = c(hb, mcv, trbc, mchc))); print(p)
 ```
+
+
+# Assess correlations between variables 
+```{r}
+# Correlation matrix - individual-level data
+cor(censdat[,c("hb", "mcv", "trbc", "mchc")]) 
+
+#           hb         mcv       trbc        mchc
+# hb   1.0000000  0.12852782  0.2621327  0.33061677
+# mcv  0.1285278  1.00000000 -0.8447446 -0.07050376
+# trbc 0.2621327 -0.84474462  1.0000000 -0.10779970
+# mchc 0.3306168 -0.07050376 -0.1077997  1.00000000
+
+# This describes what we know: that TRBC is highly negatively correlated w/ MCV. BUT, these are measurements describing
+# very different things and both affect Hb, so we leave them in. 
+
+# Correlation matrix - species mean data 
+cor(cens.sp[,c("hb", "mcv", "trbc", "mchc")])
+
+#             hb         mcv        trbc        mchc
+# hb   1.0000000  0.16266075  0.25105739  0.33003917
+# mcv  0.1626607  1.00000000 -0.86430646 -0.03962787
+# trbc 0.2510574 -0.86430646  1.00000000 -0.08447571
+# mchc 0.3300392 -0.03962787 -0.08447571  1.00000000
+
+# Same as above, only notable correlation is strong negative corrrelation between MCV and TRBC
+```
+
+
+# Calculate coefficients of variation (cv)
+```{r}
+# Coefficient of variation = standard deviation/mean; measure of relative variability
+
+# Individual-level data 
+cv(censdat$hb) # 0.08862862
+cv(censdat$mcv) # 0.1759373
+cv(censdat$trbc) # 0.1766653
+cv(censdat$mchc) # 0.05978773
+cv(censdat$mass) # 0.5154195 # High cv for mass
+
+# Species mean data 
+cv(cens.sp$hb) # 0.0494299
+cv(cens.sp$mcv) # 0.1033924
+cv(cens.sp$trbc) # 0.1061705
+cv(cens.sp$mchc) # 0.03048832
+cv(cens.sp$mass) # 0.5180711 # For perspective, cv is much, much higher for a trait like mass (which we expect.)
+```
+
+Coefficients of variation in individual-level data: Hb (0.08862862), MCV (0.1759373), TRBC (0.1766653), MCHC (0.05978773). Coefficients of variation in species mean data: Hb (0.0494299), MCV (0.1033924), TRBC (0.1061705), MCHC (0.03048832). 
 
 
 Set global plot theme 
@@ -359,7 +409,7 @@ theme_set(theme_bw() +
 ```
 
 
-
+----
 
 
 #### CeNS MODELING #####
@@ -398,22 +448,6 @@ cens.il.m1 <- brm(
 save(cens.il.m1, file="cens.il.m1_InterceptOnly.RData") # save model
 # load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
-# # INTERCEPT + SPECIES GROUPING VARIABLE 
-# cens.il.m2 <- brm(
-#   formula = bf(hb ~ 1 + (1|species)),
-#   data = censdat,
-#   family = gaussian(),
-#   cores = 4,
-#   chains = 4,
-#   thin = 10,
-#   warmup = 5000, # default is iter/2; shouldn't ever be larger than iter
-#   iter = 10000, 
-#   control = list(adapt_delta = 0.99, max_treedepth = 15),
-#   sample_prior = TRUE # save priors
-# )
-# save(cens.il.m2, file="cens.il.m2_SpeciesREOnly.RData") # save model
-#load("cens.il.m2_SpeciesREOnly.RData") 
-
 # PREDICTORS AND SPECIES GROUPING VARIABLE 
 cens.il.m2 <- brm(
   formula = bf(hb ~ 1 + mcv.z + trbc.z + (1|species)),
@@ -430,6 +464,7 @@ cens.il.m2 <- brm(
 save(cens.il.m2, file="cens.il.m2_Predictors_SpeciesRE.RData") # save model
 # load("cens.il.m2_Predictors_SpeciesRE.RData")
 })
+
 ```
 
 
@@ -477,7 +512,7 @@ censdat %>%
 # Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
 # x-axis should be scale based on value of estimates coming out of the model 
 
-# Model 23 
+# Model 2
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
 cens.il.m2.p1 <- mcmc_plot(cens.il.m2, pars=c("b_mcv.z", "b_trbc.z"),
@@ -487,7 +522,7 @@ cens.il.m2.p1 <- mcmc_plot(cens.il.m2, pars=c("b_mcv.z", "b_trbc.z"),
 labs(x="Effect on [Hb]", title = "cens.il.m2: Individual-level Comparison") + 
 scale_y_discrete(labels=c("MCV","TRBC"))  
 cens.il.m2.p1
-ggsave(cens.il.m2.p1, filename = "cens.il.m2.p1_PosteriorEstimates&CredibleIntervals_05-27-21.pdf", bg="transparent", height=7, width=9, units="in")
+ggsave(cens.il.m2.p1, filename = "cens.il.m2.p1_PosteriorEstimates&CredibleIntervals_07-15-21.pdf", bg="transparent", height=7, width=9, units="in")
 
 summary(cens.il.m2)
 # Both MCV and TRBC have strong positive effects on Hb.
@@ -552,27 +587,28 @@ bayes_R2(cens.il.m2) # 0.56
 # Model comparisons:
 #            elpd_diff se_diff
 # cens.il.m2    0.0       0.0 
-# cens.il.m1 -243.5      19.1  
+# cens.il.m1 -243.5      19.1 
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
 cens.il.m2.unstandardized <- 
   update(cens.il.m2,
         newdata = censdat,
-        formula = hb ~ 1 + mcv + trbc + (1|species),
+        formula = hb ~ 1 + mcv + trbc + mchc + (1|species),
         chains = 4, cores = 4)
-save(cens.il.m2.unstandardized, file="cens.il.m2.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(cens.il.m2.unstandardized, file="cens.il.m3.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
 # load("cens.il.m2.unstandardized_Predictors_SpeciesRE.RData")
 
 summary(cens.il.m2.unstandardized)
+
 # mcv = 0.12; trbc = 1.81; what this tells us: 
 # For every unit increase in TRBC, [Hb] increases by 1.81 g/dl
 # For every unit increase in MCV, [Hb] increases by 0.12 g/dl
 ```
 
 Quick summary of top model comparison: 
-- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 14%. R^2 = 0.56. 
+- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 8%. R^2 = 0.85. 
 
 Standardized Estimates: 
 MCV = 1.92
@@ -611,7 +647,7 @@ cens.sm.m1 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.sm.m1, file="cens.sm.m1_InterceptOnly.RData") # save model
-#load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
+# load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
 # PREDICTORS 
 cens.sm.m2 <- brm(
@@ -628,6 +664,7 @@ cens.sm.m2 <- brm(
 )
 save(cens.sm.m2, file="cens.sm.m2_Predictors_SpeciesRE.RData") # save model
 # load("cens.sm.m2_Predictors_SpeciesRE.RData")
+
 })
 ```
 
@@ -676,7 +713,7 @@ cens.sp %>%
 # Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
 # x-axis should be scale based on value of estimates coming out of the model 
 
-# Model 3 
+# Model 2 
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
 cens.sm.m2.p1 <- mcmc_plot(cens.sm.m2, pars=c("b_mcv.z", "b_trbc.z"),
@@ -692,7 +729,7 @@ summary(cens.sm.m2)
 # Both MCV and TRBC have strong positive effects on Hb.
 # As TRBC increases, Hb increases. As MCV increases, Hb increases.
 # Effect of TRBC is marginally stronger than MCV (estimates: TRBC = 1.45; MCV = 1.41)
-# So, it seems that species increase Hb by increasing TRBC. 
+# So, it seems that species increase Hb by increasing TRBC.
 ```
 
 
@@ -734,14 +771,14 @@ bayes_R2(cens.sm.m2) # 0.62
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 job::job({ # Send to a job to free up console
-cens.sm.m2.unstandardized <- 
+cens.sm.m2.unstandardized <-
   update(cens.sm.m2,
         newdata = cens.sp,
         formula = hb ~ 1 + mcv + trbc,
         chains = 4, cores = 4)
 save(cens.sm.m2.unstandardized, file="cens.sm.m2.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("cens.sm.m2.unstandardized_Predictors_SpeciesRE.RData")
+#load("cens.sm.m2.unstandardized_Predictors_SpeciesRE.RData")
 
 summary(cens.sm.m2.unstandardized)
 # mcv = 0.14; trbc = 2.13; what this tells us: 
@@ -759,8 +796,8 @@ TRBC = 1.45
 Unstandardized Estimates: 
 MCV = 0.14
 TRBC = 2.15
-- For every increase in MCV of one fl, we expect [Hb] will increase by 0.14 g/dl. 
-- For every increase in TRBC of one unit, we expect [Hb] will increase by 2.15 g/dl. 
+For every unit increase in TRBC, [Hb] increases by 2.15 g/dl
+For every unit increase in MCV, [Hb] increases by 0.14 g/dl
 
 
 ########
@@ -2313,6 +2350,7 @@ bayes_R2(cens.Tfur)[1]# 0.82
 ))
 cens.R2
 length(cens.R2)
+write.csv(cens.R2, "cens.R2_Values_06-14-21.csv")
 ```
 
 
@@ -2336,6 +2374,7 @@ fixef(cens.Pcya)[3], fixef(cens.Tfur)[3]
 )) 
 cens.trbc
 length(cens.trbc)
+write.csv(cens.trbc, "cens.trbc_Values_06-14-21.csv")
 
 # Calculate vector of cens (standardized) MCV model estimates: 
 cens.mcv <- as.vector(c(
@@ -2353,6 +2392,7 @@ fixef(cens.Pcya)[3], fixef(cens.Tfur)[2]
 )) 
 cens.mcv
 length(cens.mcv)
+write.csv(cens.mcv, "cens.mcv_Values_06-14-21.csv")
 ```
 
 
@@ -2878,6 +2918,8 @@ fixef(cens.unst.Pcya)[3], fixef(cens.unst.Tfur)[3]
 )) 
 cens.unst.trbc
 length(cens.unst.trbc)
+write.csv(cens.unst.trbc, "cens.unst.trbc_Values_06-14-21.csv")
+
 
 # Calculate vector of cens (standardized) MCV model estimates: 
 cens.unst.mcv <- as.vector(c(
@@ -2895,22 +2937,36 @@ fixef(cens.unst.Pcya)[2], fixef(cens.unst.Tfur)[2]
 )) 
 cens.unst.mcv 
 length(cens.unst.mcv)
+write.csv(cens.unst.mcv, "cens.unst.mcv_Values_06-14-21.csv")
 ```
-
-
 
 
 # Make a CeNS Prediction modeling dataset 
 ```{r}
+# If they aren't already read in, read in the vectors/dataframes of model coefficients and R^2 values
+cens.R2 <- read.csv("cens.R2_Values_06-14-21.csv", stringsAsFactors = TRUE) # R^2 values from standardized CeNS models
+names(cens.R2)[names(cens.R2) == "x"] <- "cens.R2"
+cens.trbc <- read.csv("cens.trbc_Values_06-14-21.csv", stringsAsFactors = TRUE) # standardized TRBC coefficients
+names(cens.trbc)[names(cens.trbc) == "x"] <- "cens.trbc"
+cens.mcv <- read.csv("cens.mcv_Values_06-14-21.csv", stringsAsFactors = TRUE) # standardized MCV coefficients
+names(cens.mcv)[names(cens.mcv) == "x"] <- "cens.mcv"
+cens.unst.trbc <- read.csv("cens.unst.trbc_Values_06-14-21.csv", stringsAsFactors = TRUE) # unstandardized TRBC coef
+names(cens.unst.trbc)[names(cens.unst.trbc ) == "x"] <- "trbc.unst" # Make this column header simpler
+cens.unst.mcv <- read.csv("cens.unst.mcv_Values_06-14-21.csv", stringsAsFactors = TRUE) # unstandardized MCV coef
+names(cens.unst.mcv)[names(cens.unst.mcv ) == "x"] <- "mcv.unst" # Make this column header simpler
+
+model.indices <- cbind(cens.R2, cens.trbc, cens.mcv, cens.unst.trbc, cens.unst.mcv) # Combine all 
+model.indices <- model.indices[, !(colnames(model.indices) %in% c("X"))] # Drop weird X columns 
+
 # Now make a species mean dataset from the cens.ss species-specific subset you used for modeling SS species 
 cens.ss.mean <- cens.ss %>% group_by(species) %>% summarise(hb = mean(hb),   
                                                   elev = mean(elev), 
                                                   mass = mean(mass),
                                                   wl = mean(wl),
                                                   mcv = mean(mcv),
-                                                  mcv.z = mean(mcv.z),
+                                                #  mcv.z = mean(mcv.z),
                                                   trbc = mean(trbc),
-                                                  trbc.z = mean(trbc.z),
+                                                 # trbc.z = mean(trbc.z),
                                                   mchc = mean(mchc) # need to add mchc.z to cens.ss if you want it
                                                   )
 # NEED TO USE CENS.SS for this because it contains all individual data for the pared-down species subset used for species-
@@ -2922,14 +2978,21 @@ cens.genotypes <- cens.genotypes[ , !(colnames(cens.genotypes) %in% c("species")
 # Count is # individuals included per species 
 
 # Add CeNS indices to species-specific mean CeNS data for plotting and later analysis 
-cens.ss.mean <- cbind(cens.ss.mean, cens.trbc, cens.mcv, cens.R2, cens.unst.trbc, cens.unst.mcv, cens.genotypes)
+cens.ss.mean <- cbind(cens.ss.mean, model.indices, cens.genotypes)
 cens.ss.mean$mass.log <- log10(cens.ss.mean$mass)
 
 # Cens index: TRBC [3] / MCV [2] + TRBC [3]
 # Calculate MCV-oriented CeNS version with: "1-cens.index"
 cens.ss.mean$cens.index <- (cens.ss.mean$cens.trbc)/(cens.ss.mean$cens.mcv + cens.ss.mean$cens.trbc)
 
-# write.csv(cens.ss.mean, "cens.ss.mean_ForCeNSmodeling_06-03-21.csv")
+# Standardize variables 
+cens.ss.mean$mcv.z <- standardize(cens.ss.mean$mcv)
+cens.ss.mean$trbc.z <- standardize(cens.ss.mean$trbc)
+cens.ss.mean$wl.z <- standardize(cens.ss.mean$wl)
+cens.ss.mean$mass.z <- standardize(cens.ss.mean$mass.log) # standardized mean mass (log-transformed)
+cens.ss.mean$elev.z <- standardize(cens.ss.mean$elev)
+
+write.csv(cens.ss.mean, "cens.ss.mean_ForCeNSmodeling_06-14-21.csv")
 ```
 
 
@@ -2939,7 +3002,8 @@ cens.ss.mean$cens.index <- (cens.ss.mean$cens.trbc)/(cens.ss.mean$cens.mcv + cen
 # IF JUST PLOTTING AND RUNNING CENS PREDICTION MODELS, READ IN DATA HERE! 
 Otherwise you risk R crashing when reloading all cumbersome models and files. 
 ```{r}
-# cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-03-21.csv", stringsAsFactors = FALSE)
+# cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-14-21.csv", stringsAsFactors = FALSE)
+# cens.ss.mean <- cens.ss.mean[ , !(colnames(cens.ss.mean) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 ```
 
 
@@ -2990,7 +3054,7 @@ ggsave(p5, filename="CeNSindex_by_MeanElev_06-03-21.pdf", height=7, width=9, uni
   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p6, filename="CeNSindex_by_WingLoading_06-03-21.pdf", height=7, width=9, units="in")
+ggsave(p6, filename="CeNSindex_by_WingLoading_06-14-21.pdf", height=7, width=9, units="in")
 
 # Scatterplot: CeNS index v. Mass  
 (p7 <- ggplot(cens.ss.mean, aes(x=mass.log, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
@@ -3019,8 +3083,6 @@ ggsave(p7, filename="CeNSindex_by_Mass_06-03-21.pdf", height=7, width=9, units="
 # the CeNS index was oriented towards MCV; that is, if we plot MCV/MCV+TRBC instead of TRBC/MCV+TRBC
 # If plotting cens.index.mcv, we therefore expect a concave shape in our plot; and:
 # cens.index and cens.index.mcv values should sum to one
-
-
 ```
 
 
@@ -3231,208 +3293,10 @@ lm_diag_plots(cens.index.mchc.model)
 # The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
 ```
 
-
-
-# FIGURE S4: CENS DIAGNOSTIC PLOT - correlations between R^2, TRBC estimates, and MCV estimates
-***consider moving this into plots and figs script once things are settled! 
-```{r}
-# Firstly, Let's assess possible correlation between the CeNS index and better fitting models - do better or worse fitting # models consistently have certain CeNS values? 
-
-# Scatterplot: CeNS Index v. R^2 
-(s4.1 <- ggplot(cens.ss.mean, aes(x=cens.R2, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x=expression(CeNS~Model~italic(R)^{2}), y="CeNS Index (0-1)") + # CeNS index = (TRBC/MCV+TRBC)
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=0.8, y=0.70, label = "italic(R) ^ 2 == 0.06", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=0.8, y=0.68, label = "italic(r) == -0.23", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s4.1, filename="CensIndex_Versus_R^2.pdf", height=7, width=9, units="in")
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.R2")])
-# No correlation between R^2 values and the CeNS index: value = -0.23
-
-# Quick linear model 
-cens.R2.index.model <- glm(cens.index ~ cens.R2, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.R2.index.model)
-Anova(cens.R2.index.model, type=3)
-lm_diag_plots(cens.R2.index.model)
-(1 - (cens.R2.index.model$deviance/cens.R2.index.model$null.deviance)) # R^2 = 0.06
-
-# Answer: No! Cens index is *not* correlated with R^2 values from models. This is good, suggests there isn't an 
-# artifactual pattern of better or worse fitting models producing similar CeNS values. 
-
-
-####
-
-# Is cens.index correlated with STANDARDIZED TRBC estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
-(s4.2 <- ggplot(cens.ss.mean, aes(x=cens.trbc, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS TRBC Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.27", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s4.2, filename="CeNSIndex_Versus_StandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
-# Coeligena coeligena is the super weird outlier point 
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.trbc")])
-# No correlation between R^2 values and the CeNS index: value = -0.27
-
-# Quick linear model 
-cens.index.sttrbc.model <- glm(cens.index ~ cens.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.sttrbc.model)
-Anova(cens.index.sttrbc.model, type=3)
-lm_diag_plots(cens.index.sttrbc.model)
-(1 - (cens.index.sttrbc.model$deviance/cens.index.sttrbc.model$null.deviance)) # R^2 = 0.07
-
-
-# Is cens.index correlated with UNSTNDARDIZED TRBC estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
-(s4.3 <- ggplot(cens.ss.mean, aes(x=cens.unst.trbc, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS TRBC Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.26", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s4.3, filename="CeNSIndex_Versus_UnstandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
-# Coeligena coeligena is the super weird outlier point 
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.unst.trbc")])
-# No correlation between R^2 values and the CeNS index: value = -0.26
-
-# Quick linear model 
-cens.index.unsttrbc.model <- glm(cens.index ~ cens.unst.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.unsttrbc.model)
-Anova(cens.index.unsttrbc.model, type=3)
-lm_diag_plots(cens.index.unsttrbc.model)
-(1 - (cens.index.unsttrbc.model$deviance/cens.index.unsttrbc.model$null.deviance)) # R^2 = 0.07
-
-# Answer: No! Cens index is *not* correlated with unstandardized TRBC values from models. 
-
-
-##### 
-
-# Is cens.index correlated with STANDARDIZED MCV estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
-(s4.4 <- ggplot(cens.ss.mean, aes(x=cens.mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
-  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS MCV Model Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.51", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.71", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s4.4, filename="CeNSIndex_Versus_MCVEstimateStandardized.pdf", height=7, width=9, units="in")
-
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.mcv")])
-# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.7
-
-# Quick linear model 
-cens.index.stmcv.model <- glm(cens.index ~ cens.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.stmcv.model)
-Anova(cens.index.stmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
-lm_diag_plots(cens.index.stmcv.model)
-(1 - (cens.index.stmcv.model$deviance/cens.index.stmcv.model$null.deviance)) # R^2 = 0.51
-
-
-# Is cens.index correlated with UNSTANDARDIZED MCV estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
-(s4.5 <- ggplot(cens.ss.mean, aes(x=cens.unst.mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
-  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS MCV Model Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=0.25, y=0.70, label = "italic(R) ^ 2 == 0.45", parse = TRUE) + # Add R^2 value from lmer model
-    annotate("text", x=0.25, y=0.66, label = "italic(r) == -0.67", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s4.5, filename="CeNSIndex_Versus_MCVEstimateUnstandardized.pdf", height=7, width=9, units="in")
-
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.unst.mcv")])
-# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.67
-
-# Quick linear model 
-cens.index.unstmcv.model <- glm(cens.index ~ cens.unst.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.unstmcv.model)
-Anova(cens.index.unstmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
-lm_diag_plots(cens.index.unstmcv.model)
-(1 - (cens.index.unstmcv.model$deviance/cens.index.unstmcv.model$null.deviance)) # R^2 = 0.45
-
-# Answer: Yes, cens.index is strongly negatively correlated with unstandardized MCV estimates 
-# The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
-
-
-#### FINAL PLOT #####
-
-library(patchwork)
-# Alternative layout option = BETTER, USE THIS ONE:
-FigureS4_5panel_CeNSDiagnostics <- (s4.1 | s4.2 + s4.3 + s4.4 + s4.5 +
-                                    plot_layout(guides = "collect"))
-plot(FigureS4_5panel_CeNSDiagnostics)
-ggsave(FigureS4_5panel_CeNSDiagnostics, filename = "FigureS4_5panel_CeNSDiagnostics_06-03_21.pdf", bg="transparent", height=6.8, width=12, units="in")
-```
-
 Some thoughts: Why did we choose to calculate cens index with estimates from models versus from raw data? Because we want each parameter's relative contribution to driving hemoglobin concentration, which we can't get without model estimates; pulling betas from models gives us the link to Hb. And perhaps what's interesting here is that after modeling this link, we actually find the opposite of what we do by analyzing the raw data: We do *not* see the concave/flipped parabola shape, which suggests that middle-elev species are increasing blood-O2 carrying capacity through higher MCV; instead what we find is that middle elev species are primarily increasing blood-O2 carrying capacity through increases in TRBC. This differs from the process of human acclimatization to altitude. Low and high elevation species both increase blood-o2 carrying capacity through increases through having bigger cells and fewer of them (higher MCV), but this effect is much stronger in high elevation hummingbird species, which have larger cells. 
+
+
+
 
 
 ######
@@ -3452,10 +3316,7 @@ tree.cens$tip.label %in% cens.ss.mean$species # yes
 sum(tree.cens$tip.label %in% cens.ss.mean$species) # sum = 32
 summary(tree.cens$tip.label %in% cens.ss.mean$species) # yes 
 
-# Standardize model inputs: 
-cens.ss.mean$elev.z <- standardize(cens.ss.mean$elev)
-cens.ss.mean$mass.z <- standardize(cens.ss.mean$mass.log) # standardized mean mass (log-transformed)
-cens.ss.mean$wl.z <- standardize(cens.ss.mean$wl)
+# Don't need to standardize inputs because remember we did this above 
 ```
 
 
@@ -3542,7 +3403,7 @@ cens.m1 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
-# load("cens.m1_CeNS_Intercept-Only.Rdata") 
+#load("cens.m1_CeNS_Intercept-Only.Rdata") 
 
 # MODEL 2: FULL MODEL, NO QUADRATIC
 cens.m2 <- brm(
@@ -3635,7 +3496,7 @@ cens.ss.mean %>%
 
 
 
-# Cens: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+# Cens: Plot outputs of posterior mean estimates and 95% credible intervals (full models)
 ```{r}
 # Plot: Posterior mean estimates and 95% credible intervals for predictors.
 # Plot these nicely and without intercepts, which throws off scale: 
@@ -3814,20 +3675,20 @@ sink()
 # loo_compare(en.loo) # Top ranked model includes no random effects 
 
 # Calculate Bayesian R^2:
-bayes_R2(cens.m2) # 0.20
-bayes_R2(cens.m3) # 0.36
-bayes_R2(cens.m4) # 0.40
-bayes_R2(cens.m5) # 0.34
+bayes_R2(cens.m2) # 0.21
+bayes_R2(cens.m3) # 0.38
+bayes_R2(cens.m4) # 0.41
+bayes_R2(cens.m5) # 0.33
 bayes_R2(cens.m6) # 0.16
 
 # Model comparisons:
 #         elpd_diff se_diff
-# cens.m5  0.0       0.0   
-# cens.m3 -0.3       1.3   
-# cens.m4 -1.9       1.7   
-# cens.m1 -3.0       3.6   
-# cens.m6 -3.0       2.7   
-# cens.m2 -3.4       3.3   
+# cens.m3  0.0       0.0   
+# cens.m5  0.0       1.5   
+# cens.m4 -1.4       0.8   
+# cens.m1 -3.0       3.5   
+# cens.m2 -3.0       2.8   
+# cens.m6 -3.0       2.7  
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 # job::job({ # Send to a job to free up console
@@ -3850,9 +3711,9 @@ bayes_R2(cens.m6) # 0.16
 ```
 
 Quick summary of top 3 models in order of ranking: 
-1) Model 5: Reduced model w/ elev, elev quadratic, and mass. R^2 = 0.34.
-2) Model 3: Full model w/ elev, elev quadratic, and no genotype term. R^2 = 0.36. 
-3) Model 4: Other full model w/ elev quadratic and genotype term. R^2 = 0.40
+1) Model 3: Full model w/ elev, elev quadratic, and no genotype term. R^2 = 0.38.
+2) (tied) Model 5: Reduced model w/ elev, elev quadratic, and mass. R^2 = 0.33.
+3) Model 4: Other full model w/ elev quadratic and genotype term. R^2 = 0.41
 
 
 
@@ -3864,13 +3725,6 @@ All models are NOT substantially better than the intercept-only model. No phylog
 - Strong relationship between CeNS index and mass (CeNS increases w/ increased mass)
 - Moderate relationship between CeNS index and wing loading (CeNS increases w/ increased WL)
 - No phylogenetic signal in CeNS index 
-
-
-
-
-
-
-
 
 
 

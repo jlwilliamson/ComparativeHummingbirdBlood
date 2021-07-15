@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Modeling"
 author: "Jessie Williamson"
-date: "11/09/2020; Last Updated: 6/14/21"
+date: "11/09/2020; Last Updated: 7/15/21"
 output:
   md_document:
     variant: markdown_github
@@ -106,7 +106,7 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 # Load functions 
 source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
   # Erik's ADA functions for clean & collated lm diag plots
-source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") 
 
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
@@ -213,8 +213,8 @@ final$intravar.precip <- final$precipPC1 - final$spec.mean.precip
 # Check normality and distributions; transform non-normal variables as necessary 
 ```{r}
 # Predictor dataset - take a look at distributions
-p <- ggpairs(subset(final, select = c(hb, hct, trbc, mcv, mch, mchc, mass, wl, elev, elev_position, tempPC1, precipPC1))) 
-print(p)
+# p <- ggpairs(subset(final, select = c(hb, hct, trbc, mcv, mch, mchc, mass, wl, elev, elev_position, tempPC1, precipPC1))) 
+# print(p)
 
 # FIRST: RESPONSE VARIABLES 
 # Hb, Hct, and TRBC look fantastic - no need to transform 
@@ -794,9 +794,102 @@ theme_set(theme_bw() +
 
 # Save final post-processing file for modeling; this will be read into other downstream docs
 ```{r}
-#write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-10-21.csv")
+#write.csv(final, "ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-14-21.csv")
 ```
 
+
+# Calculate means, standard deviations, ranges, and coefficients of variation for individual-level data 
+```{r}
+# Parameter names 
+col1 <- c("[Hb]", "Hct", "TRBC", "MCV", "MCH", "MCHC")
+
+# Mean values
+col2 <- c(
+          round(mean(final.hb$hb),2), 
+          round(mean(final.hct$hct),2), 
+          round(mean(final.trbc$trbc),2), 
+          round(mean(final.mcv$mcv),2), 
+          round(mean(final.mch$mch),2), 
+          round(mean(final.mchc$mchc),2) 
+          ); col2
+
+# Standard deviations 
+col3 <- c(
+          round(sd(final.hb$hb),2), 
+          round(sd(final.hct$hct),2), 
+          round(sd(final.trbc$trbc),2), 
+          round(sd(final.mcv$mcv),2), 
+          round(sd(final.mch$mch),2), 
+          round(sd(final.mchc$mchc),2) 
+          ); col3
+
+# # Ranges
+# col4 <- c(
+#           c(round(min(final.hb$hb),2), round(max(final.hb$hb),2)),
+#           c(round(min(final.hct$hct),2), round(max(final.hct$hct),2)),
+#           c(round(min(final.trbc$trbc),2), round(max(final.trbc$trbc),2)),
+#           c(round(min(final.mcv$mcv),2), round(max(final.mcv$mcv),2)),
+#           c(round(min(final.mch$mch),2), round(max(final.mch$mch),2)),
+#           c(round(min(final.mchc$mchc),2), round(max(final.mchc$mchc),2))
+#           ); col4
+
+# Range: Min values
+col4 <- c(
+          round(min(final.hb$hb),2), 
+          round(min(final.hct$hct),2), 
+          round(min(final.trbc$trbc),2), 
+          round(min(final.mcv$mcv),2), 
+          round(min(final.mch$mch),2), 
+          round(min(final.mchc$mchc),2) 
+          ); col4
+    
+# Range: Max values
+col5 <- c(
+          round(max(final.hb$hb),2), 
+          round(max(final.hct$hct),2), 
+          round(max(final.trbc$trbc),2), 
+          round(max(final.mcv$mcv),2), 
+          round(max(final.mch$mch),2), 
+          round(max(final.mchc$mchc),2) 
+          ); col5
+
+# Coefficients of variation  
+col6 <- c(
+          round(cv(final.hb$hb),2), 
+          round(cv(final.hct$hct),2), 
+          round(cv(final.trbc$trbc),2), 
+          round(cv(final.mcv$mcv),2), 
+          round(cv(final.mch$mch),2), 
+          round(cv(final.mchc$mchc),2) 
+          ); col6
+
+TableS3_IndividualLevelSummaryValues <- cbind(col1, col2, col3, col4, col5, col6); table
+colnames(TableS3_IndividualLevelSummaryValues) <- c("Parameter", "Mean", "Standard Deviation", "Min", "Max", "Coefficient of Variation")
+# some weird character/string formatting going on, but I got the values I want for wrangling into Word format
+
+write.csv(TableS3_IndividualLevelSummaryValues, "TableS3_Individual-LevelSummaryValues.csv")
+```
+
+
+# Get correlation matrix for full, individual-level dataset 
+We can't get a correlation matrix for the `final` dataset since it contains many NAs, and we can't use the strategic variable-specific subsets because they only contain values for each parameter of interest (ie., `final.hb` contains only hb information, not info for the 5 other parameters). To simplify, we will run na.omit() on `final` and just use what we can. 
+```{r}
+# First select only blood parameters (if we run na.omit on final w/out doing this, we're left with 14 lines of data)
+final.for.corr <- subset(final, select = c(nk, hb, hct, trbc, mcv, mch, mchc))
+final.for.corr <- na.omit(final.for.corr) # We're left with 688 observations for our correlation matrix
+
+# Correlation matrix - individual-level data
+cor(final.for.corr[,c("hb", "hct", "trbc", "mcv", "mch", "mchc")]) 
+
+#             hb         hct        trbc         mcv         mch        mchc
+# hb   1.0000000  0.76083476  0.24445721  0.13895495  0.25431313  0.33945216
+# hct  0.7608348  1.00000000  0.30338019  0.19814442  0.07832426 -0.34899108
+# trbc 0.2444572  0.30338019  1.00000000 -0.84807551 -0.84951531 -0.08432156
+# mcv  0.1389550  0.19814442 -0.84807551  1.00000000  0.93990732 -0.09034342
+# mch  0.2543131  0.07832426 -0.84951531  0.93990732  1.00000000  0.24927648
+# mchc 0.3394522 -0.34899108 -0.08432156 -0.09034342  0.24927648  1.00000000
+
+```
 
 
 -------
