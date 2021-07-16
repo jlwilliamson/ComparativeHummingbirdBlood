@@ -20,6 +20,7 @@ Script to try to get to the bottom of 'cell size vs. cell number' and create the
     - Is there phylo signal to these estimates? Prune trees, then work up contmaps, Pagel's lamda, and blomberg's K
     - Take these estimates and run another model: maybe try cens.index ~ mass + elev + (1|phylo) to see what predicts this index? —> This is making that censdat cool jump that Chris mentioned, where we’ll show that something additional PREDICTS our index.
 
+Followed these instructions to set up SSH key with happygitfromR but if they don't work see this: https://happygitwithr.com/ssh-keys.html
 
 #######
 
