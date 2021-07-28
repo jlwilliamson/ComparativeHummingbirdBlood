@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 7/15/21"
+date: "4/26/2021; last revised 7/28/21"
 output: html_document
 ---
 
@@ -3045,7 +3045,7 @@ ggsave(p5, filename="CeNSindex_by_MeanElev_06-03-21.pdf", height=7, width=9, uni
  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
  #  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
   theme_classic() + 
-  labs(x="Wing Loading", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+  labs(x="Wing Loading", y="CeNS Index") + # CeNS index = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "right") + 
  # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
@@ -3102,11 +3102,11 @@ Diagnostics to see how things are correlated.
   geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
   theme_classic() + 
   labs(x=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-     y="CeNS Index\n(TRBC/MCV + TRBC)") + # Removed x-axis label because we don't want Panel A to have label
+     y="CeNS Index") + # Removed x-axis label because we don't want Panel A to have label
  # labs(x="TRBC", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "right") + 
- annotate("text", x=7.1, y=0.70, label = "italic(R) ^ 2 == 0.18", parse = TRUE) + # Add R^2 value from lmer model
+ #annotate("text", x=7.1, y=0.70, label = "italic(R) ^ 2 == 0.19", parse = TRUE) + # Add R^2 value from lmer model
  # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -3126,7 +3126,7 @@ cens.trbc.link.model <- glm(cens.index ~ trbc, data=cens.ss.mean, family=gaussia
 summary(cens.trbc.link.model)
 Anova(cens.trbc.link.model, type=3)
 lm_diag_plots(cens.trbc.link.model)
-(1 - (cens.trbc.link.model$deviance/cens.trbc.link.model$null.deviance)) # R^2 = 0.18
+(1 - (cens.trbc.link.model$deviance/cens.trbc.link.model$null.deviance)) # R^2 = 0.19
 
 
 # Scatterplot: CeNS index v. MCV  
@@ -3139,10 +3139,10 @@ lm_diag_plots(cens.trbc.link.model)
  # geom_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1, colour="black", size=1.0) + # quadratic 
   geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
   theme_classic() + 
-  labs(x="MCV (fl)", y="CeNS Index\n(TRBC/MCV + TRBC)") + # CeNS index = (TRBC/MCV+TRBC)
+  labs(x="MCV (fl)", y="CeNS Index") + # CeNS index = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "right") + 
-  annotate("text", x=105, y=0.70, label = "italic(R) ^ 2 == 0.25", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=105, y=0.70, label = "italic(R) ^ 2 == 0.26", parse = TRUE) + # Add R^2 value from lmer model
  # ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
@@ -3160,7 +3160,7 @@ cens.mcv.link.model <- glm(cens.index ~ mcv, data=cens.ss.mean, family=gaussian(
 summary(cens.mcv.link.model) # As MCV increases, ceNS index increases 
 Anova(cens.mcv.link.model, type=3) # significant; p = 0.003
 lm_diag_plots(cens.mcv.link.model)
-(1 - (cens.mcv.link.model$deviance/cens.mcv.link.model$null.deviance)) # R^2 = 0.25
+(1 - (cens.mcv.link.model$deviance/cens.mcv.link.model$null.deviance)) # R^2 = 0.26
 
 # Scatterplot: TRBC v. MCV colored by Cens.index 
 (p <- ggplot(cens.ss.mean, aes(x=mcv, y=trbc, colour=cens.index)) + # Add shape=Clade here to get shapes to work properly
@@ -3244,19 +3244,23 @@ cor(cens.ss.mean[,c("mcv", "mass.log")]) # 0.17
 
 
 # Hemoglobin genotype and CeNS Index
-(p22 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
+# HB GENOTYPE DOES NOT AFFECT CENS INDEX
+(FigureS5 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(genotype)), outlier.size=2.0, alpha=0.7) +
         geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
         stat_summary(fun=mean, colour="firebrick1", geom="point", shape=18, size=6) + # Red diamonds at mean 
         theme_classic() +   # theme_classic() removes all gridlines; theme_bw() retains subtle nice gridlines           
         theme(panel.grid.minor = element_blank()) +
+        #scale_fill_brewer(palette="RdYlGn") + 
+         scale_fill_viridis(option="viridis", discrete=TRUE) + # for Viridis palettes
         labs(y="CeNS Index", # Hella confusing formatting for x and y axis labels 
-             x="Clade") +
+             x="Hb Genotype") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
         theme(legend.position = "none") +
         theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
 )
+ggsave(FigureS5, filename="CensIndex_vs_Genotype_2021_07-27.pdf", height=7, width=9, units="in")
 
 
 # Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
@@ -3324,10 +3328,10 @@ summary(tree.cens$tip.label %in% cens.ss.mean$species) # yes
 # Check distributions and correlations
 ```{r}
 # Take a look at distribution of data 
-p <- ggpairs(subset(cens.ss.mean, select = c(cens.index, elev.z, mass.z, wl.z, genotype))); p
+p <- ggpairs(subset(cens.ss.mean, select = c(cens.index, elev.z, mass.z, wl.z, mcv, trbc, genotype))); p
 
 # Correlation matrix 
-cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index")])
+cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index", "mcv", "trbc")])
 # Wing loading correlated with elev
 ```
 
@@ -3406,7 +3410,7 @@ cens.m1 <- brm(
 save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
 #load("cens.m1_CeNS_Intercept-Only.Rdata") 
 
-# MODEL 2: FULL MODEL, NO QUADRATIC
+# MODEL 2: 
 cens.m2 <- brm(
   formula = bf(cens.index ~ 1 + elev.z + mass.z + wl.z),
   data = cens.ss.mean,
@@ -3422,9 +3426,9 @@ cens.m2 <- brm(
 save(cens.m2, file="cens.m2_CeNS_FullModel_PredictorsWithoutQuadratic.RData") # save model
 # load("cens.m2_CeNS_FullModel_PredictorsWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
 
-# MODEL 3: FULL MODEL WITH QUADRATIC
+# MODEL 3: 
 cens.m3 <- brm(
-  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z + wl.z),
+  formula = bf(cens.index ~ 1 + elev.z + + I(elev.z^2) + mass.z + wl.z),
   data = cens.ss.mean,
   family = gaussian(), 
   cores = 4,
@@ -3435,8 +3439,8 @@ cens.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(cens.m3, file="cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # save model
-#load("cens.m3_CeNS_FullModel_PredictorsWithQuadratic.RData") # If loading from pre-saved file and not re-running
+save(cens.m3, file="cens.m3_CeNS.RData") # save model
+#load("cens.m3_CeNS.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 4: FULL MODEL WITH QUADRATIC
 cens.m4 <- brm(
@@ -3451,8 +3455,8 @@ cens.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(cens.m4, file="cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # save model
-#load("cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RData") # If loading from pre-saved file and not re-running
+save(cens.m4, file="cens.m4_CeNS.RData") # save model
+#load("cens.m4_CeNS.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -3461,7 +3465,7 @@ save(cens.m4, file="cens.m4_CeNS_FullModel_PredictorsWithQuadratic&Genotype.RDat
 Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
 ```{r}
 # FIT AND CONVERGENCE 
-mcmc_plot(cens.m3, type = "trace") 
+mcmc_plot(cens.m4, type = "trace") 
 plot(cens.m3, N = 2, ask = FALSE)
 mcmc_plot(cens.m3, type = "acf_bar")
 
@@ -3470,21 +3474,22 @@ bayesplot::pp_check(cens.m3, type = "stat_2d", nsamples = 100)
 
 # conditional effects
 plot(conditional_effects(cens.m2), points = TRUE) 
+#plot(conditional_effects(cens.m4, effects = "trbc.z"))
 
 # Quick plot of estimates and 95% CIs (default is 95% CI:
-mcmc_plot(cens.m2)  # adjust prob to get 95% CI
+mcmc_plot(cens.m3)  # adjust prob to get 95% CI
 
 # Residual plots 
 # typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
 # associated with each residual
 cens.ss.mean %>%
-  add_residual_draws(cens.m2) %>%
+  add_residual_draws(cens.m3) %>%
   ggplot(aes(x = .row, y = .residual)) +
   stat_pointinterval()
 
 # qqPlots
 cens.ss.mean %>%
-  add_predicted_draws(cens.m2) %>%
+  add_predicted_draws(cens.m3) %>%
   summarise(
     p_residual = mean(.prediction < cens.index), # probability residual; Bayesian predictive p-value 
     z_residual = qnorm(p_residual) # quantile residuals 
@@ -3510,31 +3515,31 @@ cens.ss.mean %>%
 # Model 2 
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
-cens.m2.p1 <- mcmc_plot(cens.m2, pars=c("b_elev.z", "b_mass.z","b_wl.z"),
+cens.m2.p1 <- mcmc_plot(cens.m2, pars=c("b_elev.z", "b_mass.z", "b_wl.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on CeNS Index", title = "cens.m2") + 
-scale_y_discrete(labels=c("Elevation","Mass", "Wing Loading"))  
+scale_y_discrete(labels=c("Elevation","Mass","Wing Loading"))  
 cens.m2.p1
 ggsave(cens.m2.p1, filename = "cens.m2.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m2)
-# Predictors that don't overlap zero: None
+# Predictors that don't overlap zero: NONE
 
 # Model 3 
-cens.m3.p1 <- mcmc_plot(cens.m3, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z","b_wl.z"),
+cens.m3.p1 <- mcmc_plot(cens.m3, pars=c("b_elev.z","b_Ielev.zE2","b_mass.z","b_wl.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on CeNS Index", title = "cens.m3") + 
-scale_y_discrete(labels=c("Elevation", "Elevation^2","Mass", "Wing Loading"))  
+scale_y_discrete(labels=c("Elevation","Elevation^2", "Mass", "Wing Loading"))  
 cens.m3.p1
 ggsave(cens.m3.p1, filename = "cens.m3.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m3)
-# Predictors that don't overlap zero: elev, elev quadratic, mass
+# Predictors that don't overlap zero: elev.z, elev.z^2, mass.z
 
 # Model 4 
-cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z","b_wl.z","b_genotypeGlyMSer", "b_genotypeSerMSer"),
+cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z", "b_wl.z", "b_genotypeGlyMSer", "b_genotypeSerMSer"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3543,11 +3548,12 @@ scale_y_discrete(labels=c("Elevation", "Elevation^2","Mass", "Wing Loading", "Ge
 cens.m4.p1
 ggsave(cens.m4.p1, filename = "cens.m4.p1_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m4)
-# Predictors that don't overlap zero: elev, elev quadratic
+# Predictors that don't overlap zero: elev.z, elev.z^2
 
 # Summary of reduced models: 
-# m5 (reduced m3) will be: elev.z + I(elev.z^2) + mass.z
-# m6 (reduced m4) will be: elev.z + I(elev.z^2)
+# Can't reduce M2 further 
+# m5 (reduced m3) will be: elev.z, elev.z^2, mass.z
+# m6 (reduced m4) will be: elev.z, elev.z^2
 ```
 
 
@@ -3574,7 +3580,7 @@ write.csv(cens.waics, "cens_brms_models_waics.csv") # totally unintelligible cum
 
 # cens: RUN REDUCED MODELS (m5-m6)
 ```{r}
-# MODEL 5: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
+# MODEL 5: REDUCED MODEL 
 cens.m5 <- brm(
   formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z),
   data = cens.ss.mean,
@@ -3587,10 +3593,10 @@ cens.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(cens.m5, file="cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # save model
-# load("cens.m5_CeNS_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(cens.m5, file="cens.m5_CeNS_ReducedModel.RData") # save model
+# load("cens.m5_CeNS_ReducedModel.RData") # If loading from pre-saved file and not re-running
 
-# MODEL 6: REDUCED MODEL 
+# MODEL 6: REDUCED MODEL (SAME AS M9 WOULD BE)
 cens.m6 <- brm(
   formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2)),
   data = cens.ss.mean,
@@ -3618,14 +3624,14 @@ save(cens.m6, file="cens.m6_CeNS_ReducedModel.RData") # save model
 # Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
 # x-axis should be scale based on value of estimates coming out of the model 
 
-# # Model 5 
+# # Model 5
 color_scheme_set("viridisD") # nice default
 cens.m5.p1 <- mcmc_plot(cens.m5, pars=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
 labs(x="Effect on Cens Index", title = "cens.m5") +
-scale_y_discrete(labels=c("Elevation", "Elevation Quadratic", "Mass"))
+scale_y_discrete(labels=c("Elevation", "Elevation^2", "Mass"))
 cens.m5.p1
 ggsave(cens.m5.p1, filename = "hb.m5.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m5)
@@ -3637,7 +3643,7 @@ cens.m6.p1 <- mcmc_plot(cens.m6, pars=c("b_elev.z", "b_Ielev.zE2"),
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on Cens Index", title = "cens.m6") + 
-scale_y_discrete(labels=c("Elevation", "Elevation Quadratic"))   
+scale_y_discrete(labels=c("Elevation", "Elevation^2"))   
 cens.m6.p1
 ggsave(cens.m6.p1, filename = "cens.m6.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 summary(cens.m6)
@@ -3654,9 +3660,9 @@ sink()
 # print(cens.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
 
 # Get model WAIC scores  
-cens.m5.waic <- waic(cens.m5)
-cens.m6.waic <- waic(cens.m6)
-cens.waics.red <- cbind(cens.m5.waic, cens.m5.waic); cens.waics.red
+cens.m6.waic <- waic(cens.m5)
+cens.m7.waic <- waic(cens.m6)
+cens.waics.red <- cbind(cens.m5.waic, cens.m6.waic); cens.waics.red
 write.csv(cens.waics.red, "cens_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
 ```
 
@@ -3685,11 +3691,11 @@ bayes_R2(cens.m6) # 0.16
 # Model comparisons:
 #         elpd_diff se_diff
 # cens.m3  0.0       0.0   
-# cens.m5  0.0       1.5   
-# cens.m4 -1.4       0.8   
-# cens.m1 -3.0       3.5   
-# cens.m2 -3.0       2.8   
-# cens.m6 -3.0       2.7  
+# cens.m5 -0.1       1.4   
+# cens.m4 -1.5       0.9   
+# cens.m1 -3.1       3.5   
+# cens.m2 -3.1       2.9   
+# cens.m6 -3.4       2.8    
 
 # Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
 # job::job({ # Send to a job to free up console

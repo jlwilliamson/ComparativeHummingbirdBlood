@@ -1,7 +1,7 @@
 ---
 title: "Plots and Figures for Comparative Hummingbird Blood paper"
 author: "Jessie Williamson"
-date: "7/21/2020"
+date: "7/21/2020; last revised 7/16/21"
 output:
   md_document:
     variant: markdown_github
@@ -810,12 +810,12 @@ Figure 2 - 6-panel fig w/ relationship between predictors and elevation (USING S
 
 
 
-# FIGURE 3: PLOTS FOR RELATIONSHIPS AMONG BLOOD PARAMETERS
+# FIGURE 3 (3-panels, banana plots): PLOTS FOR RELATIONSHIPS AMONG BLOOD PARAMETERS
 Quick workup of predictors: 
 ```{r}
 # full dataset
-p <- ggpairs(subset(final, select = c(elev, mass, hb, hct, trbc, mcv, mch, mchc))) 
-print(p)
+# p <- ggpairs(subset(final, select = c(elev, mass, hb, hct, trbc, mcv, mch, mchc))) 
+# print(p)
 
 # Subset final dataset to just have hb, mcv, trbc, mch
 final.hmt <- subset(final, select=c(species, rowID, nk, elev, hb, mcv, trbc, mch)) 
@@ -826,79 +826,13 @@ final.hmt <- na.omit(final.hmt)
 # As it turns out, we don't need this; see plot below
 ```
 
-Mock up of Figure 3, relationships among blood parameters 
-See Hawkey et al. 1991 for inspiration.
+PRINT FIGURE 3. 
 ```{r}
-# Need to remove NA values from 'final', but need to subset to hb, trbc, mcv first; running naomit on 'final' wipes all
-# observations because so many NA values throughout the dataset
+# PANEL A: PREDICTIONS OF BLOOD-O2 CARRYING CAPACITY, BANANA-GRADIENT-PLOT. 
+# Creating a heat map/color gradient background in ggplot isn't super straightforward. Through a back-channel google images search, I ended up finding this advice, which is exactly what we want: 
+# https://stackoverflow.com/questions/46354513/diagonal-gradient-in-a-ggplot-background
+# (Believe it or not, google image searching "ggplot panel.background color gradient" was more helpful than web searching)
 
-# Panel A: RBC and MCV - redo of plot in Hawkey et al. 1991
-(p14 <- ggplot(final.hmt, aes(x=mcv, y=trbc, colour=hb)) +
-      scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb]\n(g/dl)") +
-     # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(size=2, alpha=1.0) +
-    # scale_color_manual(values=hum_colors) +
-    # stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
-    #geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-     x="") + # Removed x-axis label because we don't want Panel A to have label
-    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-    theme_classic() +
-    theme(legend.position = "right") + 
-    ggtitle("A") + # Assign panel number/header
-    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + #makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-)
-ggsave(p14, filename="Fig3_PanelA_RBC_vs_MCV_Scatterplot_ColoredByElev.pdf", height=7, width=9, units="in") 
-# Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
-# Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
-# Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
-
-# Panel B: MCH and MCV - redo of plot in Hawksey et al. 1991
-(p15 <- ggplot(final.hmt, aes(x=mcv, y=mch, colour=trbc)) +
-    scale_colour_viridis(option="rocket", discrete=FALSE, name="TRBC") +
-    # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
-    geom_point(size=2, alpha=1.0) +
-    # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
-    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y="MCH (pg)", 
-         x="MCV (fl)") + # fix RBC title/notation
-    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-    theme_classic() +
-    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
-    ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
-    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-    theme(plot.margin = unit(c(0.0,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-)
-ggsave(p15, filename="Fig3_PanelB_RBC_vs_MCH_Scatterplot_ColoredByElev.pdf", height=7, width=9, units="in") 
-
-
-# 2 PANEL FIGURE 
-Fig3_BloodComparison_2panel_v2 <- (p14 / p15) # the / literally means put p14 on top of p15
-                                  # remove end parenthesis if adding back the plot_layout guides college legend line
-                                  # + plot_layout(guides = "collect")) # "collates" and combines one common legend
-                                  # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
-plot(Fig3_BloodComparison_2panel_v2)
-ggsave(Fig3_BloodComparison_2panel_v2, filename = "Fig3_BloodComparison_2panel_04-27-21.pdf", bg="transparent", height=6, width=5, units="in")
-
-# Old method for combining plots, but I was having trouble getting a common legend
-# Fig3_BloodComparison_2panel_v2 <- grid.arrange(p14, p15, ncol=1)
-```
-
-
-# FIGURE S2: Alternative figure 3 with heat map for blood-O2 carrying capacity
-Creating a heat map/color gradient background in ggplot isn't super straightforward. Through a back-channel google images search, I ended up finding this advice, which is exactly what we want: 
-https://stackoverflow.com/questions/46354513/diagonal-gradient-in-a-ggplot-background
-(Believe it or not, google image searching "ggplot panel.background color gradient" was more helpful than web searching)
-```{r}
 # TRBC v. MCV w/ background shaded by heat map of blood O2 carrying capacity 
 # To get a heat map of blood-O2 carrying capacity, we need to make a contour of circles to plot behind our data 
 # Formula for O2 carrying capacity is: oc22 = MCV x TRBC x 1/3
@@ -922,153 +856,97 @@ colnames(df)<-c("xColor", "yColor", "x", "y")
 df$zColor <- (df$xColor+df$yColor) # the color factor for radius; tutorial used ^2 for each, but we don't want that scale
   # Adding xColor+yColor without xColor^2+yColor^2 plots real x-y oxygen carrying capacity values
 
-# Color gradient banana plot 
-(p16 <- ggplot(final.hmt, aes(x=mcv, y=trbc)) +
+# FIGURE 3, PANEL A 
+(Fig3_PanelA <- ggplot(final.hmt, aes(x=mcv, y=trbc)) +
     geom_raster(data=df, aes(x, y, fill=zColor))+ # can add alpha to make this lighter, but doesn't shade well
     scale_fill_viridis(option="rocket", discrete=FALSE, direction=1, name="O2\ncarrying\ncapacity")+ 
       # direction=1 goes cool to warm; direcdtion=-1 goes warm to cool
     # scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb] (g/dl)") +
-    geom_point(size=2.0, alpha=0.8, colour="black") + # aliceblue, ivory1 and snow1 are also nice, slightly warmer
+    geom_point(shape=21, colour="black", size=2.0, stroke=1, alpha=1.0) + # aliceblue, ivory1 & snow1 also nice, slightly warmer # If adding fill="black', reduce alpha to 0.3 or 0.4
     labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-         x="MCV (fl)") + # Removed x-axis label because we don't want Panel A to have label
+         x="") + # Removed x-axis label because we don't want Panel A to have label
     theme_classic() +
    # xlim(56, 150) + ylim(2.58, 11)+
     coord_cartesian(expand = FALSE) + # FALSE = no padding for border
     theme(legend.position = "right") + 
-  #  ggtitle("B") + # Assign panel number/header
+    ggtitle("A") + # Assign panel number/header
     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + #makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
     theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
-    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
 )
-ggsave(p16, filename="Blood_O2_CarryingCapacity_HeatMapPlot_04-27-21.pdf", height=5, width=6, units="in") 
+ggsave(Fig3_PanelA, filename="Fig3_PanelA_BananaHeatGradient_2021-07-16_Alpha.pdf", height=5, width=6, units="in") 
+
+
+# PANELS B AND C
+# See Hawkey et al. 1991 for inspiration.
+
+# Panel B: RBC and MCV - redo of plot in Hawkey et al. 1991
+(Fig3_PanelB <- ggplot(final.hmt, aes(x=mcv, y=trbc, colour=hb)) +
+      scale_colour_viridis(option="rocket", discrete=FALSE, name="[Hb]\n(g/dl)") +
+     # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=1.0) +
+    # scale_color_manual(values=hum_colors) +
+    # stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
+    #geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="") + # Removed x-axis label because we don't want Panel A to have label
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + 
+    ggtitle("B") + # Assign panel number/header
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + #makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+)
+ggsave(Fig3_PanelB, filename="Fig3_PanelB_RBC_vs_MCV_Scatterplot_ColoredByElev_2021-07-16.pdf", height=7, width=9, units="in") 
+# Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
+# Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
+# Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
+
+# Panel C: MCH and MCV - redo of plot in Hawksey et al. 1991
+(Fig3_PanelC <- ggplot(final.hmt, aes(x=mcv, y=mch, colour=trbc)) +
+    scale_colour_viridis(option="rocket", discrete=FALSE, name="TRBC") +
+    # p <- p + geom_boxplot(alpha = 0.5, outlier.size=0.1) # Add this back if categorical x-axis variable 
+    geom_point(size=2, alpha=1.0) +
+    # stat_smooth(data=full1, aes(y=trbc), size=1.2, method="lm") +
+    # geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
+    labs(y="MCH (pg)", 
+         x="MCV (fl)") + # fix RBC title/notation
+    #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+    #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+    theme_classic() +
+    theme(legend.position = "right") + # Note: orange = spring, blue = winter 
+    ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
+    theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+    theme(plot.margin = unit(c(0.0,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
+    theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+)
+ggsave(Fig3_PanelC, filename="Fig3_PanelC_RBC_vs_MCH_Scatterplot_ColoredByElev_2021-07-16.pdf", height=7, width=9, units="in") 
+
+
+# 2 PANEL FIGURE 
+Fig3_BloodComparison_3panel <- (Fig3_PanelA / Fig3_PanelB / Fig3_PanelC) # the / literally means put p14 on top of p15
+                                  # remove end parenthesis if adding back the plot_layout guides college legend line
+                                  # + plot_layout(guides = "collect")) # "collates" and combines one common legend
+                                  # In order for plot_layout to "collect" legend, must have printed legend for indiv plots above
+plot(Fig3_BloodComparison_3panel)
+ggsave(Fig3_BloodComparison_3panel, filename = "Fig3_BloodComparison_3panel_2021-07-16.pdf", bg="transparent", height=8, width=5, units="in")
+
+# Old method for combining plots, but I was having trouble getting a common legend
+# Fig3_BloodComparison_2panel_v2 <- grid.arrange(p14, p15, ncol=1)
 ```
 
 
 
-# 3D plots
-We abandoned these attempts because they don't provide meaningful information about relationships. See rest of tinkering with 3D plots in the CUT script. 
-```{r}
-# library(plotly)
-# # for playing around with colors: 
-# # library(scales)
-# # show_col(viridis_pal(option="B")(10)) # show all colors in viridis palette 
-# 
-# # 3d plot of elev, mcv, trbc
-# fig <- plot_ly(final, x = ~hb, y = ~mcv, z = ~trbc, color = ~elev, colors = viridis_pal(option = "F")(100)) # rocket
-# fig <- fig %>% add_markers()
-# fig <- fig %>% layout(scene = list(xaxis = list(title = '[Hb] (g/dl)'),
-#                      yaxis = list(title = 'MCV (fl)'),
-#                      zaxis = list(title = 'TRBC')))
-# fig
-# ggsave(fig, filename="test.pdf", height=7, width=9, units="in")
-# 
-# library(htmlwidgets)
-# htmlwidgets::saveWidget(fig, "3D_hb_mcv_trbc.html")
-# # plotly.io.write_html("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/3D_hb_mcv_trbc.html")
-# # Couldn't get plotly save code to work
-# 
-# # 3d plot of elev, mcv, trbc - SPECIES MEAN DATA 
-# fig <- plot_ly(cens.pca.spm.all, x = ~hb.mean, y = ~mcv.mean, z = ~trbc.mean, color = ~elev.mean, colors = viridis_pal(option = "F")(100)) # rocket, new palette
-# fig <- fig %>% add_markers()
-# fig <- fig %>% layout(scene = list(xaxis = list(title = '[Hb] (g/dl)'),
-#                      yaxis = list(title = 'MCV (fl)'),
-#                      zaxis = list(title = 'TRBC')))
-# fig
-# # Need to figure out how to reverse Hb axis (because "-hb" DOES reverse, but it also makes numbers negative)
-# htmlwidgets::saveWidget(fig, "3D_hb_mcv_trbc.html")
-```
 
-
-# Trial: Sideways plot of species x TRBC w/ points sized by MCV and colored by Hb
-...like a species dot plot 
-From this Stack Exchange tutorial: https://stackoverflow.com/questions/33169149/how-do-i-visualize-a-3-dimensional-matrix
-```{r}
-# library("ggplot2") 
-# theme_set(theme_bw())
-# library("viridis")
-# 
-# (p30 <- ggplot(final.hmt) +
-#     geom_point(aes(x=trbc, y=species, colour=hb, size=mcv)) +
-#     #facet_wrap(~Clade, ncol=3) + 
-#    # scale_color_viridis() +
-#     scale_colour_viridis(option="magma", discrete=FALSE) +
-#     scale_size(range=c(0.4,6)) + 
-#     # labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis
-#     #  x="") + # Removed x-axis label because we don't want Panel A to have label
-#     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-#     #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-#    # theme_classic() +
-#     theme_set(theme_bw()) + 
-#     theme(legend.position = "right") + 
-#     #ggtitle("A") + # Assign panel number/header
-#     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-#          plot.title = element_text(face="bold")) + #makes panel header bold 
-#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-#     theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
-#     theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-# )
-# ggsave(p30, filename="p30_Species_Hb_MCV_TRBC.pdf", height=7, width=9, units="in") 
-# 
-# # Make a final.sub dataset that drops sampling outliers and considers Patagona as two functional species: 
-# final.sub <- final # Make the final dataset copy that you'll use to wrangle species mean data 
-# sp.count.final.sub <- final.sub %>% group_by(species) %>% summarise(count = length(nk))
-# 
-# # Loop through dataset and assign "Patagona_gigas_S" to Chilean birds and "Patagona_gigas_N" to Peru birds
-# for(i in 1:nrow(final.sub)){
-#     if((final.sub$species[i] == "Patagona_gigas") & (final.sub$department[i] == "Región Valparaíso") ){
-#         final.sub$species[i] <- "Patagona_gigas_S"
-#     }else if((final.sub$species[i] == "Patagona_gigas")){ 
-#       final.sub$species[i] <- "Patagona_gigas_N"
-#     }
-# }
-# 
-# # Drop sampling outliers (n=1); I don't have a total_samples column in final dataset, so doing this the clunky way: 
-# final.sub <- final.sub[-which(final.sub$species == "Amazilia_franciae"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Calliphlox_amethystina"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Chaetocercus_mulsant"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Heliodoxa_rubinoides"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Heliomaster_longirostris"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Myrmia_micrura"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_atrimentalis"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_ruber"),] 
-# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_stuarti"),] 
-# 
-# # subset to be able to remove NAs
-# final.sub2 <- subset(final.sub, select=c(species, rowID, nk, elev, hb, mcv, trbc, mch)) 
-# final.sub2 <- na.omit(final.sub2)
-# 
-# (p30 <- ggplot(final.sub2) +
-#     geom_point(aes(x=trbc, y=species, colour=hb, size=mcv)) +
-#     #facet_wrap(~Clade, ncol=3) + 
-#     scale_colour_viridis(option="rocket", discrete=FALSE) +
-#     scale_size(range=c(0.4,6)) + 
-#     labs(x=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for TRBC units
-#       y="Species") + 
-#     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
-#     #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
-#    # theme_classic() +
-#     coord_cartesian(expand = TRUE) + # FALSE = no padding for border
-#     theme_set(theme_bw()) + 
-#     theme(legend.position = "right") + 
-#     #ggtitle("A") + # Assign panel number/header
-#     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-#          plot.title = element_text(face="bold")) + #makes panel header bold 
-#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-#     theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
-#     theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
-# )
-# ggsave(p30, filename="p30_Species_Hb_MCV_TRBC.pdf", height=8, width=7, units="in") 
-# # Gray points indicate no Hb; just TRBC and MCV (these shouldn't be in there now because I did NA omit)
-# # If opting to go this direction, species should really be orderd in phylogenetic order 
-```
-
-***All radar chart stuff has been moved to CUT script 
-
-
-
-### FIGURE 4v2 - 6-panel blood posterior probability fig 
+### FIGURE 4 - 6-panel blood posterior probability fig (intraspecific model main panesls w/ interspecific model insets)
 An attempt at making a 6-panel posterior probability plot figure with individual-level data showing full models of species-mean data in insets within each plot. 
 
 #Set up some figure aesthetics and load in data: 
@@ -1104,7 +982,7 @@ color_scheme_set("viridisD")
 # https://github.com/thomasp85/ggraph/issues/152
 ```
 
-# Print Figure 4v2
+PRINT FIGURE 4. 
 ```{R}
 # HB - panel A
 color_scheme_set("viridisD")
@@ -1142,6 +1020,7 @@ fig4a_hb_inset <- mcmc_plot(spm.hb.m2, pars=c("b_elev.z", "b_temp.z", "b_precip.
             scale_y_discrete(labels=c("Elev","Temp", "Precip", "Mass", "Gen. (Ser-Ser)","Gen. (Gly-Ser)")) +
             theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
             theme_bw() +  #theme with white background
+            annotate('text', x = -1.38, y = 0.78, label='bold("*")', size=4, parse=TRUE) + # ASTERISK 4 top model sig
             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                   panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
@@ -1203,6 +1082,7 @@ fig4b_hct_inset <- mcmc_plot(spm.hct.m2, pars=c("b_elev.z", "b_temp.z", "b_preci
             # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
             theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
             theme_bw() +  #theme with white background
+            annotate('text', x = -5.58, y = 0.78, label='bold("*")', size=4, parse=TRUE) + # ASTERISK 4 top model sig
             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                   panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
@@ -1300,12 +1180,12 @@ fig4d_mcv_main <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z",
              point_est="mean") + # mean point est; default is median 
              labs(x="Effect on MCV - Intraspecific", title = " ") + 
              scale_y_discrete(labels=c("Elev", "Temp", "Precip", "Mass", "Genotype (Ser-Ser)", "Genotype (Gly-Ser)", 
-            "Elev Position", "Intra Var: Temp", "Intra Var: Precip", "Intra Var: Mass")) +
+             "Elev Position", "Intra Var: Temp", "Intra Var: Precip", "Intra Var: Mass")) +
              theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
-            theme_bw() +  #theme with white background
-            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                   panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
-            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
              theme(text = element_text(family="Helvetica", size=10)) + # y axis labels 
              ggtitle("D") + # Assign panel number/header
              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1327,10 +1207,10 @@ fig4d_mcv_inset <- mcmc_plot(spm.mcv.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_tem
              scale_y_discrete(labels=c("Elev", "Elev^2", "Temp", "Precip", "Mass", "Gen. (Ser-Ser)", 
               "Gen. (Gly-Ser)")) +
              theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
-            theme_bw() +  #theme with white background
-            theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
+             theme_bw() +  #theme with white background
+             theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                   panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
-            theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
+             theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
              theme(axis.text=element_text(size=5), axis.title=element_text(size=5)) + # y-axis text, x-axis text
              # ggtitle("D") + # Assign panel number/header
              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
@@ -1390,6 +1270,7 @@ fig4e_mch_inset <- mcmc_plot(spm.mch.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_tem
              # scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
              theme(plot.title = element_text(family = "Helvetica", color="black", size=9)) + # font = panel header size
              theme_bw() +  #theme with white background
+             annotate('text', x=-3.98, y=0.78, label='bold("*")', size=4, parse=TRUE) + # ASTERISK 4 top model sig
              theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                   panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
              theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
@@ -1398,7 +1279,7 @@ fig4e_mch_inset <- mcmc_plot(spm.mch.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_tem
              theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
              plot.title = element_text(face="bold"))  # This makes panel header bold
              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+             #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm"))  # top, right, bottom, left
 fig4e_mch_inset
 ggsave(fig4e_mch_inset, filename = "fig4e_mch_inset_SpeciesMean.pdf", bg="transparent", height=7, width=9, units="in")
 
@@ -1424,16 +1305,18 @@ fig4f_mchc_main <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_temp.z", "b_precip.z
               #"Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip")) +
               scale_y_discrete(labels=c("","", "", "", "", "", "", "", "", "")) + # Replace  w/ blanks for multipanel fig
               theme(plot.title = element_text(family = "Helvetica", color="black", size=12)) + # font = panel header size
-              theme_bw() +  #theme with white background
+              theme_bw() +  #theme with white background\
+              annotate('text', x = -1.42, y = 9.878, label='bold("*")', size=4, parse=TRUE) + # top asterisk
+              annotate('text', x = -1.42, y = 7.878, label='bold("*")', size=4, parse=TRUE) + # bottom asterisk
               theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
                     panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
               theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
               theme(text = element_text(family="Helvetica", size=10)) + # y axis labels
               ggtitle("F") + # Assign panel number/header
               theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-              plot.title = element_text(face="bold"))  # This makes panel header bold 
+              plot.title = element_text(face="bold")) + # This makes panel header bold 
               # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-              theme(plot.margin = unit(c(0.4,0.4,0.0,0.4), "cm")) +  # top, right, bottom, left
+              theme(plot.margin = unit(c(0.4,0.4,0.0,0.4), "cm")) # top, right, bottom, left
 fig4f_mchc_main
 ggsave(fig4f_mchc_main, filename = "fig4f_mchc_main_IndivLevel.pdf", bg="transparent", height=7, width=9, units="in")
 
@@ -1459,7 +1342,7 @@ fig4f_mchc_inset <- mcmc_plot(spm.mchc.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_t
               #       axis.title=element_text(size=7)) + # y axis labels
               # ggtitle("F") + # Assign panel number/header
               theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-              plot.title = element_text(face="bold"))  # This makes panel header bold
+              plot.title = element_text(face="bold")) + # This makes panel header bold
               # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
               theme(plot.margin = unit(c(top=0.4, right=0.4, bottom=0.4,left=0.4), "cm"))   # top, right, bottom, left
 fig4f_mchc_inset
@@ -1484,7 +1367,7 @@ Fig4_v2_Indiv_and_SpeciesMean <- (fig4a_hb_panel +
                                   fig4f_mchc_panel +
                                   plot_layout(guides = "collect"))
 plot(Fig4_v2_Indiv_and_SpeciesMean)
-ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_v2_Indiv_and_SpeciesMean_06_09_21.pdf", bg="transparent", height=6.8, width=12.5, units="in")
+ggsave(Fig4_v2_Indiv_and_SpeciesMean, filename = "Fig4_PosteriorProbPlots_Indiv_and_SpeciesMean_07-16-21.pdf", bg="transparent", height=6.8, width=12.5, units="in")
 ```
 
 
@@ -1864,10 +1747,130 @@ ggsave(FigureS4_5panel_CeNSDiagnostics, filename = "FigureS4_5panel_CeNSDiagnost
 
 
 
+-----
 
 
+EVERYTHING BELOW THIS LINE IS UNPOLISHED AND/OR UNUSED
 
-EVERYTHING BELOW THIS LINE IS UNPOLISHED 
+
+# 3D plots
+We abandoned these attempts because they don't provide meaningful information about relationships. See rest of tinkering with 3D plots in the CUT script. 
+```{r}
+# library(plotly)
+# # for playing around with colors: 
+# # library(scales)
+# # show_col(viridis_pal(option="B")(10)) # show all colors in viridis palette 
+# 
+# # 3d plot of elev, mcv, trbc
+# fig <- plot_ly(final, x = ~hb, y = ~mcv, z = ~trbc, color = ~elev, colors = viridis_pal(option = "F")(100)) # rocket
+# fig <- fig %>% add_markers()
+# fig <- fig %>% layout(scene = list(xaxis = list(title = '[Hb] (g/dl)'),
+#                      yaxis = list(title = 'MCV (fl)'),
+#                      zaxis = list(title = 'TRBC')))
+# fig
+# ggsave(fig, filename="test.pdf", height=7, width=9, units="in")
+# 
+# library(htmlwidgets)
+# htmlwidgets::saveWidget(fig, "3D_hb_mcv_trbc.html")
+# # plotly.io.write_html("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/3D_hb_mcv_trbc.html")
+# # Couldn't get plotly save code to work
+# 
+# # 3d plot of elev, mcv, trbc - SPECIES MEAN DATA 
+# fig <- plot_ly(cens.pca.spm.all, x = ~hb.mean, y = ~mcv.mean, z = ~trbc.mean, color = ~elev.mean, colors = viridis_pal(option = "F")(100)) # rocket, new palette
+# fig <- fig %>% add_markers()
+# fig <- fig %>% layout(scene = list(xaxis = list(title = '[Hb] (g/dl)'),
+#                      yaxis = list(title = 'MCV (fl)'),
+#                      zaxis = list(title = 'TRBC')))
+# fig
+# # Need to figure out how to reverse Hb axis (because "-hb" DOES reverse, but it also makes numbers negative)
+# htmlwidgets::saveWidget(fig, "3D_hb_mcv_trbc.html")
+```
+
+
+# Trial: Sideways plot of species x TRBC w/ points sized by MCV and colored by Hb
+...like a species dot plot 
+From this Stack Exchange tutorial: https://stackoverflow.com/questions/33169149/how-do-i-visualize-a-3-dimensional-matrix
+```{r}
+# library("ggplot2") 
+# theme_set(theme_bw())
+# library("viridis")
+# 
+# (p30 <- ggplot(final.hmt) +
+#     geom_point(aes(x=trbc, y=species, colour=hb, size=mcv)) +
+#     #facet_wrap(~Clade, ncol=3) + 
+#    # scale_color_viridis() +
+#     scale_colour_viridis(option="magma", discrete=FALSE) +
+#     scale_size(range=c(0.4,6)) + 
+#     # labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis
+#     #  x="") + # Removed x-axis label because we don't want Panel A to have label
+#     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+#     #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+#    # theme_classic() +
+#     theme_set(theme_bw()) + 
+#     theme(legend.position = "right") + 
+#     #ggtitle("A") + # Assign panel number/header
+#     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+#          plot.title = element_text(face="bold")) + #makes panel header bold 
+#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+#     theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
+#     theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+# )
+# ggsave(p30, filename="p30_Species_Hb_MCV_TRBC.pdf", height=7, width=9, units="in") 
+# 
+# # Make a final.sub dataset that drops sampling outliers and considers Patagona as two functional species: 
+# final.sub <- final # Make the final dataset copy that you'll use to wrangle species mean data 
+# sp.count.final.sub <- final.sub %>% group_by(species) %>% summarise(count = length(nk))
+# 
+# # Loop through dataset and assign "Patagona_gigas_S" to Chilean birds and "Patagona_gigas_N" to Peru birds
+# for(i in 1:nrow(final.sub)){
+#     if((final.sub$species[i] == "Patagona_gigas") & (final.sub$department[i] == "Región Valparaíso") ){
+#         final.sub$species[i] <- "Patagona_gigas_S"
+#     }else if((final.sub$species[i] == "Patagona_gigas")){ 
+#       final.sub$species[i] <- "Patagona_gigas_N"
+#     }
+# }
+# 
+# # Drop sampling outliers (n=1); I don't have a total_samples column in final dataset, so doing this the clunky way: 
+# final.sub <- final.sub[-which(final.sub$species == "Amazilia_franciae"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Calliphlox_amethystina"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Chaetocercus_mulsant"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Heliodoxa_rubinoides"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Heliomaster_longirostris"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Myrmia_micrura"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_atrimentalis"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_ruber"),] 
+# final.sub <- final.sub[-which(final.sub$species == "Phaethornis_stuarti"),] 
+# 
+# # subset to be able to remove NAs
+# final.sub2 <- subset(final.sub, select=c(species, rowID, nk, elev, hb, mcv, trbc, mch)) 
+# final.sub2 <- na.omit(final.sub2)
+# 
+# (p30 <- ggplot(final.sub2) +
+#     geom_point(aes(x=trbc, y=species, colour=hb, size=mcv)) +
+#     #facet_wrap(~Clade, ncol=3) + 
+#     scale_colour_viridis(option="rocket", discrete=FALSE) +
+#     scale_size(range=c(0.4,6)) + 
+#     labs(x=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for TRBC units
+#       y="Species") + 
+#     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
+#     #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
+#    # theme_classic() +
+#     coord_cartesian(expand = TRUE) + # FALSE = no padding for border
+#     theme_set(theme_bw()) + 
+#     theme(legend.position = "right") + 
+#     #ggtitle("A") + # Assign panel number/header
+#     theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+#          plot.title = element_text(face="bold")) + #makes panel header bold 
+#        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+#     theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
+#     theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=14))
+# )
+# ggsave(p30, filename="p30_Species_Hb_MCV_TRBC.pdf", height=8, width=7, units="in") 
+# # Gray points indicate no Hb; just TRBC and MCV (these shouldn't be in there now because I did NA omit)
+# # If opting to go this direction, species should really be orderd in phylogenetic order 
+```
+
+***All radar chart stuff has been moved to CUT script 
 
 
 
