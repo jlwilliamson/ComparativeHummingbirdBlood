@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Modeling"
 author: "Jessie Williamson"
-date: "11/09/2020; Last Updated: 7/15/21"
+date: "11/09/2020; Last Updated: 11/24/21"
 output:
   md_document:
     variant: markdown_github
@@ -12,6 +12,22 @@ This script includes: Reading in pre-processed data from "HumBlood_DataWrangling
 
 Instructions for installing RStan for brms models: https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
 Instructions for configuring toolchain for brms models (Mac): https://github.com/stan-dev/rstan/wiki/Configuring-C---Toolchain-for-Mac
+
+# Troubleshooting rstan/brms issues: 
+Pro tip: If brms stops running and throws weird error messages, in my experience it's related to updating R versions and something breaking along the way. Refer to those posts above about configuring hte toolchain and reinstalling R stan, restarting, and reinstalling packages. You can also run this test model: 
+```{r}
+# To verify your installation, you can run the RStan example/test model:
+# example(stan_model, package = "rstan", run.dontrun = TRUE)
+
+# The model should then compile and sample. You may also see the warning:
+#   Warning message:
+# In system(paste(CXX, ARGS), ignore.stdout = TRUE, ignore.stderr = TRUE) :
+#   'C:/rtools40/usr/mingw_/bin/g++' not found
+# This is safe to ignore and will be removed in the next RStan release.
+
+# Other errors? 
+```
+
 
 #######
 
@@ -54,6 +70,7 @@ library(tidyr)
 library(cowplot)
 library(gganimate)
 library(job) # Run slow brms models as jobs to free up console
+library(interactions)
 
 # Bayesian modeling packages 
 library(MCMCglmm)
@@ -892,6 +909,18 @@ cor(final.for.corr[,c("hb", "hct", "trbc", "mcv", "mch", "mchc")])
 ```
 
 
+# Double-check Clade factor levels for data subsets 
+```{r}
+# Mountain-gem sticks around as a phantom level despite not being present for Hb, MCH, or MCHC; update factor # 
+final.hb$Clade <- factor(final.hb$Clade)
+final.mch$Clade <- factor(final.mch$Clade)
+final.mchc$Clade <- factor(final.mchc$Clade)
+
+nlevels(final.mchc$Clade) # Check to make sure levels are correct 
+```
+
+
+
 -------
 
 
@@ -1121,7 +1150,7 @@ final.hb %>%
 # Model 3 
 #pairs(hb.m3)
 color_scheme_set("blue") # nice default
-hb.m3.p1 <- mcmc_plot(hb.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+hb.m3.p1 <- mcmc_plot(hb.m3, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -1136,7 +1165,7 @@ summary(hb.m3)
 
 # Model 4
 #color_scheme_set("red") # nice default
-hb.m4.p1 <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+hb.m4.p1 <- mcmc_plot(hb.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -1314,7 +1343,7 @@ final.hb %>%
 
 # Model 5 
 color_scheme_set("blue") # nice default
-hb.m5.p1 <- mcmc_plot(hb.m5, pars=c("b_elev.z", "b_mass.z", "b_temp.z", "b_intravar.temp.z"),
+hb.m5.p1 <- mcmc_plot(hb.m5, variable=c("b_elev.z", "b_mass.z", "b_temp.z", "b_intravar.temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -1326,7 +1355,7 @@ summary(hb.m5)
 
 # Model 6
 #color_scheme_set("red") # nice default
-hb.m6.p1 <- mcmc_plot(hb.m6, pars=c("b_elev.z"),
+hb.m6.p1 <- mcmc_plot(hb.m6, variable=c("b_elev.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -1428,200 +1457,275 @@ Quick summary of top 3 models in order of ranking:
 **All models fit substantially better than the intercept-only model (m1), AND, it's very clear that it's important to consider variation explained by species identity. 
 
 
-
-
-Hb test of posterior draws plot
-
-Helpful Tidybayes spread_draws tutorial: https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
+# HB: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
 ```{r}
-# example model
-m_mpg = brm(
-  mpg ~ log(hp), 
-  data = mtcars, 
-  family = lognormal,
+# Load intercept only and top models (if not already loaded)
+load("hb.m4_FullModel_SpeciesREOnly.RData") 
+load("hb.m1_Intercept-Only.Rdata") 
 
-  file = "README_models/m_mpg.rds" # cache model (can be removed)  
+# MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
+hb.m4.c <- brm(
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species) + (1|Clade)),
+  data = final.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
 )
+save(hb.m4.c, file="hb.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("hb.m4.c_TopModel_CladeREAdded.RData") 
 
-library(modelr)
-library(ggdist)
-library(tidybayes)
-
-mtcars %>%
-  data_grid(hp = seq_range(hp, n = 101)) %>%
-  add_predicted_draws(m_mpg) %>%
-  ggplot(aes(x = hp, y = mpg)) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
-  geom_point(data = mtcars, size = 2) +
-  scale_fill_brewer()
-
-predicted_draws(hb.m4)
-get_variables(hb.m4)
-# b_Intercept is global mean; r_condition[] variables are offsets from that mean for each condition
-
-# Spread model draws
-hb.m4 %>%
-  spread_draws(r_species[species,term]) %>% # changing names in square brackets just changes column headers 
-  head(10)
+# MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+hb.m4.ce <- brm(
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + Clade:elev.z + (1|species)),
+  data = final.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hb.m4.ce, file="hb.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("hb.m4.ce_TopModel_CladeElevInteraction.RData") 
 
 
-hb.m4 %>%
-  spread_draws(b_Intercept, sigma) %>% # Extract draws corresponding to overall mean (Intercept) and standard dev (sigma)
-  head(10)
+# Fit assessment
+bayesplot::pp_check(hb.m4.ce, resp = "hb", ndraws = 100)
+mcmc_plot(hb.m4.c, type = "acf_bar")
 
-hb.m4 %>%
-  spread_draws(b_Intercept, sigma) %>%
-  median_qi(b_Intercept, sigma) %>% # add in median and 95% quantile of variables
-  head(10)
-
-# Make a long list instead: 
-hb.m4 %>%
-  gather_draws(b_Intercept, sigma) %>%
-  median_qi()
-
-hb.m4 %>%
-  spread_draws(r_species[species,]) %>% # spread_draws automatically groups by condition
-  median_qi()
-
-hb.m4 %>% 
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  head(10)
-
-# Within each draw, b_Intercept is repeated as necessary to correspond to every index of r_condition. Thus, the mutate function from dplyr can be used to find their sum, condition_mean (which is the mean for each condition):
-
-hb.m4 %>%
-  spread_draws(`b_Intercept`, r_species[species,]) %>% # get species means 
-  mutate(species_mean = b_Intercept + r_species) %>%
-  median_qi(species_mean)
-
-# Plot point summary with one interval
-hb.m4 %>%
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  median_qi(species_mean = b_Intercept + r_species) %>%
-  ggplot(aes(y = species, x = species_mean, xmin = .lower, xmax = .upper)) +
-  geom_pointinterval()
-# Can you plot this in order of phylogeny? 
-
-# Intervals with multiple probability levels: 
-hb.m4 %>%
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  median_qi(species_mean = b_Intercept + r_species, .width = c(.95, .8, .5))
-# The results are in a tidy format: one row per group and uncertainty interval width (.width). 
-# This facilitates plotting
-
-hb.m4 %>%
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  median_qi(species_mean = b_Intercept + r_species, .width = c(.95, .66)) %>%
-  ggplot(aes(y = species, x = species_mean, xmin = .lower, xmax = .upper)) +
-  geom_pointinterval() 
-
-# Intervals with densities: 
-hb.m4 %>%
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  mutate(species_mean = b_Intercept + r_species) %>%
-  ggplot(aes(y = species, x = species_mean)) +
-  stat_halfeye()
-# not a great look for what I'm doing - too many groups
-
-# 
-hb.m4 %>%
-  spread_draws(b_Intercept, r_species[species,]) %>%
-  mutate(species_mean = b_Intercept + r_species) %>%
-  ggplot(aes(y = species, x = species_mean, fill = stat(abs(x) < .8))) +
-  stat_halfeye() +
-  geom_vline(xintercept = c(16, 20), linetype = "dashed") +
-  scale_fill_manual(values = c("gray80", "skyblue"))
-
-# add posterior draws 
-
+# associated with each residual
 final.hb %>%
-  data_grid(species) %>%
-  add_fitted_draws(hb.m4) %>%
-  head(10)
+  add_residual_draws(hb.m4.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
 
-
+# qqPlots
 final.hb %>%
-  data_grid(elev.z) %>%
-  add_predicted_draws(hb.m3) %>% #specify model you want draws from 
-  ggplot(aes(x = elev, y = hb)) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
-  geom_point(data = final.hb, size = 2) +
-  scale_fill_brewer()
-
-final.mcv %>%
-  data_grid(temp.z, species) %>%
-  add_predicted_draws(mcv.m6) %>%
-  ggplot(aes(x = .prediction, y = temp.z)) +
-  stat_slab()
+  add_predicted_draws(hb.m4.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < hb), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
 
 
-final.hb %>%
-  group_by(species) %>%
-  data_grid(hb = seq_range(hb, n = 51)) %>%
-  add_fitted_draws(hb.m4) %>%
-  ggplot(aes(x = hb, y = hb, color = ordered(species))) +
-  stat_lineribbon(aes(y = .value)) +
-  geom_point(data = final.hb) +
-  scale_fill_brewer(palette = "Greys") +
-  scale_color_brewer(palette = "Set2")
+# Model 4.c 
+color_scheme_set("blue") # nice default
+hb.m4.c.p1 <- mcmc_plot(hb.m4.c, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.m4.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+hb.m4.c.p1
+ggsave(hb.m4.c.p1, filename = "hb.m4.c.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.m4.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
 
-# compare levels - pairwise comparison between species is essentially meaningless
-hb.m4 %>%
-  spread_draws(r_species[species,]) %>%
-  compare_levels(r_species, by = species) %>%
-  ggplot(aes(y = species, x = r_species)) +
-  stat_halfeye()
+# Model 4.ce
+#color_scheme_set("red") # nice default
+hb.m4.ce.p1 <- mcmc_plot(hb.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z",
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladePatagona", 
+                                    "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.m4.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*Patagona", "Elev*Topaz"))   
+hb.m4.ce.p1
+ggsave(hb.m4.ce.p1, filename = "hb.m4.ce.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.m4.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
 
-hb.m4 %>%
-  spread_draws(r_species[species,]) %>%
-  compare_levels(r_species, by = species) %>%
-  ggplot(aes(y = species, x = r_species)) +
-  stat_halfeye()
+# Plot interactions
+plot(conditional_effects(hb.m4.ce_factor ,
+                      effects="elev.z:Clade", 
+                      spaghetti=TRUE, ndraws=150),
+                      points=TRUE,
+                      point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(hb.m4.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeate interaction plot with just well-sampled clades
+interact_plot(hb.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(hb.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("hb_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(hb.m1, waic=TRUE)
+summary(hb.m4, waic=TRUE)
+summary(hb.m4.c, waic=TRUE)
+summary(hb.m4.ce, waic=TRUE)
+sink()
+# print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+hb.m1.waic <- waic(hb.m1)
+hb.m4.waic <- waic(hb.m4)
+hb.m4.c.waic <- waic(hb.m4.c)
+hb.m4.ce.waic <- waic(hb.m4.ce)
+hb.clade.waics.red <- cbind(hb.m1.waic, hb.m4.waic, hb.m4.c.waic, hb.m4.ce.waic); hb.clade.waics.red
+write.csv(hb.clade.waics.red, "hb_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# m6 species variance 
+hyp.sp.hb.m4.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.hb.m4.c <- hypothesis(hb.m4.c, hyp.sp.hb.m4.c, class = NULL))
+plot(hyp.sp.hb.m4.c)
+# 13% variance explained by Clade
+
+# hyp.sp.hb.m4.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.hb.m4.c <- hypothesis(hb.m4.c, hyp.sp.hb.m4.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("hb_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(hb.m1, hb.m4, hb.m4.c, hb.m4.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(hb.m4) # 0.209
+bayes_R2(hb.m4.c) # 0.214
+bayes_R2(hb.m4.ce) # 0.227
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 4.c: Full model + (1|Clade) *marginally better than m4.ce, 13% variance explained by clade.  
+2) Model 4.ce: Full model w/ clade:elev.z. 
+3) Model 4: Full model. 
+4) All performed substantially better than the intercept-only null model. 
 
 
-# Or let's plot comparisons of all levels of j within
-# all levels of i
-hb.m4 %>%
-  spread_draws(b[genotype,genotype]) %>%
-  group_by(i) %>%
-  compare_levels(b, by = j) %>%
-  ggplot(aes(x = b, y = j)) +
-  stat_halfeye() +
-  facet_grid(cols = vars(i))
+Interpreting interactions: 
+In a simple linear regression with no interactions, each coefficient says how much the average outcome,  
+μ, changes when the predictor changes by one unit. And since all of the parameters have independent influences on the outcome, there’s no trouble in interpreting each parameter separately. Each slope parameter gives us a direct measure of each predictor variable’s influence.Interaction models ruin this paradise. (p. 220)
 
-# Or let's plot all comparisons against the first level (control):
-hb.m4 %>%
-  spread_draws(b[i,genotype]) %>%
-  filter(genotype == 1) %>%
-  compare_levels(b, by = i, comparison = control) %>%
-  ggplot(aes(x = b, y = i)) +
-  stat_halfeye()
 
-# export draws from sampled posterior
-hb.m4.draws %>%
-gather_draws("b_elev.z", "b_elev.pos.z", "b_mass.z", "b_temp.z", "b_precip.z", "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z") %>%
-write.csv("hb.m4.draws.csv")
+Out of curiosity, what does elev.z:Clade alone look like? 
+```{r}
 
-# Do as EBL did: use gather_draws to make a gathered data frame
-# then use his code to plot
+# Simple elev*clade model
+hb.elevclade <- brm(
+  formula = bf(hb ~ 1 + elev.z + Clade:elev.z + (1|species)),
+  data = final.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hb.elevclade, file="hb.elevclade_SimpleElevCladeModel.RData") # save model
+#load("hb.elevclade_SimpleElevCladeModel.RData") 
 
-p20 <- ggplot(final.hb, aes(x = elevation, y = Hb)) +
-  geom_ribbon(aes(ymin = p_ll, ymax = p_ul),
-              fill = "gray10", alpha = 1/5) +
-  geom_smooth(aes(ymin = f_ll, ymax = f_ul),
-              stat = "identity",
-              fill = "gray10", color = "gray40", alpha = 1/5, size = 1/4) +
-  geom_point(data=slope_df_m, aes(x=elev_range_s, y=slope_hb), pch=21) +
-  coord_cartesian(xlim = range(slope_df_m$elev_range_s),
-                  ylim = range(slope_df_m$slope_hb)) +
-  labs(y = expression(paste(Delta, " [Hb] * ",10^{3})),
-       x  = "Elevational Range Breadth (Standardized)") +
-  theme_bw() +
-  theme(panel.grid = element_blank())  
-p20
+#color_scheme_set("red") # nice default
+hb.elevclade.p1 <- mcmc_plot(hb.elevclade, variable=c("b_elev.z", 
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladePatagona", 
+                                    "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.elevclade: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*Patagona", "Elev*Topaz"))   
+hb.elevclade.p1
+ggsave(hb.elevclade.p1, filename = "hb.elevclade.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.elevclade)
 
+# m4 species variance 
+hyp.sp.hb.elevclade <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.hb.elevclade <- hypothesis(hb.elevclade, hyp.sp.hb.elevclade, class = NULL))
+plot(hyp.sp.hb.elevclade)
+# 18% variance explained by species
+
+#### 
+
+# Simple clade model
+hb.clade <- brm(
+  formula = bf(hb ~ 1 + elev.z + Clade + (1|species)),
+  data = final.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hb.clade, file="hb.clade_SimpleCladeModel.RData") # save model
+#load("hb.clade_SimpleElevCladeModel.RData") 
+
+#color_scheme_set("red") # nice default
+hb.clade.p1 <- mcmc_plot(hb.clade, variable=c("b_elev.z", 
+                                    "b_CladeBrilliant", "b_CladeCoquette", "b_CladeEmerald", 
+                                    "b_CladeHermit", "b_CladeMango", "b_CladePatagona", 
+                                    "b_CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.clade: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation", "Brilliant", "Coquette", "Emerald", "Hermit", "Mango", "Patagona", "Topaz"))   
+hb.clade.p1
+ggsave(hb.clade.p1, filename = "hb.clade.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.clade)
+
+# m4 species variance 
+hyp.sp.hb.clade <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.hb.clade <- hypothesis(hb.clade, hyp.sp.hb.clade, class = NULL))
+plot(hyp.sp.hb.clade)
+# 18% variance explained by species
 
 ```
+
+
+
 
 
 
@@ -1822,7 +1926,7 @@ final.hct %>%
 
 # Model 3 
 color_scheme_set("blue") # nice default
-hct.m3.p1 <- mcmc_plot(hct.m3, pars=c("b_elev.z", "b_elev.pos.z", "b_mass.z","b_temp.z","b_precip.z",
+hct.m3.p1 <- mcmc_plot(hct.m3, variable=c("b_elev.z", "b_elev.pos.z", "b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -1837,7 +1941,7 @@ summary(hct.m3)
 
 # Model 4
 #color_scheme_set("red") # nice default
-hct.m4.p1 <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+hct.m4.p1 <- mcmc_plot(hct.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -1990,7 +2094,7 @@ ranef(hct.m6, groups="species") #, probs = 0.95)
 
 # Model 5 
 color_scheme_set("blue") # nice default
-hct.m5.p1 <- mcmc_plot(hct.m5, pars=c("b_elev.z", "b_elev.pos.z", "b_mass.z", "b_intravar.mass.z", "b_temp.z"),
+hct.m5.p1 <- mcmc_plot(hct.m5, variable=c("b_elev.z", "b_elev.pos.z", "b_mass.z", "b_intravar.mass.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2002,7 +2106,7 @@ summary(hct.m5)
 
 # Model 6
 #color_scheme_set("red") # nice default
-hct.m6.p1 <- mcmc_plot(hct.m6, pars=c("b_elev.z", "b_elev.pos.z", "b_intravar.mass.z"),
+hct.m6.p1 <- mcmc_plot(hct.m6, variable=c("b_elev.z", "b_elev.pos.z", "b_intravar.mass.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2111,6 +2215,194 @@ Quick summary of top 3 models in order of ranking:
 
 **All models fit substantially better than the intercept-only model (m1), AND, it's very clear that it's important to consider variation explained by species identity.
 
+
+# hct: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+```{r}
+# Load intercept only and top models (if not already loaded)
+load("hct.m4_FullModel_SpeciesREOnly.RData") 
+load("hct.m1_Intercept-Only.Rdata") 
+
+# MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
+hct.m4.c <- brm(
+  formula = bf(hct ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species) + (1|Clade)),
+  data = final.hct,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hct.m4.c, file="hct.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("hct.m4.c_TopModel_CladeREAdded.RData") 
+
+# MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+hct.m4.ce <- brm(
+  formula = bf(hct ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + Clade:elev.z + (1|species)),
+  data = final.hct,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hct.m4.ce, file="hct.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("hct.m4.ce_TopModel_CladeElevInteraction.RData") 
+
+
+# Fit assessment
+bayesplot::pp_check(hct.m4.ce, resp = "hct", ndraws = 100)
+mcmc_plot(hct.m4.c, type = "acf_bar")
+
+# associated with each residual
+final.hct %>%
+  add_residual_draws(hct.m4.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+final.hct %>%
+  add_predicted_draws(hct.m4.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < hct), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+
+
+# Model 4.c 
+color_scheme_set("blue") # nice default
+hct.m4.c.p1 <- mcmc_plot(hct.m4.c, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [hct]", title = "hct.m4.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+hct.m4.c.p1
+ggsave(hct.m4.c.p1, filename = "hct.m4.c.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hct.m4.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 6
+#color_scheme_set("red") # nice default
+hct.m4.ce.p1 <- mcmc_plot(hct.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z",
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladeMountainMgem",  
+                                    "b_elev.z:CladePatagona", "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [hct]", title = "hct.m4.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*MtnGem", "Elev*Patagona", "Elev*Topaz"))   
+hct.m4.ce.p1
+ggsave(hct.m4.ce.p1, filename = "hct.m4.ce.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hct.m4.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
+
+# Plot interactions
+plot(conditional_effects(hct.m4.ce,
+                      effects="elev.z:Clade", 
+                      spaghetti=TRUE, ndraws=150),
+                      points=TRUE,
+                      point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(hct.m4.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#E786B7", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Mountain-Gem, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeat interaction plot with just well-sampled clades
+interact_plot(hct.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(hct.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("hct_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(hct.m1, waic=TRUE)
+summary(hct.m4, waic=TRUE)
+summary(hct.m4.c, waic=TRUE)
+summary(hct.m4.ce, waic=TRUE)
+sink()
+# print(hct.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+hct.m1.waic <- waic(hct.m1)
+hct.m4.waic <- waic(hct.m4)
+hct.m4.c.waic <- waic(hct.m4.c)
+hct.m4.ce.waic <- waic(hct.m4.ce)
+hct.clade.waics.red <- cbind(hct.m1.waic, hct.m4.waic, hct.m4.c.waic, hct.m4.ce.waic); hct.clade.waics.red
+write.csv(hct.clade.waics.red, "hct_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# Variance explained by Clade
+hyp.sp.hct.m4.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.hct.m4.c <- hypothesis(hct.m4.c, hyp.sp.hct.m4.c, class = NULL))
+plot(hyp.sp.hct.m4.c)
+# 8% variance explained by Clade
+
+# hyp.sp.hct.m4.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.hct.m4.c <- hypothesis(hct.m4.c, hyp.sp.hct.m4.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+library(loo)
+sink("hct_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(hct.m1, hct.m4, hct.m4.c, hct.m4.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Model comparisons:
+#           elpd_diff se_diff
+# hct.m4.c    0.0       0.0  
+# hct.m4     -0.6      34.6  
+# hct.m4.ce  -3.3       2.6  
+# hct.m1    -71.1      32.6 
+
+# Calculate Bayesian R^2:
+bayes_R2(hct.m4) # 0.17
+bayes_R2(hct.m4.c) # 0.177
+bayes_R2(hct.m4.ce) # 0.187
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 4.c: Full model + (1|Clade) *marginally better than m4, 8% variance explained by clade.  
+2) Model 4: Full model  
+3) Model 4.ce: Full model w/ clade:elev.z.
+4) All performed substantially better than the intercept-only null model. 
 
 
 
@@ -2300,7 +2592,7 @@ final.trbc %>%
 
 # Model 3 
 color_scheme_set("blue") # nice default
-trbc.m3.p1 <- mcmc_plot(trbc.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+trbc.m3.p1 <- mcmc_plot(trbc.m3, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -2315,7 +2607,7 @@ summary(trbc.m3)
 
 # Model 4
 #color_scheme_set("red") # nice default
-trbc.m4.p1 <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+trbc.m4.p1 <- mcmc_plot(trbc.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -2469,7 +2761,7 @@ ranef(trbc.m6, groups="species") #, probs = 0.95)
 
 # Model 7 
 color_scheme_set("blue") # nice default
-trbc.m5.p1 <- mcmc_plot(trbc.m5, pars=c("b_elev.z", "b_temp.z"),
+trbc.m5.p1 <- mcmc_plot(trbc.m5, variable=c("b_elev.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2481,7 +2773,7 @@ summary(trbc.m5)
 
 # Model 9
 #color_scheme_set("red") # nice default
-trbc.m6.p1 <- mcmc_plot(trbc.m6, pars=c("b_elev.z"),
+trbc.m6.p1 <- mcmc_plot(trbc.m6, variable=c("b_elev.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -2587,6 +2879,200 @@ TRBC, Quick summary of top 3 models in order of ranking:
 3) Model 2: Null + (1|species), 20% of variance explained by species 
 
 **All models fit substantially better than the intercept-only model (m1), AND, it's very clear that it's important to consider variation explained by species identity.
+
+
+# trbc: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+```{r}
+# Load intercept only and top models (if not already loaded)
+load("trbc.m4_FullModel_SpeciesREOnly.RData") 
+load("trbc.m1_Intercept-Only.Rdata") 
+
+# MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
+trbc.m4.c <- brm(
+  formula = bf(trbc ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + (1|species) + (1|Clade)),
+  data = final.trbc,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(trbc.m4.c, file="trbc.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("trbc.m4.c_TopModel_CladeREAdded.RData") 
+
+# MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+trbc.m4.ce <- brm(
+  formula = bf(trbc ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z + Clade:elev.z + (1|species)),
+  data = final.trbc,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(trbc.m4.ce, file="trbc.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("trbc.m4.ce_TopModel_CladeElevInteraction.RData") 
+
+
+# Fit assessment
+bayesplot::pp_check(trbc.m4.ce, resp = "trbc", ndraws = 100)
+mcmc_plot(trbc.m4.c, type = "acf_bar")
+
+# associated with each residual
+final.trbc %>%
+  add_residual_draws(trbc.m4.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+final.trbc %>%
+  add_predicted_draws(trbc.m4.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < trbc), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+
+
+# Model 4.c 
+color_scheme_set("blue") # nice default
+trbc.m4.c.p1 <- mcmc_plot(trbc.m4.c, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [trbc]", title = "trbc.m4.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+trbc.m4.c.p1
+ggsave(trbc.m4.c.p1, filename = "trbc.m4.c.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(trbc.m4.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 4.ce
+#color_scheme_set("red") # nice default
+mcmc_plot(trbc.m4.ce)
+
+
+trbc.m4.ce.p1 <- mcmc_plot(trbc.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z",
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladeMountainMgem", 
+                                    "b_elev.z:CladePatagona", "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [trbc]", title = "trbc.m4.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*MtnGem", "Elev*Patagona", "Elev*Topaz"))   
+trbc.m4.ce.p1
+ggsave(trbc.m4.ce.p1, filename = "trbc.m4.ce.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(trbc.m4.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
+
+# Plot interactions
+# plot(conditional_effects(trbc.m4.ce,
+#                       effects="elev.z:Clade", 
+#                       spaghetti=TRUE, ndraws=150),
+#                       points=TRUE,
+#                       point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(trbc.m4.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#E786B7", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Mountain-Gem, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeat interaction plot with just well-sampled clades
+interact_plot(trbc.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(trbc.m4.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("trbc_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(trbc.m1, waic=TRUE)
+summary(trbc.m4, waic=TRUE)
+summary(trbc.m4.c, waic=TRUE)
+summary(trbc.m4.ce, waic=TRUE)
+sink()
+# print(trbc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+trbc.m1.waic <- waic(trbc.m1)
+trbc.m4.waic <- waic(trbc.m4)
+trbc.m4.c.waic <- waic(trbc.m4.c)
+trbc.m4.ce.waic <- waic(trbc.m4.ce)
+trbc.clade.waics.red <- cbind(trbc.m1.waic, trbc.m4.waic, trbc.m4.c.waic, trbc.m4.ce.waic); trbc.clade.waics.red
+write.csv(trbc.clade.waics.red, "trbc_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# Variance explained by Clade
+hyp.sp.trbc.m4.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.trbc.m4.c <- hypothesis(trbc.m4.c, hyp.sp.trbc.m4.c, class = NULL))
+plot(hyp.sp.trbc.m4.c)
+# 4% variance explained by Clade
+
+# hyp.sp.trbc.m4.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.trbc.m4.c <- hypothesis(trbc.m4.c, hyp.sp.trbc.m4.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+library(loo)
+sink("trbc_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(trbc.m1, trbc.m4, trbc.m4.c, trbc.m4.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Model comparisons:
+#            elpd_diff se_diff
+# trbc.m4      0.0       0.0  
+# trbc.m4.c   -0.5      24.4  
+# trbc.m4.ce  -1.6      24.5  
+# trbc.m1    -34.6       9.3
+
+# Calculate Bayesian R^2:
+bayes_R2(trbc.m4) # 0.169
+bayes_R2(trbc.m4.c) # 0.171
+bayes_R2(trbc.m4.ce) # 0.185
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 4: Full model  
+2) Model 4: Full model + (1|Clade) *marginally better than m4, 8% variance explained by clade.
+3) Model 4.ce: Full model w/ clade:elev.z.
+4) All performed substantially better than the intercept-only null model. 
+
+
 
 
 
@@ -2779,7 +3265,7 @@ final.mcv %>%
 
 # Model 3 
 color_scheme_set("blue") # nice default
-mcv.m3.p1 <- mcmc_plot(mcv.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mcv.m3.p1 <- mcmc_plot(mcv.m3, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer","b_intravar.mass.z",
                                     "b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -2794,7 +3280,7 @@ summary(mcv.m3)
 
 # Model 4
 #color_scheme_set("red") # nice default
-mcv.m4.p1 <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mcv.m4.p1 <- mcmc_plot(mcv.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -2809,7 +3295,7 @@ summary(mcv.m4)
 
 # # Model 4 - quadratic
 # #color_scheme_set("red") # nice default
-# mcv.m4.p1.quad <- mcmc_plot(mcv.m4.quad, pars=c("b_elev.z", "b_Ielev.zE2", 
+# mcv.m4.p1.quad <- mcmc_plot(mcv.m4.quad, variable=c("b_elev.z", "b_Ielev.zE2", 
 #                                                 "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
 #                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
 #                                     "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
@@ -2930,7 +3416,7 @@ load("mcv.m6_ReducedModel_SpeciesREOnly.RData")
 #   sample_prior = TRUE # save priors 
 # )
 # save(mcv.m6.quad, file="mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") # save model
-# # load("mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") 
+#load("mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2988,7 +3474,7 @@ ranef(mcv.m6, groups="species") #, probs = 0.95)
 
 # Model 5 
 color_scheme_set("blue") # nice default
-mcv.m5.p1 <- mcmc_plot(mcv.m5, pars=c("b_elev.z", "b_temp.z"),
+mcv.m5.p1 <- mcmc_plot(mcv.m5, variable=c("b_elev.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3000,7 +3486,7 @@ summary(mcv.m5)
 
 # # Model 6
 # color_scheme_set("teal") # nice default
-mcv.m6.p1 <- mcmc_plot(mcv.m6, pars=c("b_temp.z"),
+mcv.m6.p1 <- mcmc_plot(mcv.m6, variable=c("b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
@@ -3012,7 +3498,7 @@ summary(mcv.m6)
 # 
 # # Model 6.quad 
 # color_scheme_set("blue") # nice default
-# mcv.m6.quad.p1 <- mcmc_plot(mcv.m6.quad, pars=c("b_elev.z", "b_temp.z"),
+# mcv.m6.quad.p1 <- mcmc_plot(mcv.m6.quad, variable=c("b_elev.z", "b_temp.z"),
 #                                     prob_outer=0.95, # 95% outer CI 
 #                                     prob=0.50, # 50% inner CI 
 #                                     point_est="mean") + # mean point est; default is median 
@@ -3073,7 +3559,7 @@ sink("mcv_brms_models_all_looic.txt", append=FALSE)
 LOO(mcv.m1, mcv.m2, mcv.m3, mcv.m4, mcv.m5, mcv.m6, reloo=TRUE) 
 sink()
 # reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
-# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# you can also use something called moment_match=TRUE in loo, but to do this need save_variable=TRUE in models and that 
 # wasn't working for some reason
 # This takes ~20 minutes to run
 # compare models # Just a shorter version of the above text
@@ -3124,6 +3610,192 @@ MCV, Quick summary of top 3 models in order of ranking (this does not include qu
 3) Model 4: Full + (1|species); 14% of variance explained by species; R^2 = 0.110 
 
 **All models w/ random effect of species fit better than without, suggesting that this is important. 
+
+
+# MCV: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+```{r}
+# Load intercept only and top models (if not already loaded)
+load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+load("mcv.m1_Intercept-Only.Rdata") 
+
+# MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
+mcv.m6.c <- brm(
+  formula = bf(mcv ~ 1 + temp.z + (1|species) + (1|Clade)),
+  data = final.mcv,
+  family = skew_normal(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mcv.m6.c, file="mcv.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("mcv.m6.c_TopModel_CladeREAdded.RData") 
+
+# MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+mcv.m6.ce <- brm(
+  formula = bf(mcv ~ 1 + temp.z + Clade:elev.z + (1|species)),
+  data = final.mcv,
+  family = skew_normal(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mcv.m6.ce, file="mcv.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("mcv.m6.ce_TopModel_CladeElevInteraction.RData") 
+
+
+# Fit assessment
+bayesplot::pp_check(mcv.m6.ce, resp = "mcv", ndraws = 100)
+mcmc_plot(mcv.m6.c, type = "acf_bar")
+
+# associated with each residual
+final.mcv %>%
+  add_residual_draws(mcv.m6.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+final.mcv %>%
+  add_predicted_draws(mcv.m6.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < mcv), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+
+
+# Model 6.c 
+color_scheme_set("blue") # nice default
+mcv.m6.c.p1 <- mcmc_plot(mcv.m6.c, variable=c("b_temp.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mcv]", title = "mcv.m6.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Temp"))   
+mcv.m6.c.p1
+ggsave(mcv.m6.c.p1, filename = "mcv.m6.c.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mcv.m6.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 6
+#color_scheme_set("red") # nice default
+#mcmc_plot(mcv.m6.ce)
+mcv.m6.ce.p1 <- mcmc_plot(mcv.m6.ce, variable=c("b_temp.z", "b_CladeBee:elev.z",
+                                    "b_CladeBrilliant:elev.z", "b_CladeCoquette:elev.z", "b_CladeEmerald:elev.z", 
+                                    "b_CladeHermit:elev.z", "b_CladeMango:elev.z", "b_CladeMountainMgem:elev.z", 
+                                    "b_CladePatagona:elev.z", "b_CladeTopaz:elev.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mcv]", title = "mcv.m6.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Temp", "Elev*Bee", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*MtnGem", "Elev*Patagona", "Elev*Topaz"))   
+mcv.m6.ce.p1
+ggsave(mcv.m6.ce.p1, filename = "mcv.m6.ce.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mcv.m6.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
+
+# Plot interactions
+plot(conditional_effects(mcv.m6.ce,
+                      effects="elev.z:Clade", 
+                      spaghetti=TRUE, ndraws=150),
+                      points=TRUE,
+                      point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(mcv.m6.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#E786B7", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Mountain-Gem, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeat interaction plot with just well-sampled clades
+interact_plot(mcv.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(mcv.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("mcv_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(mcv.m1, waic=TRUE)
+summary(mcv.m6, waic=TRUE)
+summary(mcv.m6.c, waic=TRUE)
+summary(mcv.m6.ce, waic=TRUE)
+sink()
+# print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+mcv.m1.waic <- waic(mcv.m1)
+mcv.m6.waic <- waic(mcv.m6)
+mcv.m6.c.waic <- waic(mcv.m6.c)
+mcv.m6.ce.waic <- waic(mcv.m6.ce)
+mcv.clade.waics.red <- cbind(mcv.m1.waic, mcv.m6.waic, mcv.m6.c.waic, mcv.m6.ce.waic); mcv.clade.waics.red
+write.csv(mcv.clade.waics.red, "mcv_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# Variance explained by Clade
+hyp.sp.mcv.m6.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.mcv.m6.c <- hypothesis(mcv.m6.c, hyp.sp.mcv.m6.c, class = NULL))
+plot(hyp.sp.mcv.m6.c)
+# 2% variance explained by Clade
+
+# hyp.sp.mcv.m6.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.mcv.m6.c <- hypothesis(mcv.m6.c, hyp.sp.mcv.m6.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+library(loo)
+sink("mcv_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(mcv.m1, mcv.m6, mcv.m6.c, mcv.m6.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Model comparisons:
+#           elpd_diff se_diff
+# mcv.m6.ce   0.0       0.0  
+# mcv.m6     -0.1      24.7  
+# mcv.m6.c   -0.4       3.1  
+# mcv.m1    -25.0      24.6   
+
+# Calculate Bayesian R^2:
+bayes_R2(mcv.m6) # 0.094
+bayes_R2(mcv.m6.c) # 0.0.096
+bayes_R2(mcv.m6.ce) # 0.118
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 6.ce: Full model + clade*elev interaction (though this essentially ranked the same as original best model)  
+1) Model 6: Full model  
+3) Model 6.c: Full model w/ + (1|Clade); 2% of the variation explained by Clade. 
+4) All performed substantially better than the intercept-only null model. 
+
+
 
 
 
@@ -3177,7 +3849,7 @@ mch.m2 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(mch.m2, file="mch.m2_RandomEffectsOnly.RData") # save model
-#load("mch.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+load("mch.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -3294,7 +3966,7 @@ final.mch %>%
 
 # Model 3 
 color_scheme_set("blue") # nice default
-mch.m3.p1 <- mcmc_plot(mch.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mch.m3.p1 <- mcmc_plot(mch.m3, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -3309,7 +3981,7 @@ summary(mch.m3)
 
 # Model 4
 #color_scheme_set("red") # nice default
-mch.m4.p1 <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mch.m4.p1 <- mcmc_plot(mch.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -3403,7 +4075,7 @@ mch.m6 <- brm(
   sample_prior = TRUE # save priors
 )
 save(mch.m6, file="mch.m6_ReducedModel_PhyloREOnly.RData") # save model
-# load("mch.m6_ReducedModel_PhyloREOnly.RData") 
+load("mch.m6_ReducedModel_PhyloREOnly.RData") 
 ```
 
 
@@ -3462,7 +4134,7 @@ ranef(mch.m6, groups="species") #, probs = 0.95)
 
 # Model 5 
 color_scheme_set("blue") # nice default
-mch.m5.p1 <- mcmc_plot(mch.m5, pars=c("b_elev.z", "b_temp.z"),
+mch.m5.p1 <- mcmc_plot(mch.m5, variable=c("b_elev.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3474,7 +4146,7 @@ summary(mch.m5)
 
 # # Model 6
 # color_scheme_set("teal") # nice default
-mch.m6.p1 <- mcmc_plot(mch.m6, pars=c("b_elev.z", "b_temp.z"),
+mch.m6.p1 <- mcmc_plot(mch.m6, variable=c("b_elev.z", "b_temp.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
@@ -3572,6 +4244,197 @@ MCH, Quick summary of top 3 models in order of ranking:
 3) Model 4: Full + (1|species); 12% of variance explained by species; R^2 = 0.114 
 
 **Effect of species clearly important
+
+
+
+# MCH: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+```{r}
+# Load intercept only and top models (if not already loaded)
+load("mch.m6_ReducedModel_SpeciesREOnly.RData") 
+load("mch.m1_Intercept-Only.Rdata") 
+
+# MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
+mch.m6.c <- brm(
+  formula = bf(mch ~ 1 + elev.z + temp.z + (1|species) + (1|Clade)),
+  data = final.mch,
+  family = skew_normal(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mch.m6.c, file="mch.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("mch.m6.c_TopModel_CladeREAdded.RData") 
+
+# MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+mch.m6.ce <- brm(
+  formula = bf(mch ~ 1 + elev.z + temp.z + elev.z:Clade + (1|species)),
+  data = final.mch,
+  family = skew_normal(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mch.m6.ce, file="mch.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("mch.m6.ce_TopModel_CladeElevInteraction.RData") 
+
+
+# Fit assessment
+bayesplot::pp_check(mch.m6.ce, resp = "mch", ndraws = 100)
+mcmc_plot(mch.m6.c, type = "acf_bar")
+
+# associated with each residual
+final.mch %>%
+  add_residual_draws(mch.m6.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+final.mch %>%
+  add_predicted_draws(mch.m6.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < mch), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+
+
+# Model 6.c 
+color_scheme_set("blue") # nice default
+mch.m6.c.p1 <- mcmc_plot(mch.m6.c, variable=c("b_elev.z", "b_temp.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mch]", title = "mch.m6.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Temp"))   
+mch.m6.c.p1
+ggsave(mch.m6.c.p1, filename = "mch.m6.c.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mch.m6.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 6
+#color_scheme_set("red") # nice default
+mcmc_plot(mch.m6.ce)
+mch.m6.ce.p1 <- mcmc_plot(mch.m6.ce, variable=c("b_elev.z", "temp.z",
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladePatagona", 
+                                    "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mch]", title = "mch.m6.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Temp", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*Patagona", "Elev*Topaz"))   
+mch.m6.ce.p1
+ggsave(mch.m6.ce.p1, filename = "mch.m6.ce.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mch.m6.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
+levels(final.mch$Clade)
+
+# Plot interactions
+plot(conditional_effects(mch.m6.ce,
+                      effects="elev.z:Clade", 
+                      spaghetti=TRUE, ndraws=150),
+                      points=TRUE,
+                      point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(mch.m6.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeat interaction plot with just well-sampled clades
+interact_plot(mch.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(mch.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("mch_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(mch.m1, waic=TRUE)
+summary(mch.m6, waic=TRUE)
+summary(mch.m6.c, waic=TRUE)
+summary(mch.m6.ce, waic=TRUE)
+sink()
+# print(mch.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+mch.m1.waic <- waic(mch.m1)
+mch.m6.waic <- waic(mch.m6)
+mch.m6.c.waic <- waic(mch.m6.c)
+mch.m6.ce.waic <- waic(mch.m6.ce)
+mch.clade.waics.red <- cbind(mch.m1.waic, mch.m6.waic, mch.m6.c.waic, mch.m6.ce.waic); mch.clade.waics.red
+write.csv(mch.clade.waics.red, "mch_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# Variance explained by Clade
+hyp.sp.mch.m6.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.mch.m6.c <- hypothesis(mch.m6.c, hyp.sp.mch.m6.c, class = NULL))
+plot(hyp.sp.mch.m6.c)
+# 1% variance explained by Clade
+
+# hyp.sp.mch.m6.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.mch.m6.c <- hypothesis(mch.m6.c, hyp.sp.mch.m6.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+library(loo)
+sink("mch_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(mch.m1, mch.m6, mch.m6.c, mch.m6.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Model comparisons:
+#           elpd_diff se_diff
+# mch.m6      0.0       0.0  
+# mch.m6.c   -0.2      24.7  
+# mch.m6.ce  -2.1      24.9  
+# mch.m1    -19.6       6.5  
+
+# Calculate Bayesian R^2:
+bayes_R2(mch.m6) # 0.092
+bayes_R2(mch.m6.c) # 0.095
+bayes_R2(mch.m6.ce) # 0.112
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 6: Full model 
+2) Model 6: Full model + (1|Clade) *marginally worse than m6*; 1% variance explained by clade.  
+3) Model 6.ce: Full model w/ clade:elev.z.
+4) All performed substantially better than the intercept-only null model. 
+
+
+
+
+
 
 
 
@@ -3741,7 +4604,7 @@ final.mchc %>%
 
 # Model 3 
 color_scheme_set("blue") # nice default
-mchc.m3.p1 <- mcmc_plot(mchc.m3, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mchc.m3.p1 <- mcmc_plot(mchc.m3, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -3756,7 +4619,7 @@ summary(mchc.m3)
 
 # Model 4
 # color_scheme_set("teal") # nice default
-mchc.m4.p1 <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mchc.m4.p1 <- mcmc_plot(mchc.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                                     "b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
                                     prob_outer=0.95, # 95% outer CI 
@@ -3850,7 +4713,7 @@ mchc.m6 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(mchc.m6, file="mchc.m6_ReducedModel_SpeciesREOnly.RData") # save model
-# load("mchc.m6_ReducedModel_SpeciesREOnly.RData") 
+load("mchc.m6_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -3909,7 +4772,7 @@ ranef(mchc.m6, groups="species") #, probs = 0.95)
 
 # Model 5 
 color_scheme_set("blue") # nice default
-mchc.m5.p1 <- mcmc_plot(mchc.m5, pars=c("b_mass.z","b_genotypeGlyMSer", "b_genotypeSerMSer",
+mchc.m5.p1 <- mcmc_plot(mchc.m5, variable=c("b_mass.z","b_genotypeGlyMSer", "b_genotypeSerMSer",
                                     "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
@@ -3922,7 +4785,7 @@ summary(mchc.m5)
 
 # # Model 6
 # color_scheme_set("teal") # nice default
-mchc.m6.p1 <- mcmc_plot(mchc.m6, pars=c("b_intravar.mass.z", "b_intravar.temp.z"),
+mchc.m6.p1 <- mcmc_plot(mchc.m6, variable=c("b_intravar.mass.z", "b_intravar.temp.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
@@ -4015,10 +4878,198 @@ summary(mchc.m6.unstandardized)
 ```
 
 MCHC, Quick summary of top 3 models in order of ranking: 
-1) Model 6: Reduced model w/ just intravar.temp and intravar.mass and +1 species; 15% variation explained by species; R^2 = 0.115 2) Model 4: Full + (1|species); 18% of variance explained by species; R^2 = 0.134. Only *marginally* lower than Model 6. 
+1) Model 6: Reduced model w/ just intravar.temp and intravar.mass and +1 species; 15% variation explained by species; R^2 = 0.115 
+2) Model 4: Full + (1|species); 18% of variance explained by species; R^2 = 0.134. Only *marginally* lower than Model 6. 
 3) Model 2: Null model + (1|species); 14% of variance explained by species; R^2 = 0.088. 
 
 All models with species effect ranked much higher than models w/out, suggesting species very important. 
+
+
+# MCHC: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+```{r}
+# Load intercept only and top models (if not already loaded)
+load("mchc.m6_ReducedModel_SpeciesREOnly.RData") 
+load("mchc.m1_Intercept-Only.Rdata") 
+
+# MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
+mchc.m6.c <- brm(
+  formula = bf(mchc ~ 1 + intravar.mass.z + intravar.temp.z + (1|species) + (1|Clade)),
+  data = final.mchc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mchc.m6.c, file="mchc.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("mchc.m6.c_TopModel_CladeREAdded.RData") 
+
+# MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
+mchc.m6.ce <- brm(
+  formula = bf(mchc ~ 1 + intravar.mass.z + intravar.temp.z + elev.z:Clade + (1|species)),
+  data = final.mchc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(mchc.m6.ce, file="mchc.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("mchc.m6.ce_TopModel_CladeElevInteraction.RData") 
+
+
+# Fit assessment
+bayesplot::pp_check(mchc.m6.ce, resp = "mchc", ndraws = 100)
+mcmc_plot(mchc.m6.c, type = "acf_bar")
+
+# associated with each residual
+final.mchc %>%
+  add_residual_draws(mchc.m6.ce) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+# qqPlots
+final.mchc %>%
+  add_predicted_draws(mchc.m6.ce) %>%
+  summarise(
+    p_residual = mean(.prediction < mchc), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+
+
+# Model 6.c 
+color_scheme_set("blue") # nice default
+mchc.m6.c.p1 <- mcmc_plot(mchc.m6.c, variable=c("b_intravar.mass.z", "b_intravar.temp.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mchc]", title = "mchc.m6.c: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("IntraVar: Mass","IntraVar: Temp"))   
+mchc.m6.c.p1
+ggsave(mchc.m6.c.p1, filename = "mchc.m6.c.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mchc.m6.c)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 6
+color_scheme_set("blue") # nice default
+mchc.m6.ce.p1 <- mcmc_plot(mchc.m6.ce, variable=c("b_intravar.mass.z", "intravar.temp.z", "b_elev.z:CladeBee",
+                                    "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", "b_elev.z:CladeEmerald", 
+                                    "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladePatagona", 
+                                    "b_elev.z:CladeTopaz"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mchc]", title = "mchc.m6.ce: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("IntraVar: Mass","IntraVar: Temp", "Elev*Bee", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*Patagona", "Elev*Topaz"))   
+mchc.m6.ce.p1
+ggsave(mchc.m6.ce.p1, filename = "mchc.m6.ce.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(mchc.m6.ce)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+# *Bee is the reference clade
+
+# Plot interactions
+plot(conditional_effects(mchc.m6.ce,
+                      effects="elev.z:Clade", 
+                      spaghetti=TRUE, ndraws=150),
+                      points=TRUE,
+                      point_args=c(alpha=2/3, size=1), mean=FALSE)
+
+interact_plot(mchc.m6.ce, pred = elev.z, modx = Clade,
+              colors=c("#F4CD0B", "#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F", "#EE4024", "#03446B"),
+              plot.points=TRUE, partial.residuals = FALSE, interval = FALSE)
+              # Order: Bee, Brilliant, Coquette, Emerald, Hermit, Mango, Patagona, Topaz
+              # Manually specify colors because package doesn't handle more than 7 automatically
+              # If modx is a factor, all levels will be plotted
+# Using partial.residuals = TRUE, what is plotted instead is the observed data with the effects of all the control variables accounted for. In other words, the value cty for the observed data is based only on the values of displ, cyl, and the model error. Let’s take a look
+# Can only plot partial.residuals with all clades specified since that's what the model estimated.
+
+# Repeat interaction plot with just well-sampled clades
+interact_plot(mchc.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+
+# Linearity check
+interact_plot(mchc.m6.ce, pred=elev.z, modx=Clade, 
+              plot.points=TRUE, linearity.check=TRUE,
+              modx.values=c("Brilliant", "Coquette", "Emerald", "Hermit", "Mango"),
+              colors=c("#9E9285", "#04A5A5", "#97B25B", "#916EF9", "#F79E0F"),
+              )
+# In the following plot, we use linearity.check = TRUE argument to split the data by the level of the moderator W and plot predicted lines (black) and a loess line (red) within each group. The predicted lines come from the full data set. The loess line looks only at the subset of data in each pane and will be curved if the relationship is nonlinear. What we’re looking for is whether the red loess line is straight like the predicted line.
+
+# Print model summaries 
+sink("mchc_CladeAnalysis_brms_model_summaries.txt",append = TRUE)
+summary(mchc.m1, waic=TRUE)
+summary(mchc.m6, waic=TRUE)
+summary(mchc.m6.c, waic=TRUE)
+summary(mchc.m6.ce, waic=TRUE)
+sink()
+# print(mchc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+mchc.m1.waic <- waic(mchc.m1)
+mchc.m6.waic <- waic(mchc.m6)
+mchc.m6.c.waic <- waic(mchc.m6.c)
+mchc.m6.ce.waic <- waic(mchc.m6.ce)
+mchc.clade.waics.red <- cbind(mchc.m1.waic, mchc.m6.waic, mchc.m6.c.waic, mchc.m6.ce.waic); mchc.clade.waics.red
+write.csv(mchc.clade.waics.red, "mchc_CladeAnalysis_brms_models_waics.red.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+
+# Variance explained by Clade
+hyp.sp.mchc.m6.c <- paste(
+  "sd_Clade__Intercept^2 /", 
+  "(sd_Clade__Intercept^2 + sd_species__Intercept^2 + sigma^2) = 0")
+(hyp.sp.mchc.m6.c <- hypothesis(mchc.m6.c, hyp.sp.mchc.m6.c, class = NULL))
+plot(hyp.sp.mchc.m6.c)
+# 4% variance explained by Clade
+
+# hyp.sp.mchc.m6.c <- "sd_Clade__Intercept^2 / (sd_Clade__Intercept^2 + sigma^2) = 0"
+# (hyp.sp.mchc.m6.c <- hypothesis(mchc.m6.c, hyp.sp.mchc.m6.c, class = NULL))
+#  
+
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+library(loo)
+sink("mchc_CladeAnalysis_brms_models_looic.txt", append=FALSE)
+LOO(mchc.m1, mchc.m6, mchc.m6.c, mchc.m6.ce, reloo=FALSE) 
+sink()
+# According to LOO, model 5 is top model 
+
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Model comparisons:
+#            elpd_diff se_diff
+# mchc.m6.c    0.0       0.0  
+# mchc.m6     -0.4      30.8  
+# mchc.m6.ce  -2.3       2.2  
+# mchc.m1    -39.9      30.6 
+
+# Calculate Bayesian R^2:
+bayes_R2(mchc.m6) # 0.115
+bayes_R2(mchc.m6.c) # 0.118
+bayes_R2(mchc.m6.ce) # 0.132
+```
+
+Quick summary of top models from Clade analysis:  
+1) Model 6.c: Full model + (1|Clade) *marginally better than m6, 4% variance explained by clade.  
+2) Model 6: Full model  
+3) Model 6.ce: Full model w/ clade:elev.z.
+4) All performed substantially better than the intercept-only null model. 
+
+
+
+
 
 
 
@@ -4057,7 +5108,7 @@ color_scheme_set("viridisD")
 ```{R}
 # HB - panel A
 color_scheme_set("viridisD")
-hb.m4.fig4a <- mcmc_plot(hb.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+hb.m4.fig4a <- mcmc_plot(hb.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
             "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
             prob_outer=0.95, # 95% outer CI 
             prob=0.50, # 50% inner CI 
@@ -4082,7 +5133,7 @@ ggsave(hb.m4.fig4a, filename = "hb.m4.fig4a_Hb_PosteriorEstimates&CredibleInterv
 
 # HCT - Panel B
 color_scheme_set("viridisD")
-hct.m4.fig4b <- mcmc_plot(hct.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+hct.m4.fig4b <- mcmc_plot(hct.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
             "b_genotypeGlyMSer", "b_genotypeSerMSer","b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
             prob_outer=0.95, # 95% outer CI 
             prob=0.50, # 50% inner CI 
@@ -4107,7 +5158,7 @@ ggsave(hct.m4.p1, filename = "hct.m4.fig4b_hct_PosteriorEstimates&CredibleInterv
 
 # TRBC - Panel C
 color_scheme_set("viridisD")
-trbc.m4.fig4c <- mcmc_plot(trbc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+trbc.m4.fig4c <- mcmc_plot(trbc.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
               "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
               prob_outer=0.95, # 95% outer CI 
               prob=0.50, # 50% inner CI 
@@ -4133,7 +5184,7 @@ ggsave(trbc.m4.fig4c, filename = "trbc.m4.fig4c_trbc_PosteriorEstimates&Credible
 
 # MCV - panel D
 color_scheme_set("viridisD")
-mcv.m4.fig4d <- mcmc_plot(mcv.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mcv.m4.fig4d <- mcmc_plot(mcv.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z","b_intravar.temp.z", "b_intravar.precip.z"),
              prob_outer=0.95, # 95% outer CI 
              prob=0.50, # 50% inner CI 
@@ -4157,7 +5208,7 @@ ggsave(mcv.m4.fig4d, filename = "mcv.m4.fig4d_mcv_PosteriorEstimates&CredibleInt
 
 # MCV Inset plot (Final model, M6)
 color_scheme_set("brightblue")
-mcv.m6.fig4d.inset <- mcmc_plot(mcv.m6, pars=c("b_temp.z"),
+mcv.m6.fig4d.inset <- mcmc_plot(mcv.m6, variable=c("b_temp.z"),
                    prob_outer=0.95, # 95% outer CI
                    prob=0.50, # 50% inner CI
                    point_est="mean") + # mean point est; default is median
@@ -4186,7 +5237,7 @@ mcv.m4.fig4d.withinset
 
 # MCH - panel E
 color_scheme_set("viridisD")
-mch.m4.fig4e <- mcmc_plot(mch.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mch.m4.fig4e <- mcmc_plot(mch.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
              "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
              prob_outer=0.95, # 95% outer CI 
              prob=0.50, # 50% inner CI 
@@ -4211,7 +5262,7 @@ ggsave(mch.m4.fig4e, filename = "mch.m4.fig4e_mch_PosteriorEstimates&CredibleInt
 
 # MCH INSET PLOT (final model M6)
 color_scheme_set("brightblue")
-mch.m6.fig4e.inset <- mcmc_plot(mch.m6, pars=c("b_elev.z", "b_temp.z"),
+mch.m6.fig4e.inset <- mcmc_plot(mch.m6, variable=c("b_elev.z", "b_temp.z"),
                    prob_outer=0.95, # 95% outer CI
                    prob=0.50, # 50% inner CI
                    point_est="mean") + # mean point est; default is median
@@ -4240,7 +5291,7 @@ mch.m4.fig4e.withinset
 
 # MCHC - panel F
 color_scheme_set("viridisD")
-mchc.m4.fig4f <- mcmc_plot(mchc.m4, pars=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+mchc.m4.fig4f <- mcmc_plot(mchc.m4, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
               "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass","b_intravar.temp", "b_intravar.precip"),
               prob_outer=0.95, # 95% outer CI 
               prob=0.50, # 50% inner CI 
@@ -4265,7 +5316,7 @@ ggsave(mchc.m4.fig4f, filename = "mchc.m4.fig4f_mchc_PosteriorEstimates&Credible
 
 # MCHC inset element 
 color_scheme_set("brightblue")
-mchc.m6.fig4f.inset <- mcmc_plot(mchc.m6, pars=c("b_intravar.mass.z", "b_intravar.temp.z"),
+mchc.m6.fig4f.inset <- mcmc_plot(mchc.m6, variable=c("b_intravar.mass.z", "b_intravar.temp.z"),
                     prob_outer=0.95, # 95% outer CI
                     prob=0.50, # 50% inner CI
                     point_est="mean") + # mean point est; default is median
@@ -4342,7 +5393,7 @@ Posterior and predictive checks: https://mc-stan.org/bayesplot/reference/bayespl
 
 Comprehensive model check (tho doesn't work w/ brms?): https://easystats.github.io/performance/
 
-
+Cat*con interactions in brms: https://ibecav.netlify.app/post/exploring-vaccine-effectiveness-through-bayesian-regression-part-4/
 
 
 

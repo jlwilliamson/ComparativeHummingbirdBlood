@@ -1205,6 +1205,7 @@ full1$elev_position <- 1-((full1$elev_max-full1$elev)/full1$elev_range)
 # Any value >1 indicates that birds were collected higher than recorded max_elev; values <1 record the opposite
 # Since I checked and vetted these above, all values should fall within 0-1
 # Also remember: if I do want to 'automate' more, Ethan has nice function for this  
+# Could have also done collection elev minus species midpoint; more analogous to intravar variables
 ```
 
 

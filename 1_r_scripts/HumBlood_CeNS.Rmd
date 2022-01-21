@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 7/28/21"
+date: "4/26/2021; last revised 1/17/22"
 output: html_document
 ---
 
@@ -447,7 +447,7 @@ cens.il.m1 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.il.m1, file="cens.il.m1_InterceptOnly.RData") # save model
-# load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
+#load("cens.il.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
 # PREDICTORS AND SPECIES GROUPING VARIABLE 
 cens.il.m2 <- brm(
@@ -463,7 +463,7 @@ cens.il.m2 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.il.m2, file="cens.il.m2_Predictors_SpeciesRE.RData") # save model
-# load("cens.il.m2_Predictors_SpeciesRE.RData")
+#load("cens.il.m2_Predictors_SpeciesRE.RData")
 })
 
 ```
@@ -516,7 +516,7 @@ censdat %>%
 # Model 2
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
-cens.il.m2.p1 <- mcmc_plot(cens.il.m2, pars=c("b_mcv.z", "b_trbc.z"),
+cens.il.m2.p1 <- mcmc_plot(cens.il.m2, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -609,7 +609,7 @@ summary(cens.il.m2.unstandardized)
 ```
 
 Quick summary of top model comparison: 
-- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 8%. R^2 = 0.85. 
+- Model 2, full model + species grouping variable fits best by var! Variance explained by species: 14%. R^2 = 0.85. 
 
 Standardized Estimates: 
 MCV = 1.92
@@ -648,7 +648,7 @@ cens.sm.m1 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.sm.m1, file="cens.sm.m1_InterceptOnly.RData") # save model
-# load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
+#load("cens.sm.m1_InterceptOnly.RData") # If loading from pre-saved file and not re-running
 
 # PREDICTORS 
 cens.sm.m2 <- brm(
@@ -664,7 +664,7 @@ cens.sm.m2 <- brm(
   sample_prior = TRUE # save priors
 )
 save(cens.sm.m2, file="cens.sm.m2_Predictors_SpeciesRE.RData") # save model
-# load("cens.sm.m2_Predictors_SpeciesRE.RData")
+#load("cens.sm.m2_Predictors_SpeciesRE.RData")
 
 })
 ```
@@ -717,7 +717,7 @@ cens.sp %>%
 # Model 2 
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
-cens.sm.m2.p1 <- mcmc_plot(cens.sm.m2, pars=c("b_mcv.z", "b_trbc.z"),
+cens.sm.m2.p1 <- mcmc_plot(cens.sm.m2, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -1665,8 +1665,8 @@ Pgign %>%
 ```
 
 
-# FIGURE S3: Species-specific Conditional effects plots 
-This will be Figure S3 in paper. May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
+# FIGURE S2: Species-specific Conditional effects plots 
+This will be Figure S2 in paper. May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
 ```{r}
 # Color options: 'arg' should be one of “blue”, “brightblue”, “darkgray”, “gray”, “green”, “orange”, “pink”, “purple”, “red”, “teal”, “yellow”, “viridis”, “viridisA”, “viridisB”, “viridisC”, “viridisD”, “viridisE”
 # color_scheme_set("blue") # nice default
@@ -1676,9 +1676,9 @@ This will be Figure S3 in paper. May want to move this to plots and figs script 
 
 color_scheme_set("viridisD")
 
-cens.Amel.p1 <- mcmc_plot(cens.Amel, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Amel.p1 <- mcmc_plot(cens.Amel, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 #labs(x="", subtitle = expression(paste(italic("A. melanogenys")))) + 
 ggtitle(expression(paste(bold("A"),~~~~italic("A. melanogenys")))) + 
@@ -1698,9 +1698,9 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Amel.p1
 ggsave(cens.Amel.p1, filename = "cens.Amel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Acas.p1 <- mcmc_plot(cens.Acas, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Acas.p1 <- mcmc_plot(cens.Acas, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("B"),~~~~italic("A. castelnaudii")))) + 
@@ -1717,9 +1717,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Acas.p1
 ggsave(cens.Acas.p1, filename = "cens.Acas.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Akin.p1 <- mcmc_plot(cens.Akin, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Akin.p1 <- mcmc_plot(cens.Akin, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("C"),~~~~italic("A. kingii")))) + 
@@ -1736,9 +1736,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Akin.p1
 ggsave(cens.Akin.p1, filename = "cens.Akin.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Aama.p1 <- mcmc_plot(cens.Aama, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Aama.p1 <- mcmc_plot(cens.Aama, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("D"),~~~~italic("A. amazilia")))) + 
@@ -1755,9 +1755,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Aama.p1
 ggsave(cens.Aama.p1, filename = "cens.Aama.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Clar.p1 <- mcmc_plot(cens.Clar, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Clar.p1 <- mcmc_plot(cens.Clar, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "C. largipennis") + 
 ggtitle(expression(paste(bold("E"),~~~~italic("C. largipennis")))) + 
@@ -1774,9 +1774,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Clar.p1
 ggsave(cens.Clar.p1, filename = "cens.Clar.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Coen.p1 <- mcmc_plot(cens.Coen, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Coen.p1 <- mcmc_plot(cens.Coen, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "C. oenone") +
 ggtitle(expression(paste(bold("F"),~~~~italic("C. oenone")))) + 
@@ -1793,9 +1793,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Coen.p1
 ggsave(cens.Coen.p1, filename = "cens.Coen.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Ccoe.p1 <- mcmc_plot(cens.Ccoe, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Ccoe.p1 <- mcmc_plot(cens.Ccoe, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "C. coeligena") + 
 ggtitle(expression(paste(bold("C"),~~~~italic("C. coeligena")))) + 
@@ -1812,9 +1812,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Ccoe.p1
 ggsave(cens.Ccoe.p1, filename = "cens.Ccoe.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Ciri.p1 <- mcmc_plot(cens.Ciri, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Ciri.p1 <- mcmc_plot(cens.Ciri, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("H"),~~~~italic("C. iris")))) + 
@@ -1833,9 +1833,9 @@ ggsave(cens.Ciri.p1, filename = "cens.Ciri.p1_PosteriorEstimates&CredibleInterva
 
 # SECOND LINE 
 
-cens.Cvio.p1 <- mcmc_plot(cens.Cvio, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Cvio.p1 <- mcmc_plot(cens.Cvio, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("I"),~~~~italic("C. violifer")))) + 
@@ -1852,9 +1852,9 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Cvio.p1
 ggsave(cens.Cvio.p1, filename = "cens.Cvio.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Ccor.p1 <- mcmc_plot(cens.Ccor, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Ccor.p1 <- mcmc_plot(cens.Ccor, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "C. coruscans") + 
 ggtitle(expression(paste(bold("J"),~~~~italic("C. coruscans")))) + 
@@ -1871,9 +1871,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Ccor.p1
 ggsave(cens.Ccor.p1, filename = "cens.Ccor.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Eluc.p1 <- mcmc_plot(cens.Eluc, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Eluc.p1 <- mcmc_plot(cens.Eluc, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "C. luciani") + 
 ggtitle(expression(paste(bold("K"),~~~~italic("C. luciani")))) + 
@@ -1890,9 +1890,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Eluc.p1
 ggsave(cens.Eluc.p1, filename = "cens.Eluc.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Econ.p1 <- mcmc_plot(cens.Econ, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Econ.p1 <- mcmc_plot(cens.Econ, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("L"),~~~~italic("C. condamini")))) + 
@@ -1909,9 +1909,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Econ.p1
 ggsave(cens.Econ.p1, filename = "cens.Econ.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Fmel.p1 <- mcmc_plot(cens.Fmel, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Fmel.p1 <- mcmc_plot(cens.Fmel, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("M"),~~~~italic("F. mellivora")))) + 
@@ -1928,9 +1928,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Fmel.p1
 ggsave(cens.Fmel.p1, filename = "cens.Fmel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Ghir.p1 <- mcmc_plot(cens.Ghir, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Ghir.p1 <- mcmc_plot(cens.Ghir, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("N"),~~~~italic("G. hirsutus")))) + 
@@ -1947,9 +1947,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Ghir.p1
 ggsave(cens.Ghir.p1, filename = "cens.Ghir.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Hame.p1 <- mcmc_plot(cens.Hame, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Hame.p1 <- mcmc_plot(cens.Hame, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("O"),~~~~italic("H. amethysticollis")))) + 
@@ -1966,12 +1966,12 @@ scale_y_discrete(labels=c("","")) +
 cens.Hame.p1
 ggsave(cens.Hame.p1, filename = "cens.Hame.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Hmic.p1 <- mcmc_plot(cens.Hmic, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Hmic.p1 <- mcmc_plot(cens.Hmic, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
-labs(x="", title = "H. micrastur") +
-ggtitle(expression(paste(bold("P"),~~~~italic("H. micrastur")))) + 
+labs(x="", title = "H. micraster") +
+ggtitle(expression(paste(bold("P"),~~~~italic("H. micraster")))) + 
         theme(plot.title.position = "plot", # "plot" = you want "title" flush with y-axis
         plot.title = element_text(face="bold")) +
 scale_y_discrete(labels=c("","")) +
@@ -1987,9 +1987,9 @@ ggsave(cens.Hmic.p1, filename = "cens.Hmic.p1_PosteriorEstimates&CredibleInterva
 
 # THIRD LINE 
 
-cens.Hlea.p1 <- mcmc_plot(cens.Hlea, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Hlea.p1 <- mcmc_plot(cens.Hlea, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("Q"),~~~~italic("H. leadbeateri")))) + 
@@ -2006,9 +2006,9 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Hlea.p1
 ggsave(cens.Hlea.p1, filename = "cens.Hlea.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Llaf.p1 <- mcmc_plot(cens.Llaf, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Llaf.p1 <- mcmc_plot(cens.Llaf, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("R"),~~~~italic("L. lafresnayi")))) + 
@@ -2025,9 +2025,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Llaf.p1
 ggsave(cens.Llaf.p1, filename = "cens.Llaf.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Lnun.p1 <- mcmc_plot(cens.Lnun, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Lnun.p1 <- mcmc_plot(cens.Lnun, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("S"),~~~~italic("L. nuna")))) + 
@@ -2044,9 +2044,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Lnun.p1
 ggsave(cens.Lnun.p1, filename = "cens.Lnun.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Lvic.p1 <- mcmc_plot(cens.Lvic, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Lvic.p1 <- mcmc_plot(cens.Lvic, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("T"),~~~~italic("L. victoriae")))) + 
@@ -2063,9 +2063,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Lvic.p1
 ggsave(cens.Lvic.p1, filename = "cens.Lvic.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Meup.p1 <- mcmc_plot(cens.Meup, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Meup.p1 <- mcmc_plot(cens.Meup, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") +
 ggtitle(expression(paste(bold("U"),~~~~italic("M. eupogon")))) + 
@@ -2082,9 +2082,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Meup.p1
 ggsave(cens.Meup.p1, filename = "cens.Meup.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Mpho.p1 <- mcmc_plot(cens.Mpho, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Mpho.p1 <- mcmc_plot(cens.Mpho, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") +
 ggtitle(expression(paste(bold("V"),~~~~italic("M. phoebe")))) + 
@@ -2101,9 +2101,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Mpho.p1
 ggsave(cens.Mpho.p1, filename = "cens.Mpho.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Mtyr.p1 <- mcmc_plot(cens.Mtyr, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Mtyr.p1 <- mcmc_plot(cens.Mtyr, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("W"),~~~~italic("M. tyrianthina")))) + 
@@ -2120,9 +2120,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Mtyr.p1
 ggsave(cens.Mtyr.p1, filename = "cens.Mtyr.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Ound.p1 <- mcmc_plot(cens.Ound, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Ound.p1 <- mcmc_plot(cens.Ound, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="", title = "") + 
 ggtitle(expression(paste(bold("X"),~~~~italic("O. underwoodii")))) + 
@@ -2141,9 +2141,9 @@ ggsave(cens.Ound.p1, filename = "cens.Ound.p1_PosteriorEstimates&CredibleInterva
 
 # FOURTH LINE 
 
-cens.Oest.p1 <- mcmc_plot(cens.Oest, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Oest.p1 <- mcmc_plot(cens.Oest, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") +
 ggtitle(expression(paste(bold("Y"),~~~~italic("O. estella")))) + 
@@ -2160,9 +2160,9 @@ scale_y_discrete(labels=c("MCV","TRBC")) +
 cens.Oest.p1
 ggsave(cens.Oest.p1, filename = "cens.Oest.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Omel.p1 <- mcmc_plot(cens.Omel, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Omel.p1 <- mcmc_plot(cens.Omel, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("Z"),~~~~italic("O. melanogaster")))) + 
@@ -2180,9 +2180,9 @@ cens.Omel.p1
 ggsave(cens.Omel.p1, filename = "cens.Omel.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
 # Pgign
-cens.Pgign.p1 <- mcmc_plot(cens.Pgign, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Pgign.p1 <- mcmc_plot(cens.Pgign, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AA"),~~~~italic("P. gigas (North)")))) + 
@@ -2200,9 +2200,9 @@ cens.Pgign.p1
 ggsave(cens.Pgign.p1, filename = "cens.Pgign.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
 # Pgig s
-cens.Pgigs.p1 <- mcmc_plot(cens.Pgigs, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Pgigs.p1 <- mcmc_plot(cens.Pgigs, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AB"),~~~~italic("P. gigas (South)")))) + 
@@ -2219,9 +2219,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Pgigs.p1
 ggsave(cens.Pgigs.p1, filename = "cens.Pgigs.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Pguy.p1 <- mcmc_plot(cens.Pguy, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Pguy.p1 <- mcmc_plot(cens.Pguy, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AC"),~~~~italic("P. guy")))) + 
@@ -2238,9 +2238,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Pguy.p1
 ggsave(cens.Pguy.p1, filename = "cens.Pguy.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Pmal.p1 <- mcmc_plot(cens.Pmal, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Pmal.p1 <- mcmc_plot(cens.Pmal, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AD"),~~~~italic("P. malaris")))) + 
@@ -2257,9 +2257,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Pmal.p1
 ggsave(cens.Pmal.p1, filename = "cens.Pmal.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Pcya.p1 <- mcmc_plot(cens.Pcya, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Pcya.p1 <- mcmc_plot(cens.Pcya, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AE"),~~~~italic("P. cyanopterus")))) + 
@@ -2276,9 +2276,9 @@ scale_y_discrete(labels=c("","")) +
 cens.Pcya.p1
 ggsave(cens.Pcya.p1, filename = "cens.Pcya.p1_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-cens.Tfur.p1 <- mcmc_plot(cens.Tfur, pars=c("b_mcv.z", "b_trbc.z"),
+cens.Tfur.p1 <- mcmc_plot(cens.Tfur, variable=c("b_mcv.z", "b_trbc.z"),
                                     prob_outer=0.95, # 95% outer CI 
-                                    prob=0.50, # 50% inner CI 
+                                    prob=0.89, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 ggtitle(expression(paste(bold("AF"),~~~~italic("T. furcata")))) + 
@@ -2306,7 +2306,7 @@ FigS3_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.
                       cens.Pcya.p1 + cens.Tfur.p1 +
                       plot_layout(guides = "collect", nrow=4))
 plot(FigS3_PosteriorProbs)
-ggsave(FigS3_PosteriorProbs, filename = "FigS3_CeNS_Species-Specific_PosteriorProbs_06-10-21.pdf", bg="transparent", height=7, width=12, units="in")
+ggsave(FigS3_PosteriorProbs, filename = "FigS3_CeNS_Species-Specific_PosteriorProbs_2022-01-18.pdf", bg="transparent", height=7, width=12, units="in")
 ```
 
 JESSIE NOTE: Ideally need to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
@@ -3153,7 +3153,7 @@ lm_diag_plots(cens.trbc.link.model)
 ggsave(p, filename="CeNSindex_by_MCV.pdf", height=7, width=9, units="in")
 
 # Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "mcv")]) # 0.50
+cor(cens.ss.mean[,c("cens.index", "mcv")]) # 0.89
 
 # Quick linear model 
 cens.mcv.link.model <- glm(cens.index ~ mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
@@ -3244,7 +3244,7 @@ cor(cens.ss.mean[,c("mcv", "mass.log")]) # 0.17
 
 
 # Hemoglobin genotype and CeNS Index
-# HB GENOTYPE DOES NOT AFFECT CENS INDEX
+# HB GENOTYPE DOES NOT AFFECT CENS INDEX - Figure S5 in paper; see the polished version in Plots & Figs script
 (FigureS5 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(genotype)), outlier.size=2.0, alpha=0.7) +
@@ -3408,7 +3408,7 @@ cens.m1 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m1, file="cens.m1_CeNS_Intercept-Only.RData") # save model
-#load("cens.m1_CeNS_Intercept-Only.Rdata") 
+# load("cens.m1_CeNS_Intercept-Only.Rdata") 
 
 # MODEL 2: 
 cens.m2 <- brm(
@@ -3428,7 +3428,7 @@ save(cens.m2, file="cens.m2_CeNS_FullModel_PredictorsWithoutQuadratic.RData") # 
 
 # MODEL 3: 
 cens.m3 <- brm(
-  formula = bf(cens.index ~ 1 + elev.z + + I(elev.z^2) + mass.z + wl.z),
+  formula = bf(cens.index ~ 1 + elev.z + I(elev.z^2) + mass.z + wl.z),
   data = cens.ss.mean,
   family = gaussian(), 
   cores = 4,
@@ -3440,7 +3440,7 @@ cens.m3 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m3, file="cens.m3_CeNS.RData") # save model
-#load("cens.m3_CeNS.RData") # If loading from pre-saved file and not re-running
+load("cens.m3_CeNS.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 4: FULL MODEL WITH QUADRATIC
 cens.m4 <- brm(
@@ -3456,7 +3456,7 @@ cens.m4 <- brm(
   sample_prior = TRUE # save priors 
 )
 save(cens.m4, file="cens.m4_CeNS.RData") # save model
-#load("cens.m4_CeNS.RData") # If loading from pre-saved file and not re-running
+# load("cens.m4_CeNS.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -3515,7 +3515,7 @@ cens.ss.mean %>%
 # Model 2 
 #pairs(hb.m3)
 color_scheme_set("viridisD") # nice default
-cens.m2.p1 <- mcmc_plot(cens.m2, pars=c("b_elev.z", "b_mass.z", "b_wl.z"),
+cens.m2.p1 <- mcmc_plot(cens.m2, variable=c("b_elev.z", "b_mass.z", "b_wl.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3527,7 +3527,7 @@ summary(cens.m2)
 # Predictors that don't overlap zero: NONE
 
 # Model 3 
-cens.m3.p1 <- mcmc_plot(cens.m3, pars=c("b_elev.z","b_Ielev.zE2","b_mass.z","b_wl.z"),
+cens.m3.p1 <- mcmc_plot(cens.m3, variable=c("b_elev.z","b_Ielev.zE2","b_mass.z","b_wl.z"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3539,7 +3539,7 @@ summary(cens.m3)
 # Predictors that don't overlap zero: elev.z, elev.z^2, mass.z
 
 # Model 4 
-cens.m4.p1 <- mcmc_plot(cens.m4, pars=c("b_elev.z", "b_Ielev.zE2","b_mass.z", "b_wl.z", "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+cens.m4.p1 <- mcmc_plot(cens.m4, variable=c("b_elev.z", "b_Ielev.zE2","b_mass.z", "b_wl.z", "b_genotypeGlyMSer", "b_genotypeSerMSer"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3626,7 +3626,7 @@ save(cens.m6, file="cens.m6_CeNS_ReducedModel.RData") # save model
 
 # # Model 5
 color_scheme_set("viridisD") # nice default
-cens.m5.p1 <- mcmc_plot(cens.m5, pars=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
+cens.m5.p1 <- mcmc_plot(cens.m5, variable=c("b_elev.z", "b_Ielev.zE2", "b_mass.z"),
                                     prob_outer=0.95, # 95% outer CI
                                     prob=0.50, # 50% inner CI
                                     point_est="mean") + # mean point est; default is median
@@ -3638,7 +3638,7 @@ summary(cens.m5)
 
 # Model 6
 #color_scheme_set("red") # nice default
-cens.m6.p1 <- mcmc_plot(cens.m6, pars=c("b_elev.z", "b_Ielev.zE2"),
+cens.m6.p1 <- mcmc_plot(cens.m6, variable=c("b_elev.z", "b_Ielev.zE2"),
                                     prob_outer=0.95, # 95% outer CI 
                                     prob=0.50, # 50% inner CI 
                                     point_est="mean") + # mean point est; default is median 
@@ -3737,10 +3737,6 @@ All models are NOT substantially better than the intercept-only model. No phylog
 
 -----
 
-QUESTIONS FOR CHRIS 5/24/21: 
-- Why are these results seemingly opposite of what we expect?! 
-- Our data seem to suggest that higher altitude species increase MCV primarily as a way of increasing blood-O2 carrying capacity. But does this even make sense?! I thought the whole thing was that species want smaller cells at altitude? 
-- Questions for myself, out of curiosity: Does the magnitude of difference between TRBC and MCV in driving Hb differ as you move up and down in elev? 
 
 
 If I take the raw data values for TRBC/MCV+TRBC (maybe after standardizing), what do plots look like? 
