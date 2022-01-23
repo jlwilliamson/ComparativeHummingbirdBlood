@@ -1,0 +1,2334 @@
+---
+title: "HumBlood_Modeling_SpeciesMeans"
+author: "Jessie Williamson"
+date: "3/29/2021; last revised 1/23/22"
+output: html_document
+---
+
+# MODELS WITH SPECIES MEAN DATA 
+
+Do species mean predictors of blood traits differ from individual-level predictors (i.e., in the within species analysis)? i.e., Do we find anything different when examining our traits of interest across ~22 Mya hummingbird evolution?
+
+Here we take our data, calculate species means for each dataset, and run similar analyses to those in 'HumBlood_Modeling.Rmd'. If 'final' file is loaded from HumBlood_Modeling.Rmd (after all processing that occurs in lines 1-800), it is fine to use. If it isn't, read it in below. 
+
+---
+
+# Load packages
+```{R}
+library(reshape)
+library(reshape2)
+library(plyr)
+library(dplyr)
+library(car)
+library(GGally)
+library(Hmisc)
+library(gridExtra)
+library(stats)
+library(gplots)
+library(ggplot2)
+library(stats4) # Forces knitr to work when it's being wonky
+library(PMCMR) #Allows Kruskal-Wallis post-hocs
+library(effects)
+library(gridExtra)
+library(lattice)
+# library(survival)
+# library(fmsb)
+library(faraway)
+library(tidyverse)
+library(patchwork) 
+library(viridis)
+library(rcompanion) # for Tukey's Ladder of Powers Transformation
+library(purrr)
+library(tidyr)
+library(cowplot)
+library(gganimate)
+library(job) # Run slow brms models as jobs to free up console
+
+# Bayesian modeling packages 
+library(MCMCglmm)
+library(bayesplot)
+library(rstan)
+library(Rcpp) # required for brms
+library(brms) # updated to version 2.16.1 on 10/7/21
+library(bayesplot) # appears to be required for bayesplot::pp_check?
+library(ggdist)
+library(tidybayes)
+library(performance)
+
+# To run each time you load rstan
+options(mc.cores = parallel::detectCores()) # for core setup 
+rstan_options(auto_write = TRUE) # auto save  bare verion of compiled Stan program to HD
+# rstan output should always end in a blank line w/ no characters or spaces  
+
+# Phylo packages 
+library(phytools)
+# library(ape)
+
+# Frequentist modeling packages
+# library(nlme)
+# library(lme4)
+# library(AICcmodavg)
+# library(MuMIn)
+# library(glmulti)
+# library(lsmeans)
+# library(rsq) # get r-squared values from GLM
+# library(r2glmm) # for R^2 values from lmer() and glmer()
+# library(multcompView) # related to multiple comparisons?
+# library(jtools) # interaction plots 
+# library(interactions) # interaction plots 
+# library(broom)
+# library(stargazer) # model output tables
+# library(ggeffects) # for estimating model predictions from mixed effects models
+```
+
+
+---
+
+# Clear workspace and set WD
+```{R}
+rm(list=ls(all=TRUE)) # clear workspace 
+setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
+```
+
+
+# Read in data 
+If 'final' dataset is loaded in from HumBlood_Modeling.Rmd, no need to re-load here. 
+```{r}
+# Load functions 
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/ada_functions.R") 
+  # Erik's ADA functions for clean & collated lm diag plots
+source("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/1_r_scripts/Rfunctions.R") # Nora's functions
+
+# Read data 
+final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-14-21.csv", stringsAsFactors = TRUE)
+final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
+final <- final[ , !(colnames(final) %in% c("n"))] # not sure where this came from, but a bunch of NAs
+
+final.spm <- final # Make the final dataset copy that you'll use to wrangle species mean data 
+```
+
+
+# Split Patagona into two functional groups 
+This is necessary prior to further data wrangling because Patagona North and South are functionally separate species and could be modeled as such in our characterizations of species. Since their elevations and blood values may differ substantially (and thus, these values will affect outliers and distributions of other blood values), handle this now. 
+```{r}
+final.spm$species <- as.character(final.spm$species) # MUST be character for loop to work 
+
+# Loop through dataset and assign "Patagona_gigas_S" to Chilean birds and "Patagona_gigas_N" to Peru birds
+for(i in 1:nrow(final.spm)){
+    if((final.spm$species[i] == "Patagona_gigas") & (final.spm$department[i] == "Región Valparaíso") ){
+        final.spm$species[i] <- "Patagona_gigas_S"
+    }else if((final.spm$species[i] == "Patagona_gigas")){ 
+      final.spm$species[i] <- "Patagona_gigas_N"
+    }
+}
+
+final.spm$species <- as.factor(final.spm$species) # Now must be factor for modeling
+
+# Since we're considering Patagona as two functionally separate species, eliminate possible southern migrants that were 
+# sampled during the austral non-breeding winter (July, Aug, September; we have no June birds)
+final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.spm$month == "July"),] 
+final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.spm$month == "August"),]
+final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.spm$month == "September"),]
+```
+
+# Set clade levels and assign colors 
+Do this *before* splitting datasets so levels and colors carry through to plots w/ data subsets. 
+```{r}
+# Set clade levels/make sure these are correct
+final.spm$Clade <- factor(final.spm$Clade
+                       , levels = c("Coquette",
+                                    "Brilliant", 
+                                    "Patagona", 
+                                    "Bee", 
+                                    "Mountain-gem", 
+                                    "Emerald", 
+                                    "Mango",  
+                                    "Topaz",
+                                    "Hermit"))
+
+# HUMMINGBIRD COLORS 
+hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
+                 "#9E9285", # brown (Brilliant)
+                 "#EE4024", # red (Patagona)
+                 "#F4CD0B", # Gold (Bee)
+                 "#E786B7", # pink (Mountain-gem)
+                 "#97B25B", # green (Emerald)  
+                 "#F79E0F", # orange (Mango)
+                 "#03446B", # navy blue (Topaz)
+                 "#916EF9" # purple (Hermit)
+                    )
+```
+
+
+
+# Make data subsets that would be dropped from big dataset with na.omit 
+We're generating subsets now to be able to retain the max amount of data for each
+i.e. if we just used na.omit to be able to run models smoothly, we'd lose hundreds of Hb measurements that didn't also have MCV values, for example. 
+```{R}
+# NOTE: If we decide to move forward with wing loading data, include wl data in each of these subsets.
+
+# Hb subset - 955 observations
+final.spm.hb <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hb, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
+final.spm.hb <- na.omit(final.spm.hb)
+str(final.spm.hb) # looks good, nothing to coerce 
+
+# Hct subset - 1052 observations
+final.spm.hct <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, hct, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
+final.spm.hct <- na.omit(final.spm.hct)
+str(final.spm.hct) # looks good, nothing to coerce 
+
+# trbc subset - 726 observations
+final.spm.trbc <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, trbc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
+final.spm.trbc <- na.omit(final.spm.trbc)
+str(final.spm.trbc) # looks good, nothing to coerce
+
+# mcv subset - 710 observations
+final.spm.mcv <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mcv, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z, mcv.log, spec.mean.elev.z, spec.mean.temp.z, spec.mean.precip.z, spec.mean.mass.z)) 
+final.spm.mcv <- na.omit(final.spm.mcv )
+str(final.spm.mcv)  # looks good, nothing to coerce 
+
+# mch subset - 682 observations
+final.spm.mch <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mch, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z, mch.log)) 
+final.spm.mch <- na.omit(final.spm.mch)
+str(final.spm.mch) # looks good, nothing to coerce 
+
+# mchc subset - 891 observations
+final.spm.mchc <- subset(final.spm, select=c(species, rowID, nk, sex, age, month, year, locality, elev, department, lat, lon, mass, mchc, Clade, elev_position, tempPC1, precipPC1, mass.z, elev.z, elev.pos.z, temp.z, precip.z, b13, b83, genotype, intravar.mass.z, intravar.temp.z, intravar.precip.z)) 
+final.spm.mchc <- na.omit(final.spm.mchc)
+str(final.spm.mchc) # looks good, nothing to coerce 
+
+# Write out all final data subsets: 
+# write.csv(final.spm.hb, "HumBlood_final.spm.hb.csv")
+# write.csv(final.spm.hct, "HumBlood_final.spm.hct.csv")
+# write.csv(final.spm.trbc, "HumBlood_final.spm.trbc.csv")
+# write.csv(final.spm.mcv, "HumBlood_final.spm.mcv.csv")
+# write.csv(final.spm.mch, "HumBlood_final.spm.mch.csv")
+# write.csv(final.spm.mchc, "HumBlood_final.spm.mchc.csv")
+```
+
+
+# Make species mean datasets for all 6 blood response variables   
+```{r}
+# We can't use giant "final" dataset to make a species mean dataset since there are so many NAs in `final`
+# those are messing up species mean calculations. Instead, use the final.x datasets made for each predictor in
+# HumBlood_Modeling (each NA free) to calculate species means and see if this helps
+
+# Notes on method/process:
+# We aren't accounting for differences in male and female mean mass #s since that wasn't important in indiv-level models
+# IN DPLYR: MAKE SURE "SUMMARIZE" IS SPELLED WITH THE BRITISH 'SUMMMARISSSSSEE' OR IT WON'T WORK.
+
+# SPECIES MEAN DATASETS 
+
+# HB SPECIES MEAN 
+spm.hb <- final.spm.hb %>% group_by(species) %>% summarise(hb.mean = mean(hb),   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# HB mass: 
+spm.hb$mass.log <- log10(spm.hb$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.hb$mass.log) 
+qqPlot(spm.hb$mass.log)
+
+# HB: add in genotypes, clades, and sampling:
+hb.genotype.sum <- final.spm.hb %>% group_by(species, genotype) %>% summarise(total_n = length(species)); hb.genotype.sum
+hb.genotype.sum <- hb.genotype.sum[ , !(colnames(hb.genotype.sum) %in% c("species"))] # drop species col in genotype
+hb.clade.sum <- final.spm.hb %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); hb.clade.sum
+hb.clade.sum <- hb.clade.sum[ , !(colnames(hb.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.hb <- cbind(spm.hb, hb.genotype.sum, hb.clade.sum)
+
+
+# HCT SPECIES MEAN 
+spm.hct <- final.spm.hct %>% group_by(species) %>% summarise(hct.mean = mean(hct),   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# HCT mass: 
+spm.hct$mass.log <- log10(spm.hct$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.hct$mass.log) 
+qqPlot(spm.hct$mass.log)
+
+# HCT: add in genotypes, clades, and sampling:
+hct.genotype.sum <- final.spm.hct %>% group_by(species, genotype) %>% summarise(total_n = length(species)); hct.genotype.sum
+hct.genotype.sum <- hct.genotype.sum[ , !(colnames(hct.genotype.sum) %in% c("species"))] # drop species col in genotype
+hct.clade.sum <- final.spm.hct %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); hct.clade.sum
+hct.clade.sum <- hct.clade.sum[ , !(colnames(hct.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.hct <- cbind(spm.hct, hct.genotype.sum, hct.clade.sum)
+
+
+# TRBC SPECIES MEAN 
+spm.trbc <- final.spm.trbc %>% group_by(species) %>% summarise(trbc.mean = mean(trbc),   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# trbc mass: 
+spm.trbc$mass.log <- log10(spm.trbc$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.trbc$mass.log) 
+qqPlot(spm.trbc$mass.log)
+
+# trbc: add in genotypes, clades, and sampling:
+trbc.genotype.sum <- final.spm.trbc %>% group_by(species, genotype) %>% summarise(total_n = length(species)); trbc.genotype.sum
+trbc.genotype.sum <- trbc.genotype.sum[ , !(colnames(trbc.genotype.sum) %in% c("species"))] # drop species col in genotype
+trbc.clade.sum <- final.spm.trbc %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); trbc.clade.sum
+trbc.clade.sum <- trbc.clade.sum[ , !(colnames(trbc.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.trbc <- cbind(spm.trbc, trbc.genotype.sum, trbc.clade.sum)
+
+
+# MCV SPECIES MEAN 
+spm.mcv <- final.spm.mcv %>% group_by(species) %>% summarise(mcv.mean = mean(mcv), # change based on parameter   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# MCV mass: 
+spm.mcv$mass.log <- log10(spm.mcv$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.mcv$mass.log) 
+qqPlot(spm.mcv$mass.log)
+
+# MCV: add in genotypes, clades, and sampling:
+mcv.genotype.sum <- final.spm.mcv %>% group_by(species, genotype) %>% summarise(total_n = length(species)); mcv.genotype.sum
+mcv.genotype.sum <- mcv.genotype.sum[ , !(colnames(mcv.genotype.sum) %in% c("species"))] # drop species col in genotype
+mcv.clade.sum <- final.spm.mcv %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); mcv.clade.sum
+mcv.clade.sum <- mcv.clade.sum[ , !(colnames(mcv.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.mcv <- cbind(spm.mcv, mcv.genotype.sum, mcv.clade.sum)
+
+ 
+
+# MCH SPECIES MEAN 
+spm.mch <- final.spm.mch %>% group_by(species) %>% summarise(mch.mean = mean(mch), # change based on parameter   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# MCH mass: 
+spm.mch$mass.log <- log10(spm.mch$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.mch$mass.log) 
+qqPlot(spm.mch$mass.log)
+
+# MCH: add in genotypes, clades, and sampling:
+mch.genotype.sum <- final.spm.mch %>% group_by(species, genotype) %>% summarise(total_n = length(species)); mch.genotype.sum
+mch.genotype.sum <- mch.genotype.sum[ , !(colnames(mch.genotype.sum) %in% c("species"))] # drop species col in genotype
+mch.clade.sum <- final.spm.mch %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); mch.clade.sum
+mch.clade.sum <- mch.clade.sum[ , !(colnames(mch.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.mch <- cbind(spm.mch, mch.genotype.sum, mch.clade.sum)
+
+
+# MCHC SPECIES MEAN 
+spm.mchc <- final.spm.mchc %>% group_by(species) %>% summarise(mchc.mean = mean(mchc), # change based on parameter   
+                                                  elev.mean = mean(elev),   
+                                                  temp.mean = mean(tempPC1),
+                                                  precip.mean = mean(precipPC1),
+                                                  mass.mean = mean(mass) 
+                                                  # wl.mean = mean(wl) # Wing loading would limit us to 59 species
+                                                  )
+
+# mchc mass: 
+spm.mchc$mass.log <- log10(spm.mchc$mass.mean) # Helped a bit, but still pretty off at tails, definitely not normal
+hist(spm.mchc$mass.log) 
+qqPlot(spm.mchc$mass.log)
+
+# mchc: add in genotypes, clades, and sampling:
+mchc.genotype.sum <- final.spm.mchc %>% group_by(species, genotype) %>% summarise(total_n = length(species)); mchc.genotype.sum
+mchc.genotype.sum <- mchc.genotype.sum[ , !(colnames(mchc.genotype.sum) %in% c("species"))] # drop species col in genotype
+mchc.clade.sum <- final.spm.mchc %>% group_by(species, Clade) %>% summarise(clade_n = length(species)); mchc.clade.sum
+mchc.clade.sum <- mchc.clade.sum[ , !(colnames(mchc.clade.sum) %in% c("species"))] # drop species col in clade sum
+spm.mchc <- cbind(spm.mchc, mchc.genotype.sum, mchc.clade.sum)
+
+```
+
+
+# Standardize continuous predictors in species mean datasets 
+Standardize to mean of 0 and standard deviation of 1; Remember: responses don't get standardized.  
+NOTE: Standardizing is really only necessary because of elev as predictor, which throws off scale a ton 
+```{r}
+# Hb 
+spm.hb$elev.z <- standardize(spm.hb$elev.mean)
+spm.hb$temp.z <- standardize(spm.hb$temp.mean)
+spm.hb$precip.z <- standardize(spm.hb$precip.mean)
+spm.hb$mass.z <- standardize(spm.hb$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+
+# HCT
+spm.hct$elev.z <- standardize(spm.hct$elev.mean)
+spm.hct$temp.z <- standardize(spm.hct$temp.mean)
+spm.hct$precip.z <- standardize(spm.hct$precip.mean)
+spm.hct$mass.z <- standardize(spm.hct$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+
+# TRBC
+spm.trbc$elev.z <- standardize(spm.trbc$elev.mean)
+spm.trbc$temp.z <- standardize(spm.trbc$temp.mean)
+spm.trbc$precip.z <- standardize(spm.trbc$precip.mean)
+spm.trbc$mass.z <- standardize(spm.trbc$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+
+# MCV
+spm.mcv$elev.z <- standardize(spm.mcv$elev.mean)
+spm.mcv$temp.z <- standardize(spm.mcv$temp.mean)
+spm.mcv$precip.z <- standardize(spm.mcv$precip.mean)
+spm.mcv$mass.z <- standardize(spm.mcv$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+
+# MCH 
+spm.mch$elev.z <- standardize(spm.mch$elev.mean)
+spm.mch$temp.z <- standardize(spm.mch$temp.mean)
+spm.mch$precip.z <- standardize(spm.mch$precip.mean)
+spm.mch$mass.z <- standardize(spm.mch$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+
+# MCHC 
+spm.mchc$elev.z <- standardize(spm.mchc$elev.mean)
+spm.mchc$temp.z <- standardize(spm.mchc$temp.mean)
+spm.mchc$precip.z <- standardize(spm.mchc$precip.mean)
+spm.mchc$mass.z <- standardize(spm.mchc$mass.log) # NOTE: THIS IS LOG MASS STANDARDIZED, NOT RAW MASS
+```
+
+
+# Eliminate sampling outliers 
+Quick pass - eliminate all species with n = <2 samples. We want to keep this cutoff low because even though there is measurement noise, individuals in poor condition (dehydrated, fatigued, etc.) won’t have anomalous values of MCV, even as Hct and TRBC and [Hb] might fluctuate radically. 
+```{r}
+spm.hb <- spm.hb[-which(spm.hb$total_n < 2),] # Hb; 10 species; total n=65
+spm.hct <- spm.hct[-which(spm.hct$total_n < 2),] # Hct; 8 species; total n=69
+spm.trbc <- spm.trbc[-which(spm.trbc$total_n < 2),] # trbc; 12 species; total n=61
+spm.mcv <- spm.mcv[-which(spm.mcv$total_n < 2),] # mcv; 13 species; total n=60
+spm.mch <- spm.mch[-which(spm.mch$total_n < 2),] # mch; 11 species; total n=59
+spm.mchc <- spm.mchc[-which(spm.mchc$total_n < 2),] # mchc; 9 species; total n=65
+```
+
+
+# Eliminate distribution outliers 
+```{r}
+# NOTE ABOUT OUTLIERS: This is an additional cursory pass for distribution outliers 
+# Phlogophilus_harterti and Heliodoxa_aurescens are MASSIVE precip outliers (appears to be due to a single low elev and 
+# wet locality in Cusco called Cadena) and these single-handedly drive precipitation significance; remove them from all
+# data subsets. Prelim linear models reveal that they're highly influential. 
+
+# HB
+qqPlot(spm.hb$hb.mean) # Distribution outliers
+spm.hb <- spm.hb[-which(spm.hb$species == "Rhodopis_vesper"),] # Residual was >4 after initial model 
+spm.hb <- spm.hb[-which(spm.hb$species == "Campylopterus_villaviscensio"),] 
+spm.hb <- spm.hb[-which(spm.hb$species == "Amazilia_viridicauda"),]
+spm.hb <- spm.hb[-which(spm.hb$species == "Phlogophilus_harterti"),] # 59 # MASSIVE precip outlier
+spm.hb <- spm.hb[-which(spm.hb$species == "Heliodoxa_aurescens"),] # 39 - # MASSIVE precip outlier
+
+# hb.init <- glm(hb.mean ~ elev.z + precip.z + temp.z + mass.z + genotype, data=spm.hb, family=gaussian(), na.action=na.fail) 
+# summary(hb.init)
+# Anova(hb.init, type=3) 
+# lm_diag_plots(hb.init)
+
+# HCT
+qqPlot(spm.hct$hct.mean) # Distribution outliers
+spm.hct <- spm.hct[-which(spm.hct$species == "Myrtis_fanny"),] # 47
+spm.hct <- spm.hct[-which(spm.hct$species == "Rhodopis_vesper"),] #62
+spm.hct <- spm.hct[-which(spm.hct$species == "Phlogophilus_harterti"),] # 59 # MASSIVE precip outlier
+spm.hct <- spm.hct[-which(spm.hct$species == "Heliodoxa_aurescens"),] # 39 - # MASSIVE precip outlier
+# spm.hct <- spm.hct[-which(spm.hct$species == "Ensifera_ensifera"),] # 25
+# spm.hct <- spm.hct[-which(spm.hct$species == "Patagona_gigas_S"),] # 59 highest leverage point but doesn't throw off fit 
+# TRBC 
+qqPlot(spm.trbc$trbc.mean) # Distribution outliers
+spm.trbc <- spm.trbc[-which(spm.trbc$species == "Campylopterus_villaviscensio"),] 
+spm.trbc <- spm.trbc[-which(spm.trbc$species == "Phlogophilus_harterti"),] # 59 # MASSIVE precip outlier
+spm.trbc <- spm.trbc[-which(spm.trbc$species == "Heliodoxa_aurescens"),] # 39 - # MASSIVE precip outlier
+# 
+# trbc.init <- glm(trbc.mean ~ elev.z + precip.z + temp.z + mass.z + genotype, data=spm.trbc, family=gaussian(), na.action=na.fail)
+# summary(hb.init)
+# Anova(hb.init, type=3)
+# lm_diag_plots(hb.init) # great fit 
+
+
+# MCV
+qqPlot(spm.mcv$mcv.mean) # Good, don't drop any 
+# Phlogophilus and Heliodoxa weren't influential for MCV models, so leave them in 
+
+# mcv.init <- glm(mcv.mean ~ elev.z + precip.z + temp.z + mass.z + genotype, data=spm.mcv, family=gaussian(), na.action=na.fail)
+# summary(mcv.init)
+# Anova(mcv.init, type=3)
+# lm_diag_plots(mcv.init) # great fit 
+
+# MCH
+qqPlot(spm.mch$mch.mean) # Good, don't drop any
+
+# mch.init <- glm(mch.mean ~ elev.z + precip.z + temp.z + mass.z + genotype, data=spm.mch, family=gaussian(), na.action=na.fail)
+# summary(mch.init)
+# Anova(mch.init, type=3)
+# lm_diag_plots(mch.init) # Phlogophilus has *moderate* leverage only  
+
+# MCHC
+qqPlot(spm.mchc$mchc.mean) # Distribution outliers
+spm.mchc <- spm.mchc[-which(spm.mchc$species == "Myrtis_fanny"),]
+# Heliodoxa aurescens, #39, is on the cusp: has moderate leverage but removing it doesn't change fit for the better
+# Leave it. 
+
+# mchc.init <- glm(mchc.mean ~ elev.z + precip.z + temp.z + mass.z + genotype, data=test, family=gaussian(), na.action=na.fail)
+# summary(mchc.init)
+# Anova(mchc.init, type=3)
+# lm_diag_plots(mchc.init) 
+
+# FINAL SPECIES MEAN SUBSETS: 
+# Hb: 60 species 
+# Hct: 65 species 
+# TRBC: 58 species 
+# MCV: 60 species 
+# MCH: 59 species 
+# MCHC: 64 species 
+
+# Write out all final data subsets: 
+# write.csv(spm.hb, "HumBlood_SpeciesMeans_spm.hb_06-14-21.csv")
+# write.csv(spm.hct, "HumBlood_SpeciesMeans_spm.hct_06-14-21.csv")
+# write.csv(spm.trbc, "HumBlood_SpeciesMeans_spm.trbc_06-14-21.csv")
+# write.csv(spm.mcv, "HumBlood_SpeciesMeans_spm.mcv_06-14-21.csv")
+# write.csv(spm.mch, "HumBlood_SpeciesMeans_spm.mch_06-14-21.csv")
+# write.csv(spm.mchc, "HumBlood_SpeciesMeans_spm.mchc_06-14-21.csv")
+```
+
+
+# Plot the data to understand shape (linear vs. quadratic) & assess remaining distribution outliers 
+These are quick n dirty plots; pub-ready plots will be made in HumBlood_Plots&Figs.Rmd
+FYI, plotting with standardized vs. unstandardized values affects axis labels only; relationships between data points are preserved. 
+```{R}
+# FOR QUADRATICS: Can either plot raw variable w/ quadratic fit line OR make quadratic variable & plot linear fit line
+
+# Hb vs. elev (means)
+(p <- ggplot(spm.hb, aes(x=elev.mean, y=hb.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.hb, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="[Hb]") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape = linear 
+
+# HCT vs. elev (means)
+(p <- ggplot(spm.hct, aes(x=elev.mean, y=hct.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.hct, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", 
+       y="Hct") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape = linear 
+
+# TRBC vs. elev (means)
+(p <- ggplot(spm.trbc, aes(x=elev.mean, y=trbc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.trbc, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + Quadratic
+    # Changing to linear because there really isn't a quadratic relationship here
+  #geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise
+  theme_classic() + 
+  labs(x="Elevation (m)", 
+       y="TRBC") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape = linear 
+
+
+# MCV vs. elev (means)
+(p <- ggplot(spm.mcv, aes(x=elev.mean, y=mcv.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.mcv, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCV (fl)") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape = quadratic 
+
+# MCH vs. elev (means)
+(p <- ggplot(spm.mch, aes(x=elev.mean, y=mch.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.mch, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCH") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape = quadratic 
+
+# MCHC vs. elev (means)
+(p <- ggplot(spm.mchc, aes(x=elev.mean, y=mchc.mean, colour=Clade)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(data=spm.mchc, size=3.1, alpha=0.8) +
+  #scale_colour_viridis(discrete=TRUE) + 
+  scale_color_manual(values = hum_colors) +
+#  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
+ # geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
+    geom_smooth(method = "lm", formula = y ~ x + I(x^2), colour="black", size=1.0) + # line used to be dark turquoise 
+  theme_classic() + 
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
+       y="MCHC") +
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") +
+#  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  #theme(legend.box.spacing = unit(c(0.2,5,0.2,0.2), "cm")) +  # top, right, bottom, left
+  theme(plot.margin = unit(c(0.0,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+# Shape =  
+
+# RELATIONSHIPS: 
+# Hb is linear
+# Hct is linear 
+# TRBC is slight quadratic 
+# MCV is quadratic
+# MCH is quadratic
+# MCHC is *slightly* U-shaped, but I think linear still fits best 
+```
+
+ALTERNATIVELY: Don't blanket eliminate n=1 sampling outliers and instead look at distribution outliers first; this may allow you to keep a few additional species that have n=1 sample sizes but fit w/in the expected distribution for each blood characteristic of interest. 
+
+
+# Add in quadratic variables where necessary (MCV and MCH)
+```{r}
+# Add in quadratics
+# spm.mcv$elev.z2 <- (spm.mcv$elev.z^2)
+# spm.mch$elev.z2 <- (spm.mch$elev.z^2)
+```
+
+
+# Check predictor distributions and correlation matrix
+```{r} 
+# Predictor after transformations and standardization - take a look at distributions
+p <- ggpairs(subset(spm.hb, select = c(hb.mean, elev.z, temp.z, precip.z, mass.z))); p
+# Note that precip has a super heavy tail, primarily caused by 2 outlier points (>3 in standardized value)
+
+# Correlation matrix 
+cor(spm.hb[,c("elev.z", "temp.z", "precip.z", "mass.z")])
+```
+
+
+# Get correlation matrix for full species mean dataset
+Since we made parameter-specific species mean subsets, we can't use those to get species means. Instead, we will briefly create an all-species-mean dataset (maybe I already did this somewhere else??? These scripts were made over a period of 2 years...long time), remove NAs, and use that to estimate the correlation matrix. Keep in mine that this subset, `spm.for.corr` is not identical to the one that went into species mean modeling, as it does not exclude a few distributional and sampling outliers (see code chunks above). 
+```{r}
+spm.for.corr <- subset(final.spm, select = c(species, hb, hct, trbc, mcv, mch, mchc))
+spm.for.corr <- na.omit(spm.for.corr) # We're left with 667 observations for our correlation matrix
+
+# Calculate mean values for each of n=70 spcies without NAs
+spm.for.corr <- spm.for.corr %>% group_by(species) %>% summarise(hb.mean = mean(hb),   
+                                                  hct.mean = mean(hct),   
+                                                  trbc.mean = mean(trbc),
+                                                  mcv.mean = mean(mcv),
+                                                  mch.mean = mean(mch),
+                                                  mchc.mean = mean(mchc)
+                                                  )
+#write.csv(spm.for.corr, "AllHummingbird_BloodData_SpeciesMeans_70SpeciesWithNoNAData_2022-01-17.csv")
+
+# Correlation matrix - individual-level data
+cor(spm.for.corr[,c("hb.mean", "hct.mean", "trbc.mean", "mcv.mean", "mch.mean", "mchc.mean")]) 
+
+#               hb.mean    hct.mean  trbc.mean    mcv.mean    mch.mean   mchc.mean
+# hb.mean    1.00000000  0.82815909  0.4693173 -0.03619521  0.04535181  0.24161466
+# hct.mean   0.82815909  1.00000000  0.3387105  0.15715001  0.07771547 -0.34200247
+# trbc.mean  0.46931733  0.33871050  1.0000000 -0.85113597 -0.84110656  0.19188692
+# mcv.mean  -0.03619521  0.15715001 -0.8511360  1.00000000  0.95953029 -0.32879445
+# mch.mean   0.04535181  0.07771547 -0.8411066  0.95953029  1.00000000 -0.05472244
+# mchc.mean  0.24161466 -0.34200247  0.1918869 -0.32879445 -0.05472244  1.00000000
+```
+
+
+
+#######
+
+
+# SPECIES MEAN MODELING 
+
+MCV and MCH show a quadratic pattern. The quadratic fits a bit better w/ species mean data, but some patterns appear obscured by individual-level data. To isolate this pattern and rule this out, create one species mean dataset (i.e., 77 rows with one row per species) that I can then use to repeat all models, as I did for wing loading. I will add in two versions of Model 4 (full model plus species random effect): one with 'elev.z' and one with 'I(elev.z^2)' to represent the quadratic relationship.
+
+##### HB MODEL SET ######
+
+# HB Models - Set up and run models 
+```{r}
+library(job)
+job::job({
+  
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+spm.hb.m1 <- brm(
+  formula = bf(hb.mean ~ 1),
+  data = spm.hb,
+  family = gaussian(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.hb.m1, file="spm.hb.m1_Intercept-Only.RData") # save model
+#load("spm.hb.m1_Intercept-Only.Rdata") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS
+spm.hb.m2 <- brm(formula = bf(hb.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.hb.m2, file="spm.hb.m2_FullModel.RData") # save model
+#load("spm.hb.m2_FullModel.RData") 
+
+})
+```
+
+
+# Hb species mean models: Assess convergence and check fit 
+```{R}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.hb.m2, type = "trace") 
+plot(spm.hb.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.hb.m2, resp = "hb", nsamples = 200) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(spm.hb.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.hb.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.hb.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.hb.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.hb.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+qqPlot(spm.hb$hb.mean)
+
+spm.hb %>%
+  add_residual_draws(spm.hb.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+# Residuals looking better w/ 3 top tail outliers eliminated
+
+spm.hb %>%
+  add_predicted_draws(spm.hb.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < hb.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+# Lower tail *a bit* off, but this is looking better 
+```
+
+
+# Hb species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m4)
+```{r}
+# Model 2
+color_scheme_set("viridisD") # nice default
+spm.hb.m2.p1 <- mcmc_plot(spm.hb.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "spm.hb.m2") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.hb.m2.p1
+ggsave(spm.hb.m2.p1, filename = "spm.hb.m2.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.hb.m2)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Reduced model set: 
+# M3 (reduced M2): elev.z
+```
+
+
+# Hb species means: Collate model summaries and WAIC scores for full models (m1-m3)
+```{r}
+# Print model summaries 
+sink("hb_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.hb.m1, waic=TRUE)
+summary(spm.hb.m2, waic=TRUE)
+sink()
+# print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.hb.m1.waic <- waic(spm.hb.m1)
+spm.hb.m2.waic <- waic(spm.hb.m2)
+hb.waics <- cbind(spm.hb.m1.waic, spm.hb.m2.waic); hb.waics
+write.csv(hb.waics, "hb_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# Hb: RUN REDUCED MODELS (m5-m6)
+```{r}
+# MODEL 3: REDUCED MODEL 
+job::job({
+spm.hb.m3 <- brm(formula = bf(hb.mean ~ 1 + elev.z),
+  data = spm.hb,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.hb.m3, file="spm.hb.m3_ReducedModel.RData") # save model
+#load("spm.hb.m3_ReducedModel.RData") 
+
+})
+```
+
+
+# Hb species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Plot: Posterior mean estimates and 95% credible intervals for predictors.
+# Plot these nicely and without intercepts, which throws off scale
+# Circle = point estimate (model summary, print(spm.mcv.m6))
+# Thin bars = default 90% CI; adjust prob_outer=0.95 to get 95% CI 
+# Thick bars = default 50% CI; adjust prob=0.50 to get anything else 
+# x-axis should be scale based on value of estimates coming out of the model 
+
+# Model 3 
+color_scheme_set("viridisD") # nice default
+spm.hb.m3.p1 <- mcmc_plot(spm.hb.m3, variable=c("b_elev.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [hb]", title = "spm.hb.m3") + 
+scale_y_discrete(labels=c("Elevation"))  
+spm.hb.m3.p1
+ggsave(spm.hb.m3.p1, filename = "spm.hb.m3.p1_hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.hb.m3)
+```
+
+
+# Hb species means: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# Print model summaries 
+sink("hb_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.hb.m3, waic=TRUE)
+sink()
+# print(hb.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.hb.m3.waic <- waic(spm.hb.m3)
+hb.waics.red <- cbind(spm.hb.m3.waic); hb.waics.red
+write.csv(hb.waics.red, "hb_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# Hb species means: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+job::job({ 
+library(loo)
+sink("hb_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.hb.m1, spm.hb.m2, spm.hb.m3, reloo=TRUE) 
+sink()
+})
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.hb.m2) # 0.33
+bayes_R2(spm.hb.m3) # 0.18
+# 
+# Model comparisons:
+#           elpd_diff se_diff
+# spm.hb.m3  0.0       0.0   
+# spm.hb.m2 -0.1       3.9   
+# spm.hb.m1 -4.5       3.9  
+
+# Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
+job::job({ # Send to a job to free up console
+spm.hb.m3.unstandardized <- 
+  update(spm.hb.m3,
+        newdata = spm.hb,
+        formula = hb.mean ~ 1 + elev.mean,
+        chains = 4, cores = 4)
+save(spm.hb.m3.unstandardized, file="spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData") # save model
+})
+#load("spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData")
+
+summary(spm.hb.m3.unstandardized)
+# elev.mean = 0.00; precip.mean = .18; what this tells us: 
+# For every 1 meter increase in elevation, [Hb] increases by 0.00 g/dl??? Why is elev 0.00 when unstandardized? 
+# For every unit increase in precip, [Hb] increases by 0.18 g/dl
+
+# Look at magnitude of unstandardized coefficients 
+# [1] is intercept, can test by running this;[2] is elevation.mean
+fixef(spm.hb.m3.unstandardized)[2] # For every 1 m increase in elev, we expect Hb will increase by 0.0002944514
+round(fixef(spm.hb.m3.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, [Hb] will increase by 0.29 g/dl. 
+#fixef(spm.hb.m3.unstandardized)[3] # elev_position
+```
+
+SPECIES MEAN Hb, Quick summary of top 3 models in order of ranking: 
+1) M3, reduced model, R^2 = 0.18
+2) M2, full model, R^2 = 0.33
+3) M1, null model 
+
+ For every 1000m increase in elev, [Hb] will increase by 0.29 g/dl.
+
+
+
+##### HCT MODEL SET ######
+
+# hct Models - Set up and run models 
+```{r}
+library(job)
+job::job({
+  
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+spm.hct.m1 <- brm(
+  formula = bf(hct.mean ~ 1),
+  data = spm.hct,
+  family = skew_normal(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.hct.m1, file="spm.hct.m1_Intercept-Only.RData")
+# load("spm.hct.m1_Intercept-Only.Rdata") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS
+spm.hct.m2 <- brm(formula = bf(hct.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.hct,
+  family = skew_normal(), 
+  # many divergent transitions w/ exgaussian
+  # Fit no better w/ lognormal
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.hct.m2, file="spm.hct.m2_FullModel.RData") 
+#load("spm.hct.m2_FullModel.RData") 
+})
+```
+
+
+# hct species mean models: Assess convergence and check fit 
+```{R}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.hct.m2, type = "trace") 
+plot(spm.hct.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.hct.m2, resp = "hct", nsamples = 200) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(spm.hct.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.hct.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.hct.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.hct.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.hct.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist
+# associated with each residual
+qqPlot(spm.hct$hct.mean)
+
+spm.hct %>%
+  add_residual_draws(spm.hct.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+# some high residuals 
+
+spm.hct %>%
+  add_predicted_draws(spm.hct.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < hct.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+# Some deviation 
+```
+
+
+# hct species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m4)
+```{r}
+# Model 2
+color_scheme_set("viridisD") # nice default
+spm.hct.m2.p1 <- mcmc_plot(spm.hct.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on hct", title = "spm.hct.m2") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.hct.m2.p1
+ggsave(spm.hct.m2.p1, filename = "spm.hct.m2.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.hct.m2)
+# Reduced model: elev.z
+
+# Reduced model set: 
+# M3 (reduced M2): elev.z
+```
+
+
+# hct species means: Collate model summaries and WAIC scores for full models (m1-m3)
+```{r}
+# Print model summaries 
+sink("hct_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.hct.m1, waic=TRUE)
+summary(spm.hct.m2, waic=TRUE)
+sink()
+# print(hct.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.hct.m1.waic <- waic(spm.hct.m1)
+spm.hct.m2.waic <- waic(spm.hct.m2)
+hct.waics <- cbind(spm.hct.m1.waic, spm.hct.m2.waic); hct.waics
+write.csv(hct.waics, "hct_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# mcv: RUN REDUCED MODELS (m3)
+```{r}
+# # MODEL 3: REDUCED MODEL 
+spm.hct.m3 <- brm(formula = bf(hct.mean ~ 1 + elev.z),
+  data = spm.hct,
+  family = skew_normal(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000,
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.hct.m3, file="spm.hct.m3_ReducedModel.RData") # save model
+#load("spm.hct.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
+
+```
+
+
+# hct species means: Plot outputs of posterior mean estimates and 95% credible intervals (reduced m3)
+```{r}
+# # Model 3 
+# color_scheme_set("blue") # nice default
+spm.hct.m3.p1 <- mcmc_plot(spm.hct.m3, variable=c("b_elev.z"),
+                                    prob_outer=0.95, # 95% outer CI
+                                    prob=0.50, # 50% inner CI
+                                    point_est="mean") + # mean point est; default is median
+labs(x="Effect on hct", title = "spm.hct.m3") +
+scale_y_discrete(labels=c("Elevation"))
+spm.hct.m3.p1
+ggsave(spm.hct.m3.p1, filename = "spm.hct.m3.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.hct.m3)
+```
+
+
+# hct species means: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# Print model summaries
+sink("hct_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.hct.m3, waic=TRUE)
+sink()
+# print(hct.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores
+spm.hct.m3.waic <- waic(spm.hct.m3)
+hct.waics.red <- cbind(spm.hct.m3.waic); hct.waics.red
+write.csv(hct.waics.red, "hct_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# hct species means: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+qqPlot(spm.hct$hct.mean)
+
+job::job({ 
+library(loo)
+sink("hct_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.hct.m1, spm.hct.m2, spm.hct.m3, reloo=TRUE) 
+sink()
+})
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.hct.m2) # 0.24
+bayes_R2(spm.hct.m3) # 0.09
+
+# Model comparisons:
+#            elpd_diff se_diff
+# spm.hct.m2  0.0       0.0   
+# spm.hct.m3 -0.1       2.0   
+# spm.hct.m1 -2.3       4.1
+
+
+# Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
+job::job({ # Send to a job to free up console
+spm.hct.m2.unstandardized <- 
+  update(spm.hct.m2,
+        newdata = spm.hct,
+        formula = hct.mean ~ 1 + elev.mean + mass.mean + temp.mean + precip.mean + genotype,
+        chains = 4, cores = 4)
+save(spm.hct.m2.unstandardized, file="spm.hct.m2.unstandardized_Predictors.RData") # save model
+})
+#load("spm.hct.m2.unstandardized_Predictors.RData")
+
+# Can also just re-run this full model if still getting 'starting values weird' messages: 
+# (changing model family seems to help with this; I think this must be caused by unstandardized values?) 
+# Estimates with family=gaussian() and family=skew_normal() are consistent, though. 
+# spm.hct.m2.unstandardized <- brm(formula = bf(hct.mean ~ 1 + elev.mean + mass.mean + temp.mean + precip.mean + genotype),
+#   data = spm.hct,
+#   family = gaussian(), 
+#   # many divergent transitions w/ exgaussian
+#   # Fit no better w/ lognormal
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+#   iter = 20000, # nora had 20000
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors
+# )
+# save(spm.hct.m2.unstandardized, file="spm.hct.m2.unstandardized.RData") 
+
+
+summary(spm.hct.m2.unstandardized)
+# elev.mean = 0.00; precip.mean = .18; what this tells us: 
+# For every 1 meter increase in elevation, [Hb] increases by 0.00 g/dl??? Why is elev 0.00 when unstandardized? 
+# For every unit increase in precip, [Hb] increases by 0.18 g/dl
+
+# Look at magnitude of unstandardized coefficients 
+# [1] is intercept, can test by running this;[2] is elevation.mean
+fixef(spm.hct.m2.unstandardized)[2] # For every 1 m increase in elev, we expect Hb will increase by 0.001553298
+round(fixef(spm.hct.m2.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, Hct will increase by 1.55%. 
+```
+
+
+SPECIES MEAN hct, Quick summary of top 3 models in order of ranking: 
+1) M2, full model, R^2 = 0.24
+2) M3 (pretty much tied), reduced model, R^2 = 0.09
+3) Null model 
+
+For every 1000m increase in elev, Hct will increase by 1.55%.
+
+
+
+##### TRBC MODEL SET ######
+
+# trbc Models - Set up and run models 
+```{r}
+library(job)
+job::job({
+  
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+spm.trbc.m1 <- brm(
+  formula = bf(trbc.mean ~ 1),
+  data = spm.trbc,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.trbc.m1, file="spm.trbc.m1_Intercept-Only.RData") # save model
+# load("spm.trbc.m1_Intercept-Only.Rdata") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS
+spm.trbc.m2 <- brm(formula = bf(trbc.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.trbc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.trbc.m2, file="spm.trbc.m2_FullModel.RData") # save model
+# load("spm.trbc.m2_FullModel.RData") 
+
+# MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
+# Remember: This is M4 because M3 is reduced M2 and we want consistent numbering between model sets
+spm.trbc.m4 <- brm(formula = bf(trbc.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z + genotype),
+  data = spm.trbc,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.trbc.m4, file="spm.trbc.m4_FullModelWithQuadratic.RData") # save model
+#load("spm.trbc.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
+
+})
+```
+
+
+# trbc species mean models: Assess convergence and check fit 
+```{R}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.trbc.m2, type = "trace") 
+plot(spm.trbc.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.trbc.m2, resp = "trbc", nsamples = 200) # pull 100 draws from model and cast back to original data
+bayesplot::pp_check(spm.trbc.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.trbc.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.trbc.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.trbc.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.trbc.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+spm.trbc %>%
+  add_residual_draws(spm.trbc.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+spm.trbc %>%
+  add_predicted_draws(spm.trbc.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < trbc.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# trbc species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m4)
+```{r}
+# Model 2
+#color_scheme_set("red") # nice default
+spm.trbc.m2.p1 <- mcmc_plot(spm.trbc.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on trbc", title = "spm.trbc.m2") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.trbc.m2.p1
+ggsave(spm.trbc.m2.p1, filename = "spm.trbc.m2.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.trbc.m2)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z
+
+# Model 4
+# color_scheme_set("red") # nice default
+spm.trbc.m4.p1 <- mcmc_plot(spm.trbc.m4, variable=c("b_elev.z", "b_Ielev.zE2", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI
+                                    prob=0.50, # 50% inner CI
+                                    point_est="mean") + # mean point est; default is median
+labs(x="Effect on trbc", title = "spm.trbc.m3") +
+scale_y_discrete(labels=c("Elevation", "Elev Quadratic", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))
+spm.trbc.m4.p1
+ggsave(spm.trbc.m4.p1, filename = "spm.trbc.m4.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.trbc.m4)
+# Predictors whose 95% CIs do NOT overlap zero: elev.z
+
+# Reduced model set: 
+# M3 (reduced M2): elev.z
+# M5 (reduced M4): NONE. Because elev.z doens't overlap zero but elev.z^2 does, so M5 would be the same as M3. 
+```
+
+
+# trbc species means: Collate model summaries and WAIC scores for full models (m1-m3)
+```{r}
+# Print model summaries 
+sink("trbc_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.trbc.m1, waic=TRUE)
+summary(spm.trbc.m2, waic=TRUE)
+summary(spm.trbc.m4, waic=TRUE)
+sink()
+# print(trbc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.trbc.m1.waic <- waic(spm.trbc.m1)
+spm.trbc.m2.waic <- waic(spm.trbc.m2)
+spm.trbc.m4.waic <- waic(spm.trbc.m4)
+trbc.waics <- cbind(spm.trbc.m1.waic, spm.trbc.m2.waic, spm.trbc.m4); trbc.waics
+write.csv(trbc.waics, "trbc_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# trbc: RUN REDUCED MODELS (M3, M5)
+```{r}
+job::job({
+# MODEL 3: REDUCED MODEL 
+spm.trbc.m3 <- brm(formula = bf(trbc.mean ~ 1 + elev.z), 
+  data = spm.trbc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.trbc.m3, file="spm.trbc.m3_ReducedModel.RData") # save model
+# load("spm.trbc.m3_ReducedModel.RData") 
+
+# M4 is the same as M5 would be 
+
+# MODEL 5: REDUCED MODEL
+# spm.trbc.m5 <- brm(
+#   formula = bf(trbc.mean ~ 1 + elev.z + (1|Clade)),
+#   data = spm.trbc,
+#   family = student(), 
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+#   iter = 20000, 
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors 
+# )
+# save(spm.trbc.m5, file="spm.trbc.m5_ReducedModel.RData") # save model
+# #load("spm.trbc.m5_ReducedModel.RData") 
+})
+```
+
+
+# trbc species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Model 3 
+color_scheme_set("blue") # nice default
+spm.trbc.m3.p1 <- mcmc_plot(spm.trbc.m3, variable=c("b_elev.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on trbc", title = "spm.trbc.m4") + 
+scale_y_discrete(labels=c("Elevation"))  
+spm.trbc.m3.p1
+ggsave(spm.trbc.m3.p1, filename = "spm.trbc.m3.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.trbc.m3)
+
+# # Model 5
+# color_scheme_set("teal") # nice default
+# spm.trbc.m5.p1 <- mcmc_plot(spm.trbc.m5, variable=c("b_elev.z"),
+#                                     prob_outer=0.95, # 95% outer CI
+#                                     prob=0.50, # 50% inner CI
+#                                     point_est="mean") + # mean point est; default is median
+# labs(x="Effect on trbc", title = "spm.trbc.m5") +
+# scale_y_discrete(labels=c("Elevation"))
+# spm.trbc.m5.p1
+# ggsave(spm.trbc.m5.p1, filename = "spm.trbc.m5.p1_trbc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# summary(spm.trbc.m5)
+```
+
+
+# trbc species means: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# Print model summaries 
+sink("trbc_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.trbc.m3, waic=TRUE)
+#summary(spm.trbc.m5, waic=TRUE)
+sink()
+# print(trbc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.trbc.m3.waic <- waic(spm.trbc.m3)
+#spm.trbc.m5.waic <- waic(spm.trbc.m5)
+trbc.waics.red <- cbind(spm.trbc.m3.waic); trbc.waics.red
+write.csv(trbc.waics.red, "trbc_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# trbc species means: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("trbc_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.trbc.m1, spm.trbc.m2, spm.trbc.m4, spm.trbc.m3, reloo=TRUE) 
+sink()
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.trbc.m2) # 0.18
+bayes_R2(spm.trbc.m3) # 0.28
+bayes_R2(spm.trbc.m4) # 0.22
+
+# Model comparisons:
+#             elpd_diff se_diff
+# spm.trbc.m1  0.0       0.0   
+# spm.trbc.m3 -0.5       0.8   
+# spm.trbc.m4 -2.0       2.5   
+# spm.trbc.m2 -2.7       2.6  
+
+# Note: you don't calculate real-world estimate for TRBC for species means because the top model was the intercept-only model, i.e., no effect of elevation estimate! 
+```
+
+
+SPECIES MEAN trbc, Quick summary of top 3 models in order of ranking: 
+1) M1, Null model 
+2) M3, Reduced model w/out elev quadratic, R^2 = 0.28
+3) M4, Full model w/ elev quadratic, R^2 = 0.22
+4) M2, Full model w/out elev quadratic, R^2 = 0.18
+
+
+
+
+##### MCV MODEL SET #######
+
+# MCV MODELS - Set up & run models 
+See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
+```{r}
+# See what prior choices are being made for us. 
+# get_prior(mcv.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z, data = spm.mcv)
+
+###
+
+# For each response variable with species means, run 3 "full" models 
+# Can't include species random effect because we only have 1 replicate per species level = not kosher (no convergence)
+# Also can't include species as main effect because this goes against what we want *and* eats up ~58 degrees of freedom
+
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+job::job({ 
+spm.mcv.m1 <- brm(formula = bf(mcv.mean ~ 1),
+  data = spm.mcv,
+  family = student(), 
+  # Had tried skew_normal() but dist isn't skewed
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mcv.m1, file="spm.mcv.m1_Intercept-Only.RData") # save model
+# load("spm.mcv.m1_Intercept-Only.RData") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS, NO QUADRATIC
+spm.mcv.m2 <- brm(formula = bf(mcv.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.mcv,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.mcv.m2, file="spm.mcv.m2_FullWithoutQuadratic.RData") # save model
+# load("spm.mcv.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
+
+
+# MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
+# Remember full + quad is M4 beacuse M3 is reduced version of M2
+spm.mcv.m4 <- brm(formula = bf(mcv.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z + genotype),
+  data = spm.mcv,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mcv.m4, file="spm.mcv.m4_FullModelWithQuadratic.RData") # save model
+#load("spm.mcv.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
+})
+```
+
+
+# mcv: Summarize and check fit for full models (m1-m4)
+Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
+```{r}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.mcv.m2, type = "trace") 
+plot(spm.mcv.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.mcv.m3, resp = "mcv", nsamples = 200) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(spm.mcv.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.mcv.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.mcv.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.mcv.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.mcv.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+qqPlot(spm.mcv$mcv.mean)
+
+spm.mcv %>%
+  add_residual_draws(spm.mcv.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+# Three birds with notably large residuals...though many here are big
+
+spm.mcv %>%
+  add_predicted_draws(spm.mcv.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < mcv.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# mcv: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Model 2 
+color_scheme_set("viridisD") # nice default
+spm.mcv.m2.p1 <- mcmc_plot(spm.mcv.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on MCV", title = "spm.mcv.m2: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))  
+spm.mcv.m2.p1
+ggsave(spm.mcv.m2.p1, filename = "spm.mcv.m2.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mcv.m2)
+# Predictors whose 95% CIs do NOT overlap zero (for reduced model): NONE
+
+# Model 4
+#color_scheme_set("red") # nice default
+spm.mcv.m4.p1 <- mcmc_plot(spm.mcv.m4, variable=c("b_elev.z", "b_Ielev.zE2", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on MCV", title = "spm.mcv.m4: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elev Quadratic", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.mcv.m4.p1
+ggsave(spm.mcv.m4.p1, filename = "spm.mcv.m4.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mcv.m4)
+# Predictors whose 95% CIs do NOT overlap zero (for reduced model): All predictors overlap zero
+
+####
+
+# Summary of reducing models: 
+# m3 (reduced m2) will be: NONE
+# m5 (reduced m4) will be: NONE
+```
+
+
+# mcv: Collate model summaries and WAIC scores for full models (m1-m4)
+```{r}
+# Print model summaries 
+sink("mcv_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.mcv.m1, waic=TRUE)
+summary(spm.mcv.m2, waic=TRUE)
+summary(spm.mcv.m4, waic=TRUE)
+sink()
+# print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.mcv.m1.waic <- waic(spm.mcv.m1)
+spm.mcv.m2.waic <- waic(spm.mcv.m2)
+spm.mcv.m4.waic <- waic(spm.mcv.m4)
+mcv.waics <- cbind(spm.mcv.m1.waic, spm.mcv.m2.waic, spm.mcv.m4.waic); mcv.waics
+write.csv(mcv.waics, "mcv_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# mcv: RUN REDUCED MODELS 
+```{r}
+job::job({
+
+# No M3 because all predictors in M2 overlapped zero 
+  
+# No M5 because all predictors in M4 overlapped zero
+  
+# # MODEL 5: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
+# spm.mcv.m5 <- brm(formula = bf(mcv.mean ~ 1 + elev.z + I(elev.z^2)),
+#   data = spm.mcv,
+#   family = student(), 
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+#   iter = 20000, 
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors 
+# )
+# save(spm.mcv.m5, file="spm.mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
+# #load("spm.mcv.m5_ReducedModel_PredictorsOnly.RData") 
+})
+```
+
+
+# mcv: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Model 5 
+# color_scheme_set("blue") # nice default
+# spm.mcv.m5.p1 <- mcmc_plot(spm.mcv.m5, variable=c("b_elev.z", "b_Ielev.zE2"),
+#                                     prob_outer=0.95, # 95% outer CI 
+#                                     prob=0.50, # 50% inner CI 
+#                                     point_est="mean") + # mean point est; default is median 
+# labs(x="Effect on [mcv]", title = "spm.mcv.m5: Posterior mean estimates & 95% Credible Intervals") + 
+# scale_y_discrete(labels=c("Elevation", "Elev Quad"))  
+# spm.mcv.m5.p1
+# ggsave(spm.mcv.m5.p1, filename = "spm.mcv.m5.p1_mcv_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# summary(spm.mcv.m5)
+```
+
+
+# mcv: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# Print model summaries 
+# sink("mcv_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+# summary(spm.mcv.m5, waic=TRUE)
+# sink()
+# # print(mcv.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+# 
+# # Get model WAIC scores  
+# spm.mcv.m5.waic <- waic(spm.mcv.m5)
+# mcv.waics.red <- cbind(spm.mcv.m5.waic); mcv.waics.red
+# write.csv(mcv.waics.red, "mcv_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# MCV: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("mcv_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.mcv.m1, spm.mcv.m2, spm.mcv.m4, reloo=TRUE) 
+sink()
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.mcv.m2) # 0.15
+round(bayes_R2(spm.mcv.m4),2) # 0.20
+
+# 
+# Model comparisons:
+#            elpd_diff se_diff
+# spm.mcv.m1  0.0       0.0   
+# spm.mcv.m4 -2.4       2.7   
+# spm.mcv.m2 -3.6       2.5
+```
+
+
+SPECIES MEAN MCV, Quick summary of top 3 models in order of ranking: 
+1) Null model, narrowly close to: 
+2) M4, full model w/ quadratic, R^2 = 0.20
+3) M2, full model, R^2 = 0.15
+
+
+
+
+
+##### MCH MODEL SET #######
+
+# mch MODELS - Set up & run models 
+See phylo brms tutorial here: https://cran.r-project.org/web/packages/brms/vignettes/brms_phylogenetics.html
+```{r}
+# See what prior choices are being made for us. 
+# get_prior(mch.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z, data = spm.mch)
+
+###
+
+# For each response variable with species means, run 3 "full" models 
+# Can't include species random effect because we only have 1 replicate per species level = not kosher (no convergence)
+# Also can't include species as main effect because this goes against what we want *and* eats up ~58 degrees of freedom
+
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+job::job({ 
+spm.mch.m1 <- brm(formula = bf(mch.mean ~ 1),
+  data = spm.mch,
+  family = student(), 
+  # Had tried skew_normal() but dist isn't skewed
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mch.m1, file="spm.mch.m1_Intercept-Only.RData") # save model
+# load("spm.mch.m1_Intercept-Only.RData") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS, NO QUADRATIC
+spm.mch.m2 <- brm(formula = bf(mch.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.mch,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.mch.m2, file="spm.mch.m2_FullWithoutQuadratic.RData") # save model
+# load("spm.mch.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
+
+
+# MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
+# Remember this is M4 for standardized model notation (because M3 is reduced M2)
+spm.mch.m4 <- brm(formula = bf(mch.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z + genotype),
+  data = spm.mch,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mch.m4, file="spm.mch.m4_FullModelWithQuadratic.RData") # save model
+#load("spm.mch.m4_FullModelWithQuadratic.RData")
+})
+```
+
+
+# mch: Summarize and check fit for full models (m1-m4)
+Explanation of what mcmc_plot output below means: https://cran.r-project.org/web/packages/bayesplot/vignettes/plotting-mcmc-draws.html
+```{r}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.mch.m2, type = "trace") 
+plot(spm.mch.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.mch.m2, resp = "mch", nsamples = 200) # pull 100 draws from model and cast back to original data 
+bayesplot::pp_check(spm.mch.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.mch.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.mch.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.mch.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.mch.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+spm.mch %>%
+  add_residual_draws(spm.mch.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+spm.mch %>%
+  add_predicted_draws(spm.mch.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < mch.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# mch: Plot outputs of posterior mean estimates and 95% credible intervals (full models, m1-m6)
+```{r}
+# Model 2 
+color_scheme_set("viridisD") # nice default
+spm.mch.m2.p1 <- mcmc_plot(spm.mch.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on mch", title = "spm.mch.m2: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))  
+spm.mch.m2.p1
+ggsave(spm.mch.m2.p1, filename = "spm.mch.m2.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mch.m2)
+# Predictors whose 95% CIs do NOT overlap zero (for reduced model): NONE
+
+# Model 4
+#color_scheme_set("red") # nice default
+spm.mch.m4.p1 <- mcmc_plot(spm.mch.m4, variable=c("b_elev.z", "b_Ielev.zE2", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on mch", title = "spm.mch.m4: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elev Quadratic", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.mch.m4.p1
+ggsave(spm.mch.m4.p1, filename = "spm.mch.m4.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mch.m4)
+# Predictors whose 95% CIs do NOT overlap zero (for reduced model): elev.z + elev quadratic
+
+####
+
+# Summary of reducing models: 
+# m3 (reduced m2) will be: NONE
+# m5 (reduced m4) will be: elev.z + elev.z^2
+```
+
+
+# mch: Collate model summaries and WAIC scores for full models (m1-m4)
+```{r}
+# Print model summaries 
+sink("mch_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.mch.m1, waic=TRUE)
+summary(spm.mch.m2, waic=TRUE)
+summary(spm.mch.m4, waic=TRUE)
+sink()
+# print(mch.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.mch.m1.waic <- waic(spm.mch.m1)
+spm.mch.m2.waic <- waic(spm.mch.m2)
+spm.mch.m4.waic <- waic(spm.mch.m4)
+mch.waics <- cbind(spm.mch.m1.waic, spm.mch.m2.waic, spm.mch.m4.waic); mch.waics
+write.csv(mch.waics, "mch_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# mch: RUN REDUCED MODELS 
+```{r}
+job::job({
+# No M3 because all M2 predictors overlap zero
+  
+# MODEL 5: REDUCED MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
+spm.mch.m5 <- brm(formula = bf(mch.mean ~ 1 + elev.z + I(elev.z^2)),
+  data = spm.mch,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mch.m5, file="spm.mch.m5_ReducedModel_PredictorsOnly.RData") # save model
+load("spm.mch.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+})
+```
+
+
+# mch: Plot outputs of posterior mean estimates and 95% credible intervals (reduced models)
+```{r}
+# Model 5 
+color_scheme_set("viridisD") # nice default
+spm.mch.m5.p1 <- mcmc_plot(spm.mch.m5, variable=c("elev.z", "b_Ielev.zE2"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [mch]", title = "spm.mch.m5: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation", "Elev Quadratic"))  
+spm.mch.m5.p1
+ggsave(spm.mch.m5.p1, filename = "spm.mch.m5.p1_mch_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mch.m5)
+```
+
+
+# mch: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# Print model summaries 
+sink("mch_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.mch.m5, waic=TRUE)
+sink()
+# print(mch.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.mch.m5.waic <- waic(spm.mch.m5)
+mch.waics.red <- cbind(spm.mch.m5.waic); mch.waics.red
+write.csv(mch.waics.red, "mch_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# mch: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("mch_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.mch.m1, spm.mch.m2, spm.mch.m4, spm.mch.m5, reloo=TRUE) 
+sink()
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.mch.m2) # 0.15
+bayes_R2(spm.mch.m4) # 0.22
+bayes_R2(spm.mch.m5) # 0.12
+# 
+# Model comparisons:
+#            elpd_diff se_diff
+# spm.mch.m5  0.0       0.0   
+# spm.mch.m1 -1.3       2.2   
+# spm.mch.m4 -2.8       2.1   
+# spm.mch.m2 -4.5       3.5 
+
+# Now re-run top model with unstandardized predictors to estimate strength of relationship between Xs and y:
+job::job({ # Send to a job to free up console
+spm.mch.m5.unstandardized <- 
+  update(spm.mch.m5,
+        newdata = spm.mch,
+        formula = mch.mean ~ 1 + elev.mean + I(elev.mean^2),
+        chains = 4, cores = 4)
+save(spm.mch.m5.unstandardized, file="spm.mch.m5.unstandardized.RData") # save model
+})
+#load("spm.mch.m5.unstandardized.RData")
+
+summary(spm.mch.m5.unstandardized)
+# elev.mean = 0.00; precip.mean = .18; what this tells us: 
+# For every 1 meter increase in elevation, [Hb] increases by 0.00 g/dl??? Why is elev 0.00 when unstandardized? 
+# For every unit increase in precip, [Hb] increases by 0.18 g/dl
+
+# Look at magnitude of unstandardized coefficients 
+# [1] is intercept, can test by running this;[2] is elevation.mean
+fixef(spm.mch.m5.unstandardized)[2] # For every 1 m increase in elev, we expect MCH will increase by 0.02166753
+round(fixef(spm.mch.m5.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, MCH will increase by 21.67 pg. 
+
+
+```
+
+
+SPECIES MEAN MCH, Quick summary of top 3 models in order of ranking: 
+1) M5, reduced model with elev + quadratic elevation. R^2 = 0.12. 
+2) M1, Null model
+3) M4, full model w/ quadratic elevation, R^2 = 0.22
+4) Full model w/out quadratic elevation, R^2 = 0.15
+ 
+
+
+
+##### MCHC MODEL SET ######
+
+# mchc Models - Set up and run models 
+```{r}
+library(job)
+job::job({
+  
+# MODEL 1: NULL MODEL (INTERCEPT ONLY) 
+spm.mchc.m1 <- brm(
+  formula = bf(mchc.mean ~ 1),
+  data = spm.mchc,
+  family = student(),
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mchc.m1, file="spm.mchc.m1_Intercept-Only.RData") # save model
+# load("spm.mchc.m1_Intercept-Only.Rdata") 
+
+
+# MODEL 2: FULL MODEL WITH ALL PREDICTORS
+spm.mchc.m2 <- brm(formula = bf(mchc.mean ~ 1 + elev.z + mass.z + temp.z + precip.z + genotype),
+  data = spm.mchc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors
+)
+save(spm.mchc.m2, file="spm.mchc.m2_FullModel.RData") # save model
+# load("spm.mchc.m2_FullModel.RData") 
+
+# MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
+# Remember this M4 for consistent notation across model sets (because M3 is reduced M2)
+spm.mchc.m4 <- brm(formula = bf(mchc.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + temp.z + precip.z + genotype),
+  data = spm.mchc,
+  family = student(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 10000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 20000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(spm.mchc.m4, file="spm.mchc.m4_FullModelWithQuadratic.RData") # save model
+#load("spm.mchc.m4_FullModelWithQuadratic.RData")
+})
+```
+
+
+# mchc species mean models: Assess convergence and check fit 
+```{R}
+# FIT AND CONVERGENCE 
+mcmc_plot(spm.mchc.m2, type = "trace") 
+plot(spm.mchc.m2, N = 2, ask = FALSE)
+bayesplot::pp_check(spm.mchc.m2, resp = "mchc", nsamples = 200) # pull 100 draws from model and cast back to original data
+bayesplot::pp_check(spm.mchc.m2, type = "stat", stat = 'median', nsamples = 100)
+bayesplot::pp_check(spm.mchc.m2, nsamples = 200, type = "stat_2d") + theme_bw(base_size = 20) # nice estimates
+mcmc_plot(spm.mchc.m2, type = "acf_bar") # looks at autocorrelation
+plot(conditional_effects(spm.mchc.m2), points = TRUE) # conditional effects 
+
+# Quick plot of estimates and 95% CIs (default is 95% CI; adjust prob to get other CIs)
+mcmc_plot(spm.mchc.m2)  
+
+# Residual plots 
+# typical residual plot but w/ addition of uncertainty associated w/ each residual given by generating draws from the dist 
+# associated with each residual
+spm.mchc %>%
+  add_residual_draws(spm.mchc.m2) %>%
+  ggplot(aes(x = .row, y = .residual)) +
+  stat_pointinterval()
+
+spm.mchc %>%
+  add_predicted_draws(spm.mchc.m2) %>%
+  summarise(
+    p_residual = mean(.prediction < mchc.mean), # probability residual; Bayesian predictive p-value 
+    z_residual = qnorm(p_residual) # quantile residuals 
+  ) %>%
+  ggplot(aes(sample = z_residual)) +
+  geom_qq() +
+  geom_abline()
+# If predicted distribution is uniform, probabilities should be well calibrated
+```
+
+
+# mchc species means: Plot outputs of posterior mean estimates and 95% credible intervals (full models)
+```{r}
+# Model 2
+#color_scheme_set("red") # nice default
+spm.mchc.m2.p1 <- mcmc_plot(spm.mchc.m2, variable=c("b_elev.z", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on mchc", title = "spm.mchc.m2") + 
+scale_y_discrete(labels=c("Elevation","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))   
+spm.mchc.m2.p1
+ggsave(spm.mchc.m2.p1, filename = "spm.mchc.m2.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mchc.m2)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): NONE
+
+# Model 4
+#color_scheme_set("red") # nice default
+spm.mchc.m4.p1 <- mcmc_plot(spm.mchc.m4, variable=c("b_elev.z","b_Ielev.zE2", "b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on mchc", title = "spm.mchc.m4") + 
+scale_y_discrete(labels=c("Elevation", "Elev Quad", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)"))
+spm.mchc.m4.p1
+ggsave(spm.mchc.m4.p1, filename = "spm.mchc.m4.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(spm.mchc.m4)
+# Predictors whose 95% CIs do NOT overlap zero: NONE
+
+# Reduced model set: 
+# M3 (reduced M2): None (all overlap zero)
+# M5 (reduced M4): None (all overlap zero)
+```
+
+
+# mchc species means: Collate model summaries and WAIC scores for full models (m1-m3)
+```{r}
+# Print model summaries 
+sink("mchc_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+summary(spm.mchc.m1, waic=TRUE)
+summary(spm.mchc.m2, waic=TRUE)
+summary(spm.mchc.m4, waic=TRUE)
+sink()
+# print(mchc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+
+# Get model WAIC scores  
+spm.mchc.m1.waic <- waic(spm.mchc.m1)
+spm.mchc.m2.waic <- waic(spm.mchc.m2)
+spm.mchc.m4.waic <- waic(spm.mchc.m4)
+mchc.waics <- cbind(spm.mchc.m1.waic, spm.mchc.m2.waic, spm.mchc.m4.waic); mchc.waics
+write.csv(mchc.waics, "mchc_brms_models_waics_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
+```
+
+
+# mchc: RUN REDUCED MODELS 
+```{r}
+# No M3 or M5 because all predictors overlap zero in full models
+
+# job::job({
+# # MODEL 3: REDUCED MODEL 
+# spm.mchc.m3 <- brm(formula = bf(mchc.mean ~ 1 + elev.z),
+#   data = spm.mchc,
+#   family = student(), 
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+#   iter = 20000, 
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors 
+# )
+# save(spm.mchc.m3, file="spm.mchc.m3_ReducedModel.RData") # save model
+# #load("spm.mchc.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
+# 
+# 
+# # MODEL 5: REDUCED MODEL
+# spm.mchc.m5 <- brm(
+#   formula = bf(mchc.mean ~ 1 + elev.z + (1|Clade)),
+#   data = spm.mchc,
+#   family = student(), 
+#   cores = 4,
+#   chains = 4,
+#   thin = 10,
+#   warmup = 10000, # default is iter/2; shouldn't ever be larger than iter
+#   iter = 20000, 
+#   control = list(adapt_delta = 0.99, max_treedepth = 15),
+#   sample_prior = TRUE # save priors 
+# )
+# save(spm.mchc.m5, file="spm.mchc.m5_ReducedModel.RData") # save model
+# #load("spm.mchc.m5_ReducedModel.RData") 
+# })
+```
+
+
+# mchc species means: Plot outputs of posterior mean estimates and 95% credible intervals (reduced models)
+```{r}
+# # Model 3 
+# color_scheme_set("blue") # nice default
+# spm.mchc.m3.p1 <- mcmc_plot(spm.mchc.m3, variable=c("b_elev.z"),
+#                                     prob_outer=0.95, # 95% outer CI 
+#                                     prob=0.50, # 50% inner CI 
+#                                     point_est="mean") + # mean point est; default is median 
+# labs(x="Effect on mchc", title = "spm.mchc.m3") + 
+# scale_y_discrete(labels=c("Elevation"))  
+# spm.mchc.m3.p1
+# ggsave(spm.mchc.m3.p1, filename = "spm.mchc.m3.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# summary(spm.mchc.m3)
+# 
+# # # Model 5
+# # color_scheme_set("teal") # nice default
+# spm.mchc.m5.p1 <- mcmc_plot(spm.mchc.m5, variable=c("b_elev.z"),
+#                                     prob_outer=0.95, # 95% outer CI
+#                                     prob=0.50, # 50% inner CI
+#                                     point_est="mean") + # mean point est; default is median
+# labs(x="Effect on mchc", title = "spm.mchc.m5") +
+# scale_y_discrete(labels=c("Elevation"))
+# spm.mchc.m5.p1
+# ggsave(spm.mchc.m5.p1, filename = "spm.mchc.m5.p1_mchc_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+# summary(spm.mchc.m5)
+```
+
+
+# mchc species means: Collate model summaries and WAIC scores for reduced models 
+```{r}
+# # Print model summaries 
+# sink("mchc_reduced_brms_model_summaries_SPECIES-MEANS.txt",append = TRUE)
+# summary(spm.mchc.m3, waic=TRUE)
+# summary(spm.mchc.m5, waic=TRUE)
+# sink()
+# # print(mchc.test, prob=0.95) # change CI cut-off by adjusting prob; remember Bayesian default may not be 95%
+# 
+# # Get model WAIC scores  
+# spm.mchc.m3.waic <- waic(spm.mchc.m3)
+# spm.mchc.m5.waic <- waic(spm.mchc.m5)
+# mchc.waics.red <- cbind(spm.mchc.m3.waic, spm.mchc.m5.waic); mchc.waics.red
+# write.csv(mchc.waics.red, "mchc_brms_models_waics.red_SPECIES-MEANS.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons
+```
+
+
+# mchc species means: MODEL COMPARISON 
+```{r}
+# leave one out cross-validation, lowest is "best"
+# if 2*standard error > delta LOOIC, models aren't necessarily distinguishable
+
+library(loo)
+sink("mchc_brms_models_all_looic_SPECIES-MEANS.txt", append=FALSE)
+LOO(spm.mchc.m1, spm.mchc.m2, spm.mchc.m4, reloo=TRUE) 
+sink()
+# reloo=TRUE takes much longer to fit but deals with problematic observations by leaving them out of estimates
+# you can also use something called moment_match=TRUE in loo, but to do this need save_pars=TRUE in models and that 
+# wasn't working for some reason
+# compare models # Just a shorter version of the above text
+# loo_compare(en.loo) # Top ranked model includes no random effects 
+
+# Calculate Bayesian R^2:
+bayes_R2(spm.mchc.m2) # 0.11
+bayes_R2(spm.mchc.m4) # 0.15
+# 
+# Model comparisons:
+#             elpd_diff se_diff
+# spm.mchc.m1  0.0       0.0   
+# spm.mchc.m4 -4.5       2.1   
+# spm.mchc.m2 -5.4       1.8     
+```
+
+
+SPECIES MEAN mchc, Quick summary of top 3 models in order of ranking: 
+1) M1, Null model 
+2) M4, Full model w/ quadratic, R^2 = 0.15
+3) M2, Full model, R^2 = 0.11
+
+
+----
+
+
+### SPECIES MEANS 6-panel blood posterior probability fig 
+
+#Set up some figure aesthetics and load in data: 
+```{r}
+library(tidyverse)
+library(patchwork)
+
+# Quick load to be able to make plots for big species mean comparison plot: 
+# For quick pasting for final plot 
+load("spm.hb.m2_FullModel.RData")  # full 
+load("spm.hb.m4_ReducedModel.RData") # top; tied with full model 
+
+load("spm.hct.m2_FullModel.RData") # full
+#load("spm.hct.m4_ReducedModel.RData") # top model (elev)
+
+load("spm.trbc.m2_FullModel.RData") # full 
+# TRBC null is top 
+
+load("spm.mcv.m3_FullModelWithQuadratic.RData") # full w/ quad 
+# MCV null is top 
+
+load("spm.mch.m3_FullModelWithQuadratic.RData") # full w/ quadratic 
+load("spm.mch.m5_ReducedModel_PredictorsOnly.RData") # top model 
+
+load("spm.mchc.m3_FullModelWithQuadratic.RData") # full 
+# top model is null model - "b_Intercept" 
+
+# top panel has no qudratics, bottom will have quadratics
+
+# Set color scheme 
+color_scheme_set("viridisD")
+# color_scheme_set("viridisE") # Looks most sophisticated for fig; ViridisC looks a little clownish
+# Options: blue, teal, red, brightblue, purple, gray, mix-blue-red, pink; ViridisC & E are my favorite
+# See help function of color_scheme_set for full list and how to mix colors 
+
+# Note: if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
+# Narrow and pdf is slightly different; either use family "Helvetica" (or any other), or follow instructions here: 
+# https://github.com/thomasp85/ggraph/issues/152
+```
+
+
+----
+
+
+TUTORIALS AND HELPFUL LINKS: 
+
+**Quadratics in brms**: 
+https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/linear-models.html#polynomial-regression
+https://cran.r-project.org/web/packages/brms/vignettes/brms_nonlinear.html
+
+
+-----
+
+
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
+
+###########
+
+## END 
