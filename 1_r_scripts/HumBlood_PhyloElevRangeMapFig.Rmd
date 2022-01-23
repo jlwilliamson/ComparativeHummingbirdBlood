@@ -1,11 +1,11 @@
 ---
 title: "HumBlood - Phylo Elev Range Map Fig"
 author: "Jessie Williamson"
-date: "12/1/2020"
+date: "12/1/2020; last revised 1/22/22"
 output: html_document
 ---
 
-Script to produce our sampling locality map and figure components associted with Figure XX, the 'phylo elev range map fig'. Note that all spatial data were wrangled and processed in HumBlood_DataWrangling.Rmd - this script includes only the code to load in those data and produce the map. 
+Script to produce our sampling locality map and figure components associated with Figure 1, the 'phylo elev range map fig'. Note that all spatial data were wrangled and processed in HumBlood_DataWrangling.Rmd - this script includes only the code to load in those data and produce the map. 
 
 This script also produces basic components of this figure, which were then read out and processed in Adobe Illustrator for more creative license. See annotations below for where 'final' R components were then manipulated in Illustrator. 
 
@@ -332,7 +332,7 @@ dev.off()
 ```
 
 
-# MAP VERSION 4: Chauncey's suggestion: all of SA, no cropping, non-Chile, non-Peru countries faded 
+# MAP VERSION 4: all of SA, no cropping, non-Chile, non-Peru countries faded 
 ```{r}
 # Peru and Chile sampling localities w/ rest of South America 
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_AllSA_PeruChileHighlight.pdf", useDingbats = F)
