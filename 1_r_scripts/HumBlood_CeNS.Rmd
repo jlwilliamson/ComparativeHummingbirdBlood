@@ -1665,7 +1665,7 @@ Pgign %>%
 ```
 
 
-# FIGURE S2: Species-specific Conditional effects plots 
+# FIGURE S1: Species-specific Conditional effects plots 
 This will be Figure S2 in paper. May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
 ```{r}
 # Color options: 'arg' should be one of “blue”, “brightblue”, “darkgray”, “gray”, “green”, “orange”, “pink”, “purple”, “red”, “teal”, “yellow”, “viridis”, “viridisA”, “viridisB”, “viridisC”, “viridisD”, “viridisE”
@@ -2298,15 +2298,15 @@ ggsave(cens.Tfur.p1, filename = "cens.Tfur.p1_PosteriorEstimates&CredibleInterva
 # PLOT ALL SPECIES-SPECIFIC OUTPUTS TOGETHER 
 library(patchwork)
 # Alternative layout option = BETTER, USE THIS ONE:
-FigS3_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.p1 + cens.Clar.p1 + cens.Coen.p1 + 
+FigS1_PosteriorProbs <- (cens.Amel.p1 + cens.Acas.p1 + cens.Akin.p1 + cens.Aama.p1 + cens.Clar.p1 + cens.Coen.p1 + 
                       cens.Ccoe.p1 + cens.Ciri.p1 + cens.Cvio.p1 + cens.Ccor.p1 + cens.Eluc.p1 + cens.Econ.p1 + 
                       cens.Fmel.p1 + cens.Ghir.p1 + cens.Hame.p1 + cens.Hmic.p1 + cens.Hlea.p1 + cens.Llaf.p1 + 
                       cens.Lnun.p1 + cens.Lvic.p1 + cens.Meup.p1 + cens.Mpho.p1 + cens.Mtyr.p1 + cens.Ound.p1 +   
                       cens.Oest.p1 + cens.Omel.p1 + cens.Pgign.p1 + cens.Pgigs.p1 + cens.Pguy.p1 + cens.Pmal.p1 + 
                       cens.Pcya.p1 + cens.Tfur.p1 +
                       plot_layout(guides = "collect", nrow=4))
-plot(FigS3_PosteriorProbs)
-ggsave(FigS3_PosteriorProbs, filename = "FigS3_CeNS_Species-Specific_PosteriorProbs_2022-01-18.pdf", bg="transparent", height=7, width=12, units="in")
+plot(FigS1_PosteriorProbs)
+ggsave(FigS1_PosteriorProbs, filename = "FigS1_CeNS_Species-Specific_PosteriorProbs_2022-01-22.pdf", bg="transparent", height=7, width=12, units="in")
 ```
 
 JESSIE NOTE: Ideally need to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
@@ -3337,6 +3337,7 @@ cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index", "mcv", "trbc")])
 
 
 # CeNS Phylogenetic Signal and Contmaps 
+# FIGURE S4 IN PAPER
 ```{r}
 # CONTMAPS 
 
@@ -3354,11 +3355,10 @@ class(just.cens); typeof(just.cens) #; View(just.hct)
 cens.cont.tree <- contMap(tree.cens, just.cens, plot=TRUE, outline=FALSE) 
 
 # Plot map and save to pdf w/ proper aesthetics 
-pdf(file="CeNS.index.contmap_06-10-21.pdf", width=6, height=6) # Write plot to pdf 
+pdf(file="FigureS4_CeNS_Index_Contmap_2022-01-22.pdf", width=6, height=6) # Write plot to pdf 
 #hct.cont.tree$cols[1:n] <- viridis(n) # Manually set color scale to viridis 
-plot.contMap(cens.cont.tree, just.cens, res=200, fsize=0.4, lwd=2, leg.txt="CeNS Index", outline=FALSE) # Manually plot using phytools
+plot.contMap(cens.cont.tree, just.cens, res=200, fsize=0.4, lwd=2, leg.txt="CeNS (0.0-1.0)", outline=FALSE) # Manually plot using phytools
 dev.off()
-
 
 # PHYLO SIGNAL 
 # Compute two metrics of phylogenetic signal: Blomberg's K and Pagel's lamda 

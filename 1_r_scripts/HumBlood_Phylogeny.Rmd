@@ -1387,6 +1387,3 @@ CUT NOTES:
 
 # For Oreotrochilus, I calculated divergence times from Sornoza-Molina et al. 2018, estimated at 0.145. 
 # Then I adjusted the branch length leading to O. estella and O. melanogaster until tips aligned. 
-
-
-
