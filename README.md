@@ -31,5 +31,6 @@ We collected specimen-vouchered hematological data from hummingbirds from 2006â€
 
 `HumBlood_CeNS.Rmd`: Cell Number Versus Size analysis script. Script contains all code and annotations required to reproduce our three-pronged cell number versus cell size analyses: 1) variation in cell number versus size within species, among species, and within single-species, respectively; 2) creation of the Cell Number versus Size Index (*CeNS*) using species-specific model coefficients; 3) analysis of the factors that contribute to variation in *CeNS*. This script also contains code for **Figure S1** and **Figure S4**. 
 
-`HumBlood_Plots&Figs.Rmd`: This script contains most polished plots and figures for our all-hummingbird blood comparison. In most cases, I confined these graphics to this standalone script to not bog down analysis scripts with really beefy plots, and for ease of future revisions. Script contains code for **Figures 1-4** and **Figure S2**, **Figure S3**, **Figure S5**, **Figure S6**, **Figure S7**, **Figure S9**, *and* the entire breakpoint analysis associated with Figure S7. 
-Questions? Feel free to email me at jwilliamson0110@gmail.com. 
+`HumBlood_Plots&Figs.Rmd`: This script contains most polished plots and figures for our all-hummingbird blood comparison. In most cases, I confined these graphics to this standalone script to not bog down analysis scripts with really beefy plots, and for ease of future revisions. Script contains code for **Figures 1-4** and **Figure S2**, **Figure S3**, **Figure S5**, **Figure S6**, **Figure S7**, **Figure S9**, *and* the entire breakpoint analysis associated with Figure S7.
+
+**Questions?** Feel free to email me at jwilliamson0110@gmail.com. 
