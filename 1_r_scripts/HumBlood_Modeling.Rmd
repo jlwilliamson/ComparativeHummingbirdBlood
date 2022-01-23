@@ -13,8 +13,6 @@ This script includes: Reading in pre-processed data from "HumBlood_DataWrangling
 Note that elements of this script function as a notebook/codebook to document analyses that we didn't end up using in our paper (e.g., all transformation of wing loading data); see model structure and notes for information about what was/wasn't included in final paper analyses. 
 
 
-
-
 Instructions for installing RStan for brms models: https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
 Instructions for configuring toolchain for brms models (Mac): https://github.com/stan-dev/rstan/wiki/Configuring-C---Toolchain-for-Mac
 
