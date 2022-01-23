@@ -1,7 +1,7 @@
 ---
 title: "HumBlood - Phylo Elev Range Map Fig"
 author: "Jessie Williamson"
-date: "12/1/2020; last revised 1/22/22"
+date: "12/1/2020; last revised 1/23/22"
 output: html_document
 ---
 
@@ -64,7 +64,7 @@ library(rasterVis)
 ```{r}
 # Final hummingbird blood dataset
 # Don't need to load if already loaded from another script 
-final <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_03-01-21.csv", stringsAsFactors = TRUE)
+final <- read.csv("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-14-21.csv", stringsAsFactors = TRUE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 names(final)[names(final) == "b13b83.genotype"] <- "genotype" # Make this column header simpler 
 ```
@@ -176,6 +176,7 @@ southamerica_cropped <- crop(southamerica_countries, ex)
 
 
 # MAP VERSION 1: Cropped and bounded by extend w/ lat and lon labeled
+(not used in paper)
 ```{r}
 # Peru and Chile sampling localities w/ rest of South America 
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/Peru_and_Chile_SamplingMap_WithSouthAmerica_Cropped_Outlines.pdf", useDingbats = F)
@@ -215,12 +216,13 @@ dev.off()
 
 
 # MAP VERSION 2: Simpler map with full extent of Peru and Chile, no spatial extent cropping, lat/lon boxes will be removed
-Points all one color 
+VERSION 1 OF THIS MAP IS THE FINAL VERSION INCLUDED IN OUR PAPER FIGURE 1! 
 ```{r}
 # "Naked" map of Peru and Chile, full extent. Cleaner and simpler, will look much nicer with our elev phylo range fig. 
 # No constraining of extent. No outlines of surrounding countries. 
 # ex.big <- extent(c(-86, -47.4, -47, 0.8)) # These go: xmin (left), xmax (right), ymin (bottom), ymax (top)
 
+# Version 1: magma-shaded elevs, "naked" map
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_PeruChileOnly_FullExtent_12-01-20.pdf", useDingbats = F)
 #plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # for grayscale elev
 plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
@@ -234,6 +236,7 @@ plot(locality.coords, add=TRUE, pch=21, cex=1.1, bg="turquoise") # olivedrab1 lo
 # Note, neither of those text label coords are correct - just samples of how to add text labels (not sure I want to)
 dev.off()
 
+# Version 1: grayscale-shaded elevs, "naked" map
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_PeruChileOnly_Gray_12-01-20.pdf", useDingbats = F)
 plot(peru_chile_elev, col=colorRampPalette(c("grey20","grey80"))(100), cex.axis=1.5) # for grayscale elev
 #plot(peru_chile_elev, col=magma(200), cex.axis=1.5) # removed ext=ex argument 
@@ -252,7 +255,7 @@ dev.off()
 # MAP VERSION 3: Simpler map with full extent of Peru and Chile, no spatial extent cropping, POINTS COLORED BY ELEV BIN
 Create spatial  points data frames binned by elevation
 ```{r}
-# This would be way more straight forward with a nice loop or two, but...it was also super simple to execute this clunkier way.
+# This would be more straightforward with a nice loop or two, but...it was also super simple to execute this clunkier way.
 
 # First subset the data by elevation: 
 bin1 <- final[which(final$elev > 0 & final$elev < 1000), ] # Sea level to 1,000 m
@@ -323,16 +326,16 @@ plot(bin5.coords, add=TRUE, pch=21, cex=1.1, bg="darkorchid") # pch=21 is circle
 dev.off()
 
 # Colors are awful  but are trial colors
-# Only thing about this is that now I almost have *too* much information about elevation: map is shaded by elev AND sampling 
+# But now I almost have *too* much information about elevation: map is shaded by elev AND sampling 
 # points are colored by elev - it's a little much. 
-# The other issue is that many overlapping points obscure interesting sampling across elevations, so the colors don't convey as 
-# much info as I'd wanted. And, as I discovered for the OLWA-BHCO project, there is no way to jitter a spatial points data frame
+# Other issue = many overlapping points obscure interesting sampling across elevations, so the colors don't convey as 
+# much info as I'd wanted. And, as I discovered for OLWA-BHCO project, there's no way to jitter a spatial points df
 # (see that script for how I attempted to introduce jitter, though that workaround wasn't 100% satisfying)
 # I think I vote to leave sampling across elevs as all one color. 
 ```
 
 
-# MAP VERSION 4: all of SA, no cropping, non-Chile, non-Peru countries faded 
+# MAP VERSION 4: all of South America, no cropping, non-Chile, non-Peru countries faded 
 ```{r}
 # Peru and Chile sampling localities w/ rest of South America 
 pdf("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/SamplingMap_AllSA_PeruChileHighlight.pdf", useDingbats = F)
@@ -356,18 +359,15 @@ dev.off()
 
 
 
-
 ------
 
 ## ELEV RANGES OF EACH SPECIES IN THE DATASET FOR ELEV RANGE PHYLO FIG
+In this section, I create the elevational range portion of Figure 1 that's read into Illustrator and combined with the map components (from above) and phylogeny (from `HumBlood_Phylogeny.Rmd`) and other graphical elements (i.e., hummingbird illustrations, timescale, sampling numbers) to produce the final version of Figure 1 in our paper. 
 
-# For elevational range phylogeny figure: Ceate a species mean dataset, wrangle into workable format for Illustrator figure
-Note: this script should be cleaned up and probably moved for my plots & figs .Rmd. Still a working chunk, in here for now. 
+# Phylo elev range, step 1: Calculate species mean elevational midpoints for plotting
+Create basic species mean subset, order the subset by phylogeny order, calculate midpoints.
 ```{r, echo=FALSE,  message=FALSE, warning=FALSE}
-# Figure out why there are NaNs! In at least a few cases it comes from only 1 individual per species
-# drop species with fewer than 2? 
-
-# species mean data
+# Create a basic species mean dataset
 species.means <- final %>% group_by(species) %>%
                                   dplyr::summarize(
                                     mean_mass = mean(mass, na.rm = TRUE),
@@ -383,111 +383,14 @@ species.means <- final %>% group_by(species) %>%
                                     range = mean(elev_range, na.rm=TRUE),  # Mean will just be elev_range cause all same 
                                     count=n())                              #Gives a count of total samples/species
 
-# Assign species to clades 
-species.means$Clade <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
+# I used to assign Clade names here, but now do that in `HumBlood_DataWrangling.Rmd`
 
-# add clade labels for 9 hummingbird clades
-
-# EMERALDS
-species.means$Clade[species.means$species=="Amazilia amazilia" | 
-           species.means$species=="Amazilia chionogaster" | 
-           species.means$species=="Amazilia franciae" | 
-           species.means$species=="Amazilia lactea" | 
-           species.means$species=="Amazilia viridicauda" | 
-           species.means$species=="Chrysuronia oenone" | 
-           species.means$species=="Taphrospilus hypostictus" | 
-           species.means$species=="Thalurania furcata" | 
-           species.means$species=="Campylopterus largipennis" | 
-           species.means$species=="Campylopterus villaviscensio" | 
-           species.means$species=="Leucippus taczanowskii" | 
-           species.means$species=="Klais guimeti"] <- paste("Emerald")
-
-# BEES 
-species.means$Clade[species.means$species=="Calliphlox amethystina" | 
-           species.means$species=="Thaumastura cora" | 
-           species.means$species=="Chaetocercus mulsant" |
-           species.means$species=="Myrmia micrura" |
-           species.means$species=="Myrtis fanny" |
-           species.means$species=="Rhodopis vesper"] <- paste("Bee") 
-
-# MOUNTAIN GEMS 
-species.means$Clade[species.means$species=="Heliomaster longirostris"] <- paste("Mountain-gem")
-
-# PATAGONA 
-species.means$Clade[species.means$species=="Patagona gigas"] <- paste("Patagona") 
-
-# COQUETTES (Andean clade)
-species.means$Clade[species.means$species=="Phlogophilus harterti" | 
-           species.means$species=="Adelomyia melanogenys" | 
-           species.means$species=="Aglaiocercus kingii" | 
-           species.means$species=="Chalcostigma herrani" | 
-           species.means$species=="Chalcostigma ruficeps" | 
-           species.means$species=="Chalcostigma stanleyi" | 
-           species.means$species=="Heliangelus amethysticollis" | 
-           species.means$species=="Heliangelus micraster" | 
-           species.means$species=="Heliangelus viola" | 
-           species.means$species=="Metallura eupogon" | 
-           species.means$species=="Metallura phoebe" | 
-           species.means$species=="Metallura tyrianthina" | 
-           species.means$species=="Oreotrochilus estella" | 
-           species.means$species=="Oreotrochilus leucopleurus" | 
-           species.means$species=="Oreotrochilus melanogaster" | 
-           species.means$species=="Polyonymus caroli" | 
-           species.means$species=="Sephanoides sephaniodes" | 
-           species.means$species=="Oreonympha nobilis" |
-           species.means$species=="Lesbia nuna" |
-           species.means$species=="Lesbia victoriae"] <- paste("Coquette")
-
-# BRILLIANTS (Andean clade)
-species.means$Clade[species.means$species=="Aglaeactis castelnaudii" | 
-           species.means$species=="Aglaeactis cupripennis" | 
-           species.means$species=="Boissonneaua matthewsii" | 
-           species.means$species=="Coeligena coeligena" | 
-           species.means$species=="Coeligena iris" | 
-           species.means$species=="Coeligena lutetiae" | 
-           species.means$species=="Coeligena torquata" | 
-           species.means$species=="Coeligena violifer" | 
-           species.means$species=="Ensifera ensifera" | 
-           species.means$species=="Eriocnemis aline" | 
-           species.means$species=="Eriocnemis luciani" | 
-           species.means$species=="Eriocnemis vestita" | 
-           species.means$species=="Haplophaedia aureliae" | 
-           species.means$species=="Heliodoxa aurescens" | 
-           species.means$species=="Heliodoxa leadbeateri" | 
-           species.means$species=="Heliodoxa rubinoides" | 
-           species.means$species=="Lafresnaya lafresnayi" | 
-           species.means$species=="Ocreatus underwoodii" | 
-           species.means$species=="Pterophanes cyanopterus"] <- paste("Brilliant")
-
-# MANGOS
-species.means$Clade[species.means$species=="Anthracothorax nigricollis" | 
-           species.means$species=="Colibri coruscans" | 
-           species.means$species=="Colibri cyanotus" |  # Remember you changed Colibri thalassinus to cyanotus above 
-           species.means$species=="Doryfera ludovicae" |
-           species.means$species=="Schistes geoffroyi"] <- paste("Mango")
-
-# HERMITS 
-species.means$Clade[species.means$species=="Eutoxeres aquila" | 
-           species.means$species=="Eutoxeres condamini" | 
-           species.means$species=="Glaucis hirsutus" | 
-           species.means$species=="Phaethornis atrimentalis" | 
-           species.means$species=="Phaethornis guy" | 
-           species.means$species=="Phaethornis hispidus" | 
-           species.means$species=="Phaethornis malaris" | 
-           species.means$species=="Phaethornis philippii" | 
-           species.means$species=="Phaethornis ruber" | 
-           species.means$species=="Phaethornis stuarti" | 
-           species.means$species=="Phaethornis syrmatophorus" | 
-           species.means$species=="Threnetes leucurus"] <- paste("Hermit")
-
-# TOPAZES AND JACOBINS 
-species.means$Clade[species.means$species=="Florisuga mellivora"] <- paste("Topaz") 
-
-
-# Create order based on phylogeny branch order (for elev_range plotting)
+# ARRANGE ORDER based on phylogeny branch order (for elev_range plotting)
 species.means$phylo_order <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
 
-species.means$phylo_order[species.means$species=="Phlogophilus harterti"] <- paste(.1) # Weird decimals only way to keep order
+# COQUETTES 
+# I specifically use weird decimals becuase it was the easiest way I could think of to keep necessary order
+species.means$phylo_order[species.means$species=="Phlogophilus harterti"] <- paste(.1) 
 species.means$phylo_order[species.means$species=="Oreotrochilus leucopleurus"] <- paste(.2)
 species.means$phylo_order[species.means$species=="Oreotrochilus estella"] <- paste(.3)
 species.means$phylo_order[species.means$species=="Oreotrochilus melanogaster"] <- paste(.4)
@@ -506,8 +409,9 @@ species.means$phylo_order[species.means$species=="Aglaiocercus kingii"] <- paste
 species.means$phylo_order[species.means$species=="Heliangelus amethysticollis"] <- paste(17)
 species.means$phylo_order[species.means$species=="Heliangelus micraster"] <- paste(18)
 species.means$phylo_order[species.means$species=="Heliangelus viola"] <- paste(19)
-species.means$phylo_order[species.means$species=="Sephanoides sephaniodes"] <- paste(20) # Coquettes  
+species.means$phylo_order[species.means$species=="Sephanoides sephaniodes"] <- paste(20)   
 
+# BRILLIANTS
 species.means$phylo_order[species.means$species=="Lafresnaya lafresnayi"] <- paste(21)
 species.means$phylo_order[species.means$species=="Aglaeactis castelnaudii"] <- paste(22)
 species.means$phylo_order[species.means$species=="Aglaeactis cupripennis"] <- paste(23)
@@ -526,19 +430,23 @@ species.means$phylo_order[species.means$species=="Coeligena torquata"] <- paste(
 species.means$phylo_order[species.means$species=="Eriocnemis vestita"] <- paste(36)
 species.means$phylo_order[species.means$species=="Eriocnemis luciani"] <- paste(37)
 species.means$phylo_order[species.means$species=="Eriocnemis aline"] <- paste(38)
-species.means$phylo_order[species.means$species=="Haplophaedia aureliae"] <- paste(39) # Brilliants
+species.means$phylo_order[species.means$species=="Haplophaedia aureliae"] <- paste(39) 
 
-species.means$phylo_order[species.means$species=="Patagona gigas"] <- paste(40) # Patagona
+# PATAGONA
+species.means$phylo_order[species.means$species=="Patagona gigas"] <- paste(40) 
 
+# BEES
 species.means$phylo_order[species.means$species=="Calliphlox amethystina"] <- paste(41)
 species.means$phylo_order[species.means$species=="Rhodopis vesper"] <- paste(42) 
 species.means$phylo_order[species.means$species=="Myrtis fanny"] <- paste(43) 
 species.means$phylo_order[species.means$species=="Thaumastura cora"] <- paste(44) 
 species.means$phylo_order[species.means$species=="Myrmia micrura"] <- paste(45) 
-species.means$phylo_order[species.means$species=="Chaetocercus mulsant"] <- paste(46) # Bees 
+species.means$phylo_order[species.means$species=="Chaetocercus mulsant"] <- paste(46) 
 
-species.means$phylo_order[species.means$species=="Heliomaster longirostris"] <- paste(47) # Mountain-gems 
+# MOUNTAIN-GEMS
+species.means$phylo_order[species.means$species=="Heliomaster longirostris"] <- paste(47)  
 
+# EMERALDS
 species.means$phylo_order[species.means$species=="Campylopterus villaviscensio"] <- paste(48) 
 species.means$phylo_order[species.means$species=="Campylopterus largipennis"] <- paste(49) 
 species.means$phylo_order[species.means$species=="Klais guimeti"] <- paste(50) 
@@ -550,16 +458,19 @@ species.means$phylo_order[species.means$species=="Amazilia franciae"] <- paste(5
 species.means$phylo_order[species.means$species=="Amazilia amazilia"] <- paste(56) 
 species.means$phylo_order[species.means$species=="Leucippus taczanowskii"] <- paste(57) 
 species.means$phylo_order[species.means$species=="Taphrospilus hypostictus"] <- paste(58) 
-species.means$phylo_order[species.means$species=="Thalurania furcata"] <- paste(59) # Emeralds
+species.means$phylo_order[species.means$species=="Thalurania furcata"] <- paste(59)
 
+# MANGOS
 species.means$phylo_order[species.means$species=="Anthracothorax nigricollis"] <- paste(60) 
 species.means$phylo_order[species.means$species=="Doryfera ludovicae"] <- paste(61) 
 species.means$phylo_order[species.means$species=="Colibri cyanotus"] <- paste(62) 
 species.means$phylo_order[species.means$species=="Colibri coruscans"] <- paste(63) 
-species.means$phylo_order[species.means$species=="Schistes geoffroyi"] <- paste(64) # Mangos
+species.means$phylo_order[species.means$species=="Schistes geoffroyi"] <- paste(64) 
 
-species.means$phylo_order[species.means$species=="Florisuga mellivora"] <- paste(65) # Topazes
+# TOPAZES
+species.means$phylo_order[species.means$species=="Florisuga mellivora"] <- paste(65) 
 
+# HERMITS
 species.means$phylo_order[species.means$species=="Eutoxeres condamini"] <- paste(66) 
 species.means$phylo_order[species.means$species=="Eutoxeres aquila"] <- paste(67) 
 species.means$phylo_order[species.means$species=="Glaucis hirsutus"] <- paste(68) 
@@ -571,7 +482,7 @@ species.means$phylo_order[species.means$species=="Phaethornis hispidus"] <- past
 species.means$phylo_order[species.means$species=="Phaethornis philippii"] <- paste(74) 
 species.means$phylo_order[species.means$species=="Phaethornis stuarti"] <- paste(75) 
 species.means$phylo_order[species.means$species=="Phaethornis atrimentalis"] <- paste(76) 
-species.means$phylo_order[species.means$species=="Phaethornis ruber"] <- paste(77) # Hermits
+species.means$phylo_order[species.means$species=="Phaethornis ruber"] <- paste(77) 
 
 # Consider adding elev_position, BioClim variables, temp and precip PCAs, other stuff
 # If you do want to use this and color by clades, need to manually add in clades 
@@ -579,21 +490,33 @@ species.means$phylo_order[species.means$species=="Phaethornis ruber"] <- paste(7
 # Calculate elevation range midpoints and midpoint offsets: 
 species.means$elevmidpt <- species.means$range/2 # Make variable for elevational midpoint for each species 
 species.means$elevmidpt_offset <- species.means$elevmidpt + species.means$elev_min # IMPORTANT!!!!
-# Because midpoints will be plotted with correct numbers but on full elev x-axis scale, midpoints don't align properly w/in 
-# their associated elev ranges (i.e. if range = 1000-2000, midpoint=500, but point will be plotted AT 500 instead of 1,500)
-# To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min #
-# After testing this out, thins look correct: All elev midpoints plot accurately at their midpoints within their elev range (!)
+# Bc midpoints will be plotted with correct numbers but on full elev x-axis scale, midpoints don't align properly w/in 
+# associated elev ranges (i.e. if range = 1000-2000, midpoint=500, but point will be plotted AT 500 instead of 1,500)
+# To correct for this, I'll add the elev_min "offset" to each midpoint, which makes its starting point the elev_min num
+# After testing this out, things look correct: 
+# All elev midpoints plot accurately at their midpoints within their elev range (!)
 
-write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_03-01-21.csv")
+#write.csv(species.means, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllHummingbird_SpeciesMeanBloodData_03-01-21.csv")
+# I'm not quite sure why there are some NaNs in blood data
+# Shouldn't be caused by species with <2 individuals because NaNs occur in species with e.g. 8 indivs
+# And NaNs don't exist for elev data; just blood data
+# REGARDLESS, this shouldn't matter because these data aren't used for downstream analyses 
+# (when we do need species mean data, we calculate them on a trait-subset specific basis in modeling files)
+```
 
 
+# Phylo elev range, step 2: Add phylo_order as a variable to copy of `final` dataset 
+This is just a step to be able to plot properly
+```{r}
 # Now make copy of 'final' dataset that you can finagle to get offset collection elevations to represent sampling: 
 sampling <- final 
 
 # Add phylo order to this big samping dataset
 sampling$phylo_order <- NA # Instantiate new col; capitalize this for easy and nice plot formatting
 
-sampling$phylo_order[sampling$species=="Phlogophilus harterti"] <- paste(.1) # Weird decimals only way to keep order
+# COQUETTES
+# As above, weird decimals were the only way to keep the order I needed
+sampling$phylo_order[sampling$species=="Phlogophilus harterti"] <- paste(.1) 
 sampling$phylo_order[sampling$species=="Oreotrochilus leucopleurus"] <- paste(.2)
 sampling$phylo_order[sampling$species=="Oreotrochilus estella"] <- paste(.3)
 sampling$phylo_order[sampling$species=="Oreotrochilus melanogaster"] <- paste(.4)
@@ -612,8 +535,9 @@ sampling$phylo_order[sampling$species=="Aglaiocercus kingii"] <- paste(16)
 sampling$phylo_order[sampling$species=="Heliangelus amethysticollis"] <- paste(17)
 sampling$phylo_order[sampling$species=="Heliangelus micraster"] <- paste(18)
 sampling$phylo_order[sampling$species=="Heliangelus viola"] <- paste(19)
-sampling$phylo_order[sampling$species=="Sephanoides sephaniodes"] <- paste(20) # Coquettes  
+sampling$phylo_order[sampling$species=="Sephanoides sephaniodes"] <- paste(20)  
 
+# BRILLIANTS
 sampling$phylo_order[sampling$species=="Lafresnaya lafresnayi"] <- paste(21)
 sampling$phylo_order[sampling$species=="Aglaeactis castelnaudii"] <- paste(22)
 sampling$phylo_order[sampling$species=="Aglaeactis cupripennis"] <- paste(23)
@@ -632,19 +556,23 @@ sampling$phylo_order[sampling$species=="Coeligena torquata"] <- paste(35)
 sampling$phylo_order[sampling$species=="Eriocnemis vestita"] <- paste(36)
 sampling$phylo_order[sampling$species=="Eriocnemis luciani"] <- paste(37)
 sampling$phylo_order[sampling$species=="Eriocnemis aline"] <- paste(38)
-sampling$phylo_order[sampling$species=="Haplophaedia aureliae"] <- paste(39) # Brilliants
+sampling$phylo_order[sampling$species=="Haplophaedia aureliae"] <- paste(39) 
 
-sampling$phylo_order[sampling$species=="Patagona gigas"] <- paste(40) # Patagona
+# PATAGONA
+sampling$phylo_order[sampling$species=="Patagona gigas"] <- paste(40)
 
+# BEES
 sampling$phylo_order[sampling$species=="Calliphlox amethystina"] <- paste(41)
 sampling$phylo_order[sampling$species=="Rhodopis vesper"] <- paste(42) 
 sampling$phylo_order[sampling$species=="Myrtis fanny"] <- paste(43) 
 sampling$phylo_order[sampling$species=="Thaumastura cora"] <- paste(44) 
 sampling$phylo_order[sampling$species=="Myrmia micrura"] <- paste(45) 
-sampling$phylo_order[sampling$species=="Chaetocercus mulsant"] <- paste(46) # Bees 
+sampling$phylo_order[sampling$species=="Chaetocercus mulsant"] <- paste(46)  
 
-sampling$phylo_order[sampling$species=="Heliomaster longirostris"] <- paste(47) # Mountain-gems 
+# MOUNTAIN-GEMS
+sampling$phylo_order[sampling$species=="Heliomaster longirostris"] <- paste(47)  
 
+# EMERALDS
 sampling$phylo_order[sampling$species=="Campylopterus villaviscensio"] <- paste(48) 
 sampling$phylo_order[sampling$species=="Campylopterus largipennis"] <- paste(49) 
 sampling$phylo_order[sampling$species=="Klais guimeti"] <- paste(50) 
@@ -656,16 +584,19 @@ sampling$phylo_order[sampling$species=="Amazilia franciae"] <- paste(55)
 sampling$phylo_order[sampling$species=="Amazilia amazilia"] <- paste(56) 
 sampling$phylo_order[sampling$species=="Leucippus taczanowskii"] <- paste(57) 
 sampling$phylo_order[sampling$species=="Taphrospilus hypostictus"] <- paste(58) 
-sampling$phylo_order[sampling$species=="Thalurania furcata"] <- paste(59) # Emeralds
+sampling$phylo_order[sampling$species=="Thalurania furcata"] <- paste(59) 
 
+# MANGOS
 sampling$phylo_order[sampling$species=="Anthracothorax nigricollis"] <- paste(60) 
 sampling$phylo_order[sampling$species=="Doryfera ludovicae"] <- paste(61) 
 sampling$phylo_order[sampling$species=="Colibri cyanotus"] <- paste(62) 
 sampling$phylo_order[sampling$species=="Colibri coruscans"] <- paste(63) 
-sampling$phylo_order[sampling$species=="Schistes geoffroyi"] <- paste(64) # Mangos
+sampling$phylo_order[sampling$species=="Schistes geoffroyi"] <- paste(64) 
 
-sampling$phylo_order[sampling$species=="Florisuga mellivora"] <- paste(65) # Topazes
+# TOPAZES
+sampling$phylo_order[sampling$species=="Florisuga mellivora"] <- paste(65) 
 
+# HERMITS
 sampling$phylo_order[sampling$species=="Eutoxeres condamini"] <- paste(66) 
 sampling$phylo_order[sampling$species=="Eutoxeres aquila"] <- paste(67) 
 sampling$phylo_order[sampling$species=="Glaucis hirsutus"] <- paste(68) 
@@ -678,27 +609,30 @@ sampling$phylo_order[sampling$species=="Phaethornis philippii"] <- paste(74)
 sampling$phylo_order[sampling$species=="Phaethornis stuarti"] <- paste(75) 
 sampling$phylo_order[sampling$species=="Phaethornis atrimentalis"] <- paste(76) 
 sampling$phylo_order[sampling$species=="Phaethornis ruber"] <- paste(77) # Hermits
+```
 
-#### playing around, this needs to go in plots and figs script
 
-#sort by complete ENSM magnitude (descending)
+# Plot phylo elev range data for Fig 1! 
+This produces the raw phylo-ordered elev ranges for each species, with gray points representing sampling of single individuals along the gradient, adn red diamonds representing species elevational midpoints. 
+```{r}
+#sort by phylo_order
 species.means$phylo_order <- as.numeric(species.means$phylo_order) # Need to make this numeric
 sampling$phylo_order <- as.numeric(sampling$phylo_order) # Need to make this numeric
 # species.means$range <- as.numeric(species.means$range)
 
-# Species elevational ranges in order of phylogeny 
+# Species elevational ranges in phylogenetic order
 p1 <- ggplot(data=species.means, aes(y=range, x=reorder(phylo_order, -phylo_order))) + # Add fill=Clade to color by clade 
-            # x=reorder is saying "reorder common_name on x-axis by magnitude of elev shift in DESCENDING"
+      # x=reorder is saying "reorder common_name on x-axis by magnitude of elev shift in DESCENDING"
       # geom_bar(stat="identity", position=position_dodge(), width=0.2) + # trick: don't plot these! 
-     # geom_line(aes(ymin=elev_min, ymax=elev_max)) +
-      geom_errorbar(aes(ymin=elev_min, ymax=elev_max), width=0.5) + # Specifies exact elev range; width controls error bar caps
+      # geom_line(aes(ymin=elev_min, ymax=elev_max)) +
+      geom_errorbar(aes(ymin=elev_min, ymax=elev_max), width=0.5) + # specifies elev range; width controls error bar caps
       geom_point(data=sampling, position=position_jitter(width=0.08, height=0.5), # SAMPLING POINTS, jittered 
                  # WIDTH=height and HEIGHT=width w/ coordflip
                  aes(y=elev, x=reorder(phylo_order, -phylo_order)), 
                  shape=16, color="gray28", alpha=0.5, size=1.0) + # or gray28 for a bit lighter? 
-      geom_point(aes(y=elevmidpt_offset, x=reorder(phylo_order, -phylo_order)), # ELEVATION MIDPOINT OF RANGE 
+      geom_point(aes(y=elevmidpt_offset, x=reorder(phylo_order, -phylo_order)), # ADD ELEVATION MIDPOINTs 
                  shape=18, color="firebrick1", size=1.4) +
-      coord_flip() + # This flips x and y axes
+      coord_flip() + # This flips x and y axes so plot is "vertical" orientation
       scale_y_continuous(position="right") + # Because of coord flip, "right" moves x-axis to top of plot 
       theme(axis.text.x=element_text(angle=0, hjust=0.5),
            panel.grid.major=element_blank(), 
@@ -710,14 +644,16 @@ p1 <- ggplot(data=species.means, aes(y=range, x=reorder(phylo_order, -phylo_orde
       theme(axis.text.y=element_text(size=8), axis.text.x=element_text(size=10), axis.title=element_text(size=8))
 print(p1)
 ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood/AllSpecies_ElevRange_PhylogenyOrder_ForDoctoringInIllustrator_WholeRange_03-01-21.pdf", height=6.35, width=2.8, units="in")
-# Same units as phylogeny for easy wrangling? 
 
-# NOTE: 
+# NOTES: 
 # I MADE THIS REALLY EASY FOR MYSELF! Just write out this pdf, open in Illustrator, remove clipping mask, and paste into 
-# elev range layer - no resizing necessary.
-# Only modifications: Make elev range line widths 0.5 and make top tick marks black (vs. dark gray)  
+# elev range layer - no resizing necessary (i.e., dimensions are ready to go into our Illustrator fig).
+# Only modifications in Illustrator: Make elev range line widths 0.5 and make top tick marks black (vs. dark gray)  
+# Remember that order of this figure matches phylogenetic order (see notes on this in the above 2 code chunks)
+
 
 #####
+
 # TRIAL AND ERROR NOTES ON PLOTTING ELEV RANGES: 
 # geom_pointrante() plots the midpoint of your line segment IF the ymin and ymax are -/+ some number from the y variable
 # ymin and ymax are meant to represent standard deviation, so must be manipulating y variable somehow
@@ -735,8 +671,17 @@ ggsave(p1, filename="/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHumm
 # Help on coord_flip and moving axis positions after coord_flip:
 # https://stackoverflow.com/questions/63863398/in-ggplot2-how-can-i-move-the-x-axis-on-top-in-this-case-then-rotate-the-axes-w
 # change geom_bar style; make thin w/ caps at ends
-
 ```
 
 Helpful data summarizing tips: http://kbroman.org/datacarpentry_R_2016-06-01/03-dplyr.html
+
+
+# Print environment for reproducibility
+```{r}
+sessionInfo() # List of packages and versions in use 
+```
+
+###########
+
+## END 
 
