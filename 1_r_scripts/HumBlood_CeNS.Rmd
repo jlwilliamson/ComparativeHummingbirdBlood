@@ -1,11 +1,11 @@
 ---
-title: "Comparative Hummingbird Blood: Cell Size vs. Cell Number (CeNS) Analyses"
+title: "Comparative Hummingbird Blood: Cell Number vs. Size Analysis"
 author: "Jessie Williamson"
-date: "4/26/2021; last revised 1/17/22"
+date: "4/26/2021; last revised 1/23/22"
 output: html_document
 ---
 
-Script to try to get to the bottom of 'cell size vs. cell number' and create the CeNS index. 
+Script to try to get to the bottom of 'cell number versus cell size tradeoff' plus creation of the *CeNS* Index. 
 
 
 **This script has 2 parts:** 
@@ -18,9 +18,8 @@ Script to try to get to the bottom of 'cell size vs. cell number' and create the
 **2) CeNS index:** 
     - Take results of single-species models to calculate this. Formula is: TRBC estimate/(MCV estimate + TRBC estimate).
     - Is there phylo signal to these estimates? Prune trees, then work up contmaps, Pagel's lamda, and blomberg's K
-    - Take these estimates and run another model: maybe try cens.index ~ mass + elev + (1|phylo) to see what predicts this index? —> This is making that censdat cool jump that Chris mentioned, where we’ll show that something additional PREDICTS our index.
-
-Followed these instructions to set up SSH key with happygitfromR but if they don't work see this: https://happygitwithr.com/ssh-keys.html
+    - Take these estimates and run another model: `cens.index ~ mass + elev + (1|phylo)` to see what predicts this index 
+    
 
 #######
 
@@ -153,7 +152,8 @@ censdat <- subset(final, select=c(species, rowID, nk, department, month, elev, m
 censdat <- na.omit(censdat) # 661 observations 
 
 # We don't need to check normality and transform because we did that during pre-processing in HumBlood_Modeling. 
-# We know MCV has heavy tails, respons well to skew_normal, but *might* fit better with mcv.log variable - we'll see below.
+# We know MCV has heavy tails, responds well to skew_normal, but *might* fit better with mcv.log variable
+# we'll see below.
 
 # Standardize predictors 
 censdat$mcv.z <- standardize(censdat$mcv)
@@ -200,6 +200,7 @@ levels(censdat$department)[levels(censdat$department)=="Región Valparaíso"] <-
 
 
 # Pre-processing for modeling - species mean data 
+Starting to feel like this has been done repetitively across scripts...again, was a little hard to keep track of in the 2 years of making this paper, so bear with me. 
 ```{r}
 cens.sp <- censdat # Make the final dataset copy that you'll use to wrangle species mean data 
 str(cens.sp)
@@ -230,13 +231,12 @@ cens.sp$mass.log <- log10(cens.sp$mass)
 
 # Pre-processing for single-species model sets 
 ```{r}
-# Need to ID min number of indiv/species necessary to run models- 6? 10? 
+# Need to ID min number of indiv/species necessary to run models - we'll use 8 individuals.
 # Subset from censdat, wich has NAs removed 
 # Will need to run a standardized model *and* unstandardized model per species miniset (I think)
 # BUT, if goal is "proportional contribution of TRBC relative to MCV in driving [Hb]", I think we want unstandardized...
 # Remember that you have 2 functional groups for Patagona; will need to drop gigas_S if working up phylo signal
 # Quick test w/ Sephanoides sephaniodes at 5 looks like too few 
-# As a general rule, should be at least 10 observations per variable, so we'll use n=10 as our cutoff 
 # Might consider doing as EBL did and making a big loop to run through the 30 species-specific models 
 
 # Get dataset counts 
@@ -283,7 +283,6 @@ Pguy <- as.data.frame(cens.ss.list[[29]])
 Pmal <- as.data.frame(cens.ss.list[[30]])
 Pcya <- as.data.frame(cens.ss.list[[31]])
 Tfur <- as.data.frame(cens.ss.list[[32]])
-
 # Pguy <- censdat[which(censdat$species == "Phaethornis_guy"),] # another clunky subset alternative
 
 # Predictor dataset - take a look at distributions
@@ -299,7 +298,7 @@ Tfur <- as.data.frame(cens.ss.list[[32]])
 
 
 # Outlier assessment for single-species model sets 
-Generally: We're taking a conservative approach and choosing to include all data we can, especially because these single-species datasets are so small. After initially running initial models with ALL data, we assessed model fit and diagnostic plots and then revisited conservative outlier elimination of single points per dataset. Specific notes below; most outliers eliminated due to wonky combinations of too low or too high MCV values for TRBC (and vice-versa), and weird combinations of these two with Hb (too high or too low). A couple points eliminated due to seemingly outlier Hb points that actually fall w/in normal Hb range, but that stood out due to low sample sizes (so removed these points to improve overall model fit). 
+Generally: We're taking a conservative approach and choosing to include all data we can, especially because these single-species datasets are so small. After preliminarily running initial models with ALL data, we assessed model fit and diagnostic plots and then revisited conservative outlier elimination of single points per dataset. Specific notes below; most outliers eliminated due to wonky combinations of too low or too high MCV values for TRBC (and vice-versa), and weird combinations of these two with Hb (too high or too low). A couple points eliminated due to seemingly outlier Hb points that actually fall w/in normal Hb range, but that stood out due to low sample sizes (so removed these points to improve overall model fit). 
 ```{r}
 # A. amazilia
 qqPlot(Aama$trbc)
@@ -430,7 +429,9 @@ We'll fit two models for our individual-level data:
 2) "Full" model hb ~ MCV + TRBC + (1|species)
 The species grouping variable is essential to our model design because it will allow us to account for repeated sampling within species (i.e., will hold species identity constant) while estimating variation within species.
 
-Note: on 5/13/21 I removed the intercept only + (1|species) model for ease of comparison in the two model format with the species mean dataset. 
+Note: We don't want intercept only + (1|species) model, as this complicates comparison w/ the species mean dataset. 
+(though note that we originally tried this)
+
 ```{r}
 # INTERCEPT ONLY 
 job::job({ # Send this to a job so you can use the console while it runs
@@ -621,7 +622,7 @@ TRBC = 1.81
 - For every increase in MCV of one fl, we expect [Hb] will increase by 0.12 g/dl. 
 - For every increase in TRBC of one unit, we expect [Hb] will increase by 1.81 g/dl. 
 --> This suggests that TRBC is the primary way through which birds increase [Hb], not MCV. Perhaps this is explained by increasing Hb through erythropoesis, increased cells, consistent w/ acclimatization response? 
-Also might suggest that TRBC increases happen faster than MCV increeases?? Not sure we learn about timing here. 
+Also might suggest that TRBC increases happen faster than MCV increases? 
 
 
 
@@ -806,7 +807,7 @@ For every unit increase in MCV, [Hb] increases by 0.14 g/dl
 
 # 3) species-specific CeNS models and the CeNS index 
 
-# Set up models...all currently in testing phase 
+# Set up models
 When datasets are large, priors are unlikely to have large influence unless they are highly informative.
 Best description of the effect of priors I've seen (look at the  comparison plot at the end!): https://www.rensvandeschoot.com/tutorials/brms-priors/
 TAKE HOME: Informative priors pull the posteriors towards them, while uninformarive priors yield a posterior that is centred around what would be the frequentist (LME4) estimate.
@@ -1299,7 +1300,7 @@ save(cens.Tfur, file="cens.Tfur.RData") # save model
 
 
 # IF YOU'VE ALREADY RUN MODELS, load in data to save time
-Send to job - takes longer than I'd anticipate to load in data.
+Send to job - takes longer than I'd anticipate to load in data; may just want to try loading individually
 ```{R}
 job::job({
 load("cens.Amel.RData")
@@ -1666,7 +1667,7 @@ Pgign %>%
 
 
 # FIGURE S1: Species-specific Conditional effects plots 
-This will be Figure S2 in paper. May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
+May want to move this to plots and figs script but leaving here now while I'm figuring stuff out. 
 ```{r}
 # Color options: 'arg' should be one of “blue”, “brightblue”, “darkgray”, “gray”, “green”, “orange”, “pink”, “purple”, “red”, “teal”, “yellow”, “viridis”, “viridisA”, “viridisB”, “viridisC”, “viridisD”, “viridisE”
 # color_scheme_set("blue") # nice default
@@ -2309,7 +2310,7 @@ plot(FigS1_PosteriorProbs)
 ggsave(FigS1_PosteriorProbs, filename = "FigS1_CeNS_Species-Specific_PosteriorProbs_2022-01-22.pdf", bg="transparent", height=7, width=12, units="in")
 ```
 
-JESSIE NOTE: Ideally need to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
+JESSIE NOTE: Would be cool to figure out how to get horizontal lines at zero on all plots as an x-axis marker (or set axes to all scame scale)
 
 
 # Bayes R^2 and model summaries  
@@ -2398,7 +2399,7 @@ write.csv(cens.mcv, "cens.mcv_Values_06-14-21.csv")
 
 
 # CALCULATE UNSTANDARDIZED CENS COEFFICIENTS FOR REAL-WORLD ESTIMATES 
-Trying to isolate whether variation in CeNS index is caused by sensitivity or variation...see notes from meeting with Chris. First step is to get estimates from unstandardized models and to plot these against CeNS coefficients. 
+Trying to isolate whether variation in CeNS index is caused by sensitivity or variation. First step is to get estimates from unstandardized models and to plot these against CeNS coefficients. 
 ```{r}
 job::job({ # Send this to a job so you can use the console while it runs
   #Note that job() is kind of wonky, sometimes doesn't run properly, & sometimes produces errors/doesn't save right models
@@ -2919,7 +2920,7 @@ fixef(cens.unst.Pcya)[3], fixef(cens.unst.Tfur)[3]
 )) 
 cens.unst.trbc
 length(cens.unst.trbc)
-write.csv(cens.unst.trbc, "cens.unst.trbc_Values_06-14-21.csv")
+#write.csv(cens.unst.trbc, "cens.unst.trbc_Values_06-14-21.csv")
 
 
 # Calculate vector of cens (standardized) MCV model estimates: 
@@ -2938,7 +2939,7 @@ fixef(cens.unst.Pcya)[2], fixef(cens.unst.Tfur)[2]
 )) 
 cens.unst.mcv 
 length(cens.unst.mcv)
-write.csv(cens.unst.mcv, "cens.unst.mcv_Values_06-14-21.csv")
+#write.csv(cens.unst.mcv, "cens.unst.mcv_Values_06-14-21.csv")
 ```
 
 
@@ -2970,8 +2971,8 @@ cens.ss.mean <- cens.ss %>% group_by(species) %>% summarise(hb = mean(hb),
                                                  # trbc.z = mean(trbc.z),
                                                   mchc = mean(mchc) # need to add mchc.z to cens.ss if you want it
                                                   )
-# NEED TO USE CENS.SS for this because it contains all individual data for the pared-down species subset used for species-
-# specific CeNS modeling (i.e., cens.sp is a mean dataset but has too many species in it)
+# NEED TO USE CENS.SS for this because it contains all individual data for the pared-down species subset used for
+# species-specific CeNS modeling (i.e., cens.sp is a mean dataset but has too many species in it)
 
 # Get genotypes for our CeNS subset 
 cens.genotypes <- cens.ss %>% group_by(species, genotype) %>% summarise(count = length(nk)) # Obs/species for ss dataset
@@ -3011,6 +3012,7 @@ Otherwise you risk R crashing when reloading all cumbersome models and files.
 
 # CeNS Plots
 What does our CeNS index look like in relation to other variables? 
+Note that these are some quick diagnostic plots; final *CeNS* plot versions are in `HumBlood_Plots&Figs.Rmd`. 
 ```{r}
 # Scatterplot: CeNS index v. elevation  
 (p5 <- ggplot(cens.ss.mean, aes(x=elev, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
@@ -3298,17 +3300,22 @@ lm_diag_plots(cens.index.mchc.model)
 # The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
 ```
 
-Some thoughts: Why did we choose to calculate cens index with estimates from models versus from raw data? Because we want each parameter's relative contribution to driving hemoglobin concentration, which we can't get without model estimates; pulling betas from models gives us the link to Hb. And perhaps what's interesting here is that after modeling this link, we actually find the opposite of what we do by analyzing the raw data: We do *not* see the concave/flipped parabola shape, which suggests that middle-elev species are increasing blood-O2 carrying capacity through higher MCV; instead what we find is that middle elev species are primarily increasing blood-O2 carrying capacity through increases in TRBC. This differs from the process of human acclimatization to altitude. Low and high elevation species both increase blood-o2 carrying capacity through increases through having bigger cells and fewer of them (higher MCV), but this effect is much stronger in high elevation hummingbird species, which have larger cells. 
+Notes: *Why did we choose to calculate cens index with estimates from models versus from raw data?* 
+Because we want each parameter's relative contribution to driving [Hb], which we can't get without model estimates; pulling betas from models gives us the link to Hb. 
 
+Wwhat's interesting here is that after modeling this connection between blood parameters, we actually find *the opposite* of what we do by analyzing the raw data: That is; we do *not* see the concave/flipped parabola shape, which suggests that middle-elev species are increasing blood-O2 carrying capacity through higher MCV; instead what we find is that middle elev species are primarily increasing blood-O2 carrying capacity through increases in TRBC. 
+
+This differs from the process of human acclimatization to altitude. Low and high elevation species both increase blood-o2 carrying capacity through having bigger cells and fewer of them (higher MCV), but this effect is much stronger in high elevation hummingbird species, which have larger cells. 
 
 
 
 
 ######
 
+
 #### CENS PREDICTION MODELING
 
-# What predicts CeNS index? 
+# What predicts the *CeNS* index? 
 ```{r}
 # READ IN CENS TREE
 # I took tree.final file and pruned to the subset of species in the CeNS species-specific model set 
@@ -3337,7 +3344,7 @@ cor(cens.ss.mean[,c("elev.z","mass.z", "wl.z", "cens.index", "mcv", "trbc")])
 
 
 # CeNS Phylogenetic Signal and Contmaps 
-# FIGURE S4 IN PAPER
+# FIGURE S4 IN PAPER (this one is *not* in `HumBlood_Plots&Figs.Rmd`)
 ```{r}
 # CONTMAPS 
 
@@ -3385,7 +3392,7 @@ phylosig(tree=tree.cens, x=just.cens, method="lambda", test=TRUE) # lambda=<0, p
 
 
 # CENS PREDICTION MODELS 
-In addition to the above contmaps and tests of phylo signal, I ran a first pass at models w/ phylogeny incorporated. Buerkner's hypothesis test supported lack of phylo signal, and only ~4% of the variance was explained by phylogeny. Since this is a poor predictor, remove this from our model plan. 
+In addition to the above contmaps and tests of phylo signal, I ran a first pass at models w/ phylogeny incorporated. Buerkner's hypothesis test supported lack of phylo signal, and only ~4% of the variance was explained by phylogeny. Since this is a poor predictor, remove this from our models 
 ```{r}
 # cens.index is alarmingly normally distributed, so start with gaussian 
 
@@ -3722,39 +3729,30 @@ Quick summary of top 3 models in order of ranking:
 2) (tied) Model 5: Reduced model w/ elev, elev quadratic, and mass. R^2 = 0.33.
 3) Model 4: Other full model w/ elev quadratic and genotype term. R^2 = 0.41
 
-
-
 All models are NOT substantially better than the intercept-only model. No phylogenetic signal in CeNS data. 
 
 
-**Some CeNS take-homes for our paper:**
-- Strong relationship between CeNS index and elevation: middle elevation species appear to adjust O2 carrying capacity through more cells while lower and high elev species adjust O2 carrying capacity through increases to cell size. 
+**Some CeNS take-homes:**
+- Strong relationship between CeNS index and elevation: middle elevation species appear to adjust O2 carrying capacity through more cells while lower and high elev species adjust O2 carrying capacity through increases to cell size (we provide detailed analysis of this in our paper). 
 - Strong relationship between CeNS index and mass (CeNS increases w/ increased mass)
-- Moderate relationship between CeNS index and wing loading (CeNS increases w/ increased WL)
+- Moderate relationship between CeNS index and wing loading (CeNS increases w/ increased WL; CIs overlap zero)
 - No phylogenetic signal in CeNS index 
-
-
-
------
-
-
-
-If I take the raw data values for TRBC/MCV+TRBC (maybe after standardizing), what do plots look like? 
-```{R}
-# Answer: It's nonsensical 
-# test <- cens.ss.mean
-# test$cindex <- 1-(test$trbc.z/(test$mcv.z + test$trbc.z))
-```
 
 
 
 ----
 
-# A test of converting between standardized and unstandardized coefficients 
+# RELEVANT NOTES: A test of converting between standardized and unstandardized coefficients 
+
 **Standardized:** Necessary when predictors are on many scales; allow for comparison of relative strength of predictors; units are standard deviations (so not really real-world interpretable)
+
 **Unstandardized:** Acceptable when all predictors have the same units; denotes the change in the dependent variable with a unit increment in the independent variable (while holding other predictors constant); units are x and y units. 
-= So, each has a different purpose. We need to run our models with standardized inputs, but we want to know unstandardized beta estimates to estimate the strength of each x on y. 
+
+So, each has a different purpose. We need to run our models with standardized inputs, but we want to know unstandardized beta estimates to estimate the strength of each x on y. 
+
 This is best achieved by running the top model with unstandardized predictors and ONLY interpreting the coefficients in terms of unit change for x and y. We can attempt to convert standardized estimates to unstandardized and vice-versa (see trials below), but this results in fairly large margins of error between estimates that are hard to explain. 
+
+In short, converting standardized to unstandardized to estimate real world effects DOES NOT WORK - the converted "unstandardized" betas never match those estimated from unstandardized models. These notes describe attempts to understand why: 
 ```{r}
 # # EQUATION FOR CONVERTING STANDARDIZED COEFFICIENTS TO UNSTANDARDIZED: 
 # # standardized x1 predictor estimate * (standard deviation of y/standard deviation of x1)
@@ -3908,7 +3906,7 @@ This is best achieved by running the top model with unstandardized predictors an
 
 While it's possible to estimate unstandardized coefficients from standardized, I come up with measurement differences between the hand-estimated and model-estimated unstandardized coefficients, and I don't like that. It seems the best approach is to: 
 1) Run model sets with standardized coefficients to determine differences among predictors and strength of effects; generate posterior estimates and plots from these models --> i.e., allows you to say elevation has a stronger effect than temperature on Hb. 
-2) Run the top model with unstandardized coefficients. Use this model summary to estimate the magnitude of change in y relative to each x, but DO NOT compare among x variables. --> i.e., does not allow you to compare the magnitude of effect of elevation vs. temperature on Hb, but DOES allow you to say that for every 100 m increase in elev you expect [hb] to increase by 1.0 g/dl, for example (these are not real numbers). 
+2) Run the top model with unstandardized coefficients. Use this model summary to estimate the magnitude of change in y relative to each x, but DO NOT compare among x variables. --> i.e., does not allow you to compare the magnitude of effect of elevation vs. temperature on Hb, but DOES allow you to say that for every 100 m increase in elev you expect [hb] to increase by 1.0 g/dl, for example (FYI I just made up those numbers for this hypothetical example). 
 
 More on these topics here: 
 https://www.researchgate.net/post/Standardized-vs-Unstandardized-regression-coefficients
@@ -3922,7 +3920,7 @@ https://www.researchgate.net/post/What-is-the-difference-between-standardized-an
     Comparison of relative emphasis given to individual IVs is only possible when all are on a common scale, so standardized coefficients would be the ones to look at when you are trying to determine relative weight given to each IV."
 
 
-
+-----
 
 
 # Print environment for reproducibility
