@@ -1,82 +1,34 @@
-# Comparative Hummingbird Blood
-What drives variation in blood-oxygen carrying capacity? We zoom in on one clade along a broad range of elevational gradients to get at causes of variation in detail. 
+# Code for Williamson et al., Oxygen availability drives blood traits and the cell number-size tradeoff across Andean hummingbirds
+What drives variation in blood-O2 carrying capacity? We zoom in on one clade along a broad range of elevational gradients to get at causes of variation in detail. 
+
+**Our preprint is now live on bioRxiv:** https://www.biorxiv.org/content/10.1101/2022.01.18.476833v1
 
 
 # QUESTIONS 
-
-**1) How do blood parameters vary with abiotic aspects of the environment?** 
-Predictors: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index (PC1 of 19 BioClim variables)
-4) aridity index (PC1 of 19 BioClim variables)
-5) latitude
-
-**2) How to blood parameters vary with aspects of species biology?** 
-Predictors: 
-5) body mass
-6) hemoglobin genotype (beta13-beta83 genotype) 
-
-**3) Are patterns in blood phylogenetically constrained?**
-
-**4) What relationships exist among blood parameters?**
-6 total: [Hb], Hct, TRBC, MCV, MCH, MCHC
+In this paper we ask: 
+**1)** To what extent do blood traits shift predictably with elevational changes in O2 availability, while controlling for other sources of variation?
+**2)** Do blood traits vary with O2 availability differently over developmental (within species) and evolutionary (among species) time scales? 
+**3)** How are blood traits affected by phylogenetic history and evolved species differences, such as body mass, metabolic intensity, and known genetic variants that affect Hb-O2 binding affinity?
+**4)** To what extent are individual and species variation in O2-carrying capacity per unit volume of blood attributable to changes in cell number versus cell size? 
+**5)** Does manifestation of the cell number-size tradeoff vary predictably among species?
 
 
 # DATASET 
-Dataset includes blood data for 77 species of hummingbirds from Chile and Peru. Sampling was conducted from 2006-2020 by students, affiliates, researchers, and professors at the Museum of Southwestern Biology at the University of New Mexico. All data are linked to vouchered specimens*.
-*Note: Because some tissues and specimens haven't been exported from Peru, and because Chile collection isn't yet catalogued, not all are archived in Arctos. 
+We collected specimen-vouchered hematological data from hummingbirds from 2006–2020 across a 4,578-meter elevational gradient in the Andes (Chile and Peru). Data for six blood traits (hemoglobin concentration ([Hb]), hematocrit (Hct), total red blood cell count (TRBC), mean cell volume (MCV), mean cell hemoglobin (MCH), and mean cell hemoglobin concentration (MCHC)) from 1,217 individuals of 77 species were used to model within- and among-species variation, respectively. All data are linked to vouchered specimens housed at the **Museum of Southwestern Biology** (MSB) at the University of New Mexico, the **Centro de Ornitología y Biodiversidad** in Peru, and the **Pontificia Universidad Católica de Chile** in Chile. Specimen records are accessible in the Artcos database (https://www.arctosdb.org). 
 
-# APPROACH 
-We will build 6 sets of phylogenetic mixed models in brms (x 10 models per set)
+ 
+# R SCRIPTS
 
-Response variables: 
-1) Hb
-2) Hct
-3) TRBC
-4) MCV
-5) MCH
-6) MCHC
-
-Predictor set for each set of models: 
-1) elevation 
-2) elevation position (position relative to the width of the elevational range; scale from 0-1)
-3) temperature index
-4) precip index
-5) latitude 
-6) mass
-7) Hb genotype    
-8) intraspecific variation: elevation
-9) intraspecific variation: elevation position
-10) intraspecific variation: latitude
-11) intraspecific variation: mass
-12) intraspecific vatiation: precip
-13) intraspecific variation: temp 
-+ (1|species)
-+ (1|phylogeny)
-
-For each response, we will include: 
-1) Null model (intercept-only)
-2) Random effects-only model (intercept + phylogenetic random effect + species random effect)
-3) Full model with no random effects (just predictors) 
-4) Full model with just phylo random effect
-5) Full model with just species random effect 
-6) Full model with phylo and species random effects 
-7) Reduced model with no random effects (just predictors whose CIs do NOT overlap zero)
-8) Reduced model with just phylo random effect 
-9) Reduced model with just sepcies random effect 
-10) Reduced model with phylogenetic and species random effects 
-
-We'll use LOOIC and WAIC to compare model sets.
-
-
-
-**R scripts:** 
-
-`HumBlood_DataWrangling.Rmd`: This script includes: processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, etc.
+`HumBlood_DataWrangling.Rmd`: This script includes code for processing raw data, evaluating and eliminating outliers, creating new variables, combining data w/ Stotz, making individual elevational range adjustments, processing spatial data and generating sampling map, BioClim processing, reading out of final data file for modeling, plotting, and downstream analyses. Start here. 
 
 `HumBlood_Phylogeny.Rmd`: Script to process McGuire et al. 2014 hummingbird phylogenies for our specific subsets. 
 
-`HumBlood_Modeling.Rmd`: This script includes: Reading in pre-processed data from "HumBlood_DataWrangling.Rmd", standardizing predictors, making data subsets that match subsetted phylogenies (so there are no NAs in any dataset for modeling), and then running, checking, plotting sets of Bayesian phylogenetic mixed models w/ brms(). 
+`HumBlood_PhyloElevRangeMapFig.Rmd`: Code and notes for making phylo elev range component of Figure 1 (note that final figure was constructed in Adobe Illustrator; script details when this happens).
+
+`HumBlood_Modeling.Rmd`: Read in processed data from "HumBlood_DataWrangling.Rmd", standardize predictors, make data subsets that match phylogeny subsets (so there are no NAs in any dataset for modeling), and then run checking, plotting sets of Bayesian phylogenetic mixed models w/ brms(). Script details all inndividual-level (within species) models. 
+
+`HumBlood_Modeling_SpeciesMeans.Rmd`: Very similar to `HumBlood_Modeling.Rmd`, but this script outlines the procedure for processing data and running and evaluating species mean (among species) models. 
+
+`HumBlood_CeNS.Rmd`: Script contains all code and annotations required to reproduce our three-pronged cell number versus cell size analyses: 1) variation in cell number versus size within species, among species, and within single-species, respectively; 2) creation of the Cell Number versus Size Index (*CeNS*) using species-specific model coefficients; 3) analysis of the factors that contribute to variation in *CeNS*.
 
 `HumBlood_Plots&Figs.Rmd`: This script contains exploratory plots, polished plots, and figures for our all-hummingbird blood comparison. These are separated into a standalone script to not bog down main script.
