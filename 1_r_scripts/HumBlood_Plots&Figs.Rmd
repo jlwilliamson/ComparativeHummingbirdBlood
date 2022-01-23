@@ -1,7 +1,7 @@
 ---
 title: "Plots and Figures for Comparative Hummingbird Blood paper"
 author: "Jessie Williamson"
-date: "7/21/2020; last revised 01/22/22"
+date: "7/21/2020; last revised 01/23/22"
 output:
   md_document:
     variant: markdown_github
@@ -13,7 +13,7 @@ PLOTS & FIGS SCRIPT
 
 ####
 
-This script contains exploratory plots, polished plots, and figures for allhummingbird_blood_comparison.Rmd. These are separated into a standalone script to not bog down main script. 
+This script contains plots and figures for Williamson et al., Comparative Hummingbird Blood. These are separated into a standalone script to not bog down main scripts because some multi-panel figs are beefy. 
 
 
 # Load packages
@@ -94,7 +94,6 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 # source("ada_functions.R") # Erik's ADA functions for clean & collated lm diag plots
 
 # Final hummingbird blood dataset
-# Don't need to load if already loaded from another script 
 final <- read.csv("ComparativeHummingbirdBlood_FinalDataset_ForModeling_06-14-21.csv")
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
@@ -255,7 +254,7 @@ hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
 
 
 # FIGURE 2: COMBINED INDIVIDUAL-LEVEL AND SPECIES MEAN DATA IN ONE MASTER PLOT 
-This is the older version of Figure 2 - 6-panel fig w/ relationship between predictors and elevation. Linear models fit to main plots, no break point analysis. 
+Figure 2, a 6-panel fig w/ relationship between predictors and elevation. Linear models fit to main plots (break point analysis is in the supplement)
 ```{r}
 # IMPORTANT! Read in 'final' dataset, set levels and colors for hum_colors above
 
@@ -713,7 +712,7 @@ ggsave(Fig2_v2_all_data, filename = "Fig2_v2_all_data_Dashed-and-Solid_2022-01-1
 
 
 ### FIGURE 3 - 6-panel blood posterior probability fig (intraspecific model main panesls w/ interspecific model insets)
-An attempt at making a 6-panel posterior probability plot figure with individual-level data showing full models of species-mean data in insets within each plot. 
+A 6-panel posterior probability plot figure with individual-level data showing full models of species-mean data in insets within each plot. 
 
 #Set up some figure aesthetics and load in data: 
 ```{r}
@@ -1152,7 +1151,7 @@ ggsave(fig3_v2_Indiv_and_SpeciesMean, filename = "Fig3_PosteriorProbPlots_Indiv_
 
 
 
-# FIGURE 4 (3-panels, banana plots + CeNS): CELL NUMBER-SIZE TRADEOFF + CENS RESULTS
+# FIGURE 4 (6-panel fig): CELL NUMBER-SIZE TRADEOFF + CENS RESULTS
 
 Quick workup of predictors: 
 ```{r}
@@ -1330,7 +1329,6 @@ ggsave(Fig4_PanelC, filename="Fig4_PanelC_RBC_vs_MCH_Scatterplot_ColoredByElev_2
 
 ####
 
-
 # REDUCED CeNS model 
 # Main: Best full CeNS model (M3) 
 color_scheme_set("viridisC") # Used viridisD for other posterior prob plots (figure 4)
@@ -1358,32 +1356,7 @@ fig4d_reduced <- mcmc_plot(cens.m5, variable=c("b_mass.z", "b_elev.z", "b_Ielev.
 fig4d_reduced
 ggsave(fig4d_reduced, filename = "fig4d_reduced_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
-
-# # Inset (M5, which is reduced M3)
-# color_scheme_set("viridisC") # Used viridisD for other posterior prob plots (figure 4)
-# #color_scheme_set("brightblue")
-# fig4d_inset <- mcmc_plot(cens.m5, variable=c("b_mass.z", "b_elev.z", "b_Ielev.zE2"),
-#                prob_outer=0.95, # 95% outer CI
-#                prob=0.89, # 50% inner CI
-#                point_est="mean", # mean point est; default is median
-#                point_size=3, inner_size=2) + # Adjust line and point thickness for inset formatting
-#                labs(x=expression(paste("Effect on"~italic(CeNS)~"(reduced model)"), title = "")) + 
-#               # labs(x="Effect on CeNS\n (reduced model)", title = "") +
-#                scale_y_discrete(labels=c("Mass", "Elevation", "Elevation^2")) + 
-#                theme(plot.title = element_text(family = "Helvetica", color="black", size=11)) + # font = panel header size
-#                theme_bw() +  #theme with white background
-#                theme(plot.background=element_blank(),  # eliminates background, grid lines, and chart border
-#                     panel.grid.major=element_blank(),  panel.grid.minor=element_blank(), panel.border=element_blank()) +
-#                theme(axis.line = element_line(color = 'black')) + # draws back x and y axis lines
-#                theme(axis.text=element_text(size=7), axis.title=element_text(size=7)) + # y-axis text, x-axis text
-#                # ggtitle("D") + # Assign panel number/header
-#                theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-#                plot.title = element_text(face="bold"))  # This makes panel header bold
-#                # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-#                #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-# fig4d_inset
-# ggsave(fig4d_inset, filename = "fig4d_inset_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
-
+####
 
 # PANEL E: CENS V. ELEVATION 
 # Get R^2 for Panel D
@@ -1482,7 +1455,7 @@ ggsave(Figure4_TradeoffAndCeNS_Results, filename = "Figure4_TradeoffAndCeNSResul
 
 ######## SUPPLEMENTAL FIGS ######## 
 
-# FIGURE S1: In CeNS script. Sigle-species posterior probability plots. 
+# FIGURE S1: In `HumBlood_CeNS.Rmd` script. Sigle-species posterior probability plots. 
 
 
 # FIGURE S2: supplementary CeNS results. 
@@ -1647,7 +1620,7 @@ ggsave(FigureS3, filename="CensIndex_vs_Genotype_2022_01-22.pdf", height=5, widt
 ```
 
 
-# FIGURE S4: in CeNS script, contmap showing CeNS across the phylogeny
+# FIGURE S4: in `HumBlood_CeNS.Rmd` script, contmap showing CeNS across the phylogeny
 
 
 # FIGURE S5: CENS DIAGNOSTIC PLOT - correlations between R^2, TRBC estimates, and MCV estimates
