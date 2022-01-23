@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood - Phylogeny"
 author: "Jessie Williamson"
-date: "7/19/2020"
+date: "7/19/2020; last revised 1/23/22"
 output:
   md_document:
     variant: markdown_github
@@ -17,10 +17,10 @@ Script to process phylogeny for 'Hummingbird blood data from an interspecific co
 
 **General workflow:** 
 Read in McGuire et al. 2014 hummingbird phylogeny, prune tree to just species of interest (77 total)
-Add in missing species (two: Oreotrochilus leucopleurus and Phaethornis stuarti)
+Add in missing species (two: *Oreotrochilus leucopleurus* and *Phaethornis stuarti*)
 Adjust branch lengths, review tree
 Save final tree file and read this out as .tre
-This will get read into main analysis script allhummingbird_blood_comparison.Rmd for modeling.
+This will get read into several analysis scripts for modeling.
 
 
 ```{R, echo=FALSE}
@@ -112,9 +112,10 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 
 # Read in data files: 
 # Remember you want "species" to be a character for tree subsetting below 
-final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_07-18-20.csv", stringsAsFactors = FALSE)
+final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-14-21.csv", stringsAsFactors = FALSE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
+# (These are made in modeling scripts)
 final.hb <- read.csv("HumBlood_final.hb.csv", stringsAsFactors = FALSE)
 final.hb <- final.hb[ , !(colnames(final.hb) %in% c("X"))] # drop weird X column 
 
@@ -158,9 +159,9 @@ mcguire_tip_labels <- as.data.frame(mcguire_tip_labels)
 
 # Prune master McGuire tree to desired species subset (77 tips)
 ```{r}
-# Manually select all tip labels you want to drop
+# So clunky, but manually select all tip labels you want to drop
+# Variable names make this tricky and hard to automate
 # We'll prune this full McGuire tree to one with only 77 tips for our Hummingbird Blood Comparative models 
-
 # NOTE: McGuire tree doesn't include Oreotrochilus leucopleurus and Phaethornis stuarti: I deal with that below. 
 
 to_drop <- c("Amazilia.viridicauda.8158",
@@ -1135,7 +1136,7 @@ updated.names <- c("Adelomyia melanogenys",
     }
   }
 
-ape::write.tree(tree.prune1, file="McGuire_Pruned_AllHummingbirdData_07-19-20.tre") # write out file 
+#ape::write.tree(tree.prune1, file="McGuire_Pruned_AllHummingbirdData_07-19-20.tre") # write out file 
 
 # Get branch lengths, which you'll manually adjust after adding in O. leucopleurus and P. stuarti
 plotTree(tree.prune1)
@@ -1146,7 +1147,7 @@ tree.prune1[[2]]
 ```
 
 
-# Add in missing species and adjust branch lengths
+# Add in missing species (*Oreotrochilus leucopleurus* and *Phaethornis stuarti*) and adjust branch lengths
 ```{R}
 tree.prune2 <- tree.prune1 # Make a new copy to avoid running all code again above in case of error 
 is.rooted(tree.prune2) # verify that tree is rooted
@@ -1156,7 +1157,7 @@ tree.prune2$tip.label # Double check to make sure these updated
 
 # ADD IN TWO MISSING SPECIES: OREOTROCHILUS LEUCOPLEURUS AND PHAETHORNIS STUARTI
 
-# Oreotrochilus leucopleurus is sister to Oreotrochilus estella (per Sornoza-Molina et al. 2018, The Auk)
+# Oreotrochilus leucopleurus is sister to Oreotrochilus estella (per Sornoza-Molina et al. 2018)
 tree.prune3 <- bind.tip(tree.prune2, "Oreotrochilus leucopleurus",
                         where=which(tree.prune2$tip.label=="Oreotrochilus estella")) # edge.length argument not working
 plotTree(tree.prune3, ftype="i") # Oreotrochilus looks good 
@@ -1172,8 +1173,8 @@ plotTree(tree.prune3, ftype="i") # stuarti now sister to ruber
 ```
 
 Notes on the above code chunk: 
-- Oreotrochilus is all good and reflects current taxonomy of Sornoza-Molina et al. 2018, The Auk 
-- My way of doing this for Phaethornis stuarti is *extremely* clunky. McGuire doesn't have stuarti, and the only other published Phaethornis phylogeny I could find was from 1997 (and looks outdated). BirdTree puts ruber sister to atrimentalis with stuarti on an earlier and longer branch. 
+- *Oreotrochilus* is  good and reflects current taxonomy of Sornoza-Molina et al. 2018, Auk 
+- My way of doing this for *Phaethornis stuarti* is clunky. McGuire doesn't have stuarti, and the only other published Phaethornis phylogeny I could find was from 1997 (looks outdated). BirdTree puts ruber sister to atrimentalis with stuarti on an earlier and longer branch. 
 - Since we don't have any other phylogeny to go on and know that stuarti is in the tiny ruber-atrimentalis hermit clade, I want to use BirdTree's estimated position. But since McGuire's tree is best, I want to use McGuire's rates, when possible. 
 - Phytools wasn't cooperating with me adding P. stuarti to the node or edge before ruber-atrimentalis. Instead, I added stuarti sister to ruber. Then, below, I flip-flop stuarti and atrimentalis names to reflect where BirdTree estimates the order of the three. 
 - THEN, I adjust branch lengths to retain McGuire estimates for the ruber-atrimentalis split and aligning tip labels. 
@@ -1200,24 +1201,23 @@ tree.prune3$edge.length # Need to eyeball these edge lengths for 0.000 values ca
 # Then manually update edge values in the list to adjust branch lengths
 # I'm sure there's a better way to do this, but this is the best I've come up with so far
 
-# Now switch atrimentalis and stuarti to be more consistent with BirdTree estimation of relationships
+# Now switch atrimentalis and stuarti to be consistent with BirdTree estimation of relationships
 tree.prune3[[4]][[2]] <- "Phaethornis_atrimentalis" # Flip flop stuarti and atrimentalis 
 tree.prune3[[4]][[3]] <- "Phaethornis_stuarti"
 
 # Update Oreotrochilus branch lengths 
 tree.prune3[[2]][150] <- 0.144828 # O. estella tip (estimate calculated above from Sornoza-Molina et al. 2018)
 tree.prune3[[2]][151] <- 0.144828 # O. leucopleurus tip (estimate calculated above from Sornoza-Molina et al. 2018)
-tree.prune3[[2]][149] <- 0.5965517 # Branch leading to O. estella and melanogaster (estimate tweaked from S-M et al. 2018)
+tree.prune3[[2]][149] <- 0.5965517 # Branch  to O. estella and melanogaster (estimate tweaked from S-M et al. 2018)
 # Notes on this last one: adjust this to get tips aligned. 
-# This was Originally 0.7480506 in McGuire; I calculated melanogaster-estella/leucopleurus rate (t=0.0288/(2*0.029)) from 
-# Sornoza-Molina, which gave me 0.4965517 and then I bumped this up to 0.5965517 to make tips flush.
+# This was Originally 0.7480506 in McGuire; I calculated melanogaster-estella/leucopleurus rate (t=0.0288/(2*0.029)) from # Sornoza-Molina, which gave me 0.4965517 and then I bumped this up to 0.5965517 to make tips flush.
 
 # Update Phaethornis branch lengths 
 tree.prune3[[2]][8] <- 1.5450608 # P. ruber tip (estimate from McGuire et al. 2014) 
 tree.prune3[[2]][9] <- 1.5450608 # P. atrimentalis  tip (estimate from McGuire et al. 2014)
 tree.prune3[[2]][7] <- 0.987 # Branch leading to P. atrimentalis and P. ruber; originally 1.5450608
 # I subbed this value in from the branch length leading to the two 0.558 rubers from McGuire. 
-# So, this branch length is an estimate based on similar relationships in this clade presented in McGuire (ruber to ruber)
+# So, this branch length is an est based on similar relationships in this clade presented in McGuire (ruber to ruber)
 tree.prune3[[2]][10] <- 2.517591 # P. stuarti tip (Lengthened to more closely match BirdTree) 
 tree.prune3[[2]][6] <- 4.9906429 # Base branch leading to this P. clade (Shortened to make tips flush) 
 tree.prune3[[2]] # Check all branch lengths 
@@ -1232,11 +1232,10 @@ plotTree(tree.prune3, ftype="i")
 # Check all edge labels to verify they updated 
 plotTree(tree.prune3)
 edgelabels(round(tree.prune3$edge.length,3), cex=0.4)
-
 ```
 
-Recap for methods: 
-McGuire tree was pruned to match species list. Oreotrochilus leucopleurus and Phaethornis stuarti were added in. Branch lengths and position of O. leucopleurus were calculated from genetic distances and sister relationships described in Sornoza-Molina et al. 2018. P. stuarti position and approximate branch length was inferred from BirdTree (cite Jetz). Branch lengths in the Phaethornis clade were updated to reflect McGuire, and adjustments were made to align tips as was necessary for estimates. 
+**Recap for methods:**
+McGuire tree was pruned to match species list. *Oreotrochilus leucopleurus* and *Phaethornis stuarti* were added in. Branch lengths and position of *O. leucopleurus* were calculated from genetic distances and sister relationships described in Sornoza-Molina et al. 2018. *P. stuarti* position and approximate branch length was inferred from BirdTree (cite Jetz). Branch lengths in the *Phaethornis* clade were updated to reflect McGuire, and adjustments were made to align tips as was necessary for estimates. 
 
 
 # Save final tree 
@@ -1254,9 +1253,8 @@ ape::write.tree(tree.final, file="McGuirePruned_AllHummingbirdComparativeTree_FI
 ```
 
 
-# Make response-variable tree subsets and save subset tree files
+# Make blood trait-specific tree subsets and save subset tree files
 ```{r}
-
 # Add underscores to species names to match tip labels 
 final$species <- sub(" ", "_", final$species)
 final.hb$species <- sub(" ", "_", final.hb$species) 
@@ -1292,8 +1290,8 @@ tree.mchc$tip.label # 73 tips
 ```
 
 
-# MAKE A SPECIES MEAN TREE WITH PGIGN AND PGIGS
-Because we'll analyze Patagona_gigas_S and Patagona_gigas_N as functionally different, add in Patagona_gigas_S to final pruned tree and adjust branch lengths to reflect known percent divergence based on our preliminary ND2 data. 
+# MAKE A SPECIES MEAN TREE WITH PGIGN AND PGIGS (*Patagona gigas* north and *Patagona gigas* south)
+Because we'll analyze Patagona_gigas_S and Patagona_gigas_N as functionally different lineages, add in Patagona_gigas_S to final pruned tree and adjust branch lengths to reflect known percent divergence based on our preliminary ND2 data. 
 ```{r}
 tree.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
 is.rooted(tree.final) # verify that tree is rooted; TRUE = tree is rooted (we want this)
@@ -1306,7 +1304,7 @@ spm.tree1$edge.length
 
 # Get divergence estimates for PgigasN and PgigasS
 pgig.div <- round(0.07399794/(2*0.029), 6); pgig.div 
-# This is ~7.3% divergence; ~72/973 bp of ND2
+# This is ~7.3% divergence; ~72/973 bp of ND2 (based in Williamson et al, In Prep)
 
 # Add tip for Patagona_gigas_S sister to Patagona_gigas_N
 # With divergence time of 1.275827 Ma and duration (edge length) of 1.275827
@@ -1323,7 +1321,7 @@ ape::write.tree(tree.spm.final, file="McGuirePruned_AllHummingbirdComparativeTre
 ```
 
 
-# MAKE CENS TREE FOR ASSESSMENT OF PHYLO SIGNAL
+# MAKE *CeNS* TREE FOR ASSESSMENT OF PHYLO SIGNAL
 Tree pruned to the subset of 32 species used in the species-specific CeNS analysis. 
 ```{r}
 # Since I haven't worked with this script for a while, read in final tree
@@ -1340,7 +1338,6 @@ plot(tree.spm.final)
 cens.data.for.tree <- cens.ss.mean
 str(cens.data.for.tree) # Check data structures 
 cens.data.for.tree$species <- as.character(cens.data.for.tree$species) # w/ keep.tip, "species" MUST BE CHAR, not factor! 
-
 # Prune CeNS sub-tree
 tree.cens <- keep.tip(tree.spm.final, cens.data.for.tree$species)
 
@@ -1368,8 +1365,6 @@ sessionInfo() # List of packages and versions in use
 
 # TUTORIALS, ETC. 
 
-
-
 This tutorial had the best info for binding new species to trees, etc.: 
 http://www.mpcm-evolution.com/practice/online-practical-material-chapter-2/chapter-2-1-exercises-building-manipulating-phylogenetic-trees
 
@@ -1379,11 +1374,4 @@ http://blog.phytools.org/2013/11/new-function-to-add-species-to-genus-in.html
 I used this tutorial to visualize tree and drop tip labels: 
 https://yulab-smu.github.io/treedata-book/chapter2.html
 
-
-
-CUT NOTES: 
-# For P. stuarti: I took the estimated divergence times of P. ruber from the pruned McGuire Phaethornis tree (above)
-# which were 0.558. The branch length leading to those was 0.987, so I subbed that value in. 
-
-# For Oreotrochilus, I calculated divergence times from Sornoza-Molina et al. 2018, estimated at 0.145. 
-# Then I adjusted the branch length leading to O. estella and O. melanogaster until tips aligned. 
+ 

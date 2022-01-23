@@ -442,7 +442,8 @@ full <- full[ , !(colnames(full) %in% c("preparator"))]
 # Write out 'full' w/ ALL data - to be published in Witt et al. (In Prep)
 *Full data for Williamson et al. and Linck et al. will be published in Witt et al., a large data paper describing blood measurements for hundreds of species from 2006-2020. 
 ```{r}
-# write.csv(full, "TableS2_SpecimenTable_2021_06-10.csv") # Note that this is NOT in Williamson et al. after all. 
+#write.csv(full, "AllHumBlood_full-dataset_notfinal_forreference_2022-01-23.csv") 
+    # Note that this is NOT in Williamson et al.; will be published with Witt et al. 
 # Remember that you don't want to write over this fresh each time because you'll convert to .xlsx and 
 # manually add Arctos links, etc
 ```
