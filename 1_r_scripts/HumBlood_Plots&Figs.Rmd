@@ -1270,7 +1270,7 @@ PRINT FIGURE 4.
     theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
     theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
 )
-ggsave(Fig4_PanelA, filename="Fig4_PanelA_BananaHeatGradient_2021-11-19.pdf", height=5, width=6, units="in") 
+ggsave(Fig4_PanelA, filename="Fig4_PanelA_BananaHeatGradient_2022-01-24.pdf", height=5, width=6, units="in") 
 
 
 # PANELS B AND C
@@ -1373,18 +1373,19 @@ round((1 - (fig4.panelE.r2$deviance/fig4.panelE.r2$null.deviance)),2) # R^2 = 0.
   # geom_smooth(method = "lm", size = 1,colour="darkturquoise", size=1.0) + # linear 
   theme_classic() + 
   labs(x="Elevation (m)", 
+      # y="Cell Number-Size Index (0-1)") + 
        y=expression(italic(CeNS))) + # CeNS = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "right") + 
   annotate("text", x=4000, y=0.72, size=3.2, label = "italic(R) ^ 2 == 0.13", parse = TRUE) + # Add R^2 value
-  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
   theme(plot.margin = unit(c(0.0,0.0,0.0,0.0), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
  )
-ggsave(fig4e, filename="fig4e_CeNSindex_by_MeanElev_2022-01-22.pdf", height=7, width=9, units="in")
+ggsave(fig4e, filename="fig4e_CeNSindex_by_MeanElev_2022-01-22.pdf", height=7, width=7, units="in")
 
 
 ##### 
