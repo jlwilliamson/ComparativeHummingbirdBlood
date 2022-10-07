@@ -1,7 +1,7 @@
-# Code for Williamson et al., Oxygen availability drives blood traits and the cell number-size tradeoff across Andean hummingbirds
+# Code for Williamson et al., Hummingbird blood traits track oxygen availability across space and time
 What drives variation in blood-O2 carrying capacity? We zoom in on one clade along a broad range of elevational gradients to get at causes of variation in detail. 
 
-**Our preprint is now live on bioRxiv:** https://www.biorxiv.org/content/10.1101/2022.01.18.476833v1
+**Our preprint is now live on bioRxiv:** https://www.biorxiv.org/content/10.1101/2022.01.18.476833v3
 
 
 # QUESTIONS 
