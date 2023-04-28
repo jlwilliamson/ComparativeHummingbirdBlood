@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood: Data Wrangling"
 author: "Jessie Williamson"
-date: "11/23/2020; last revised 2023-01-06"
+date: "11/23/2020; last revised 2023-04-20"
 output:
   md_document:
     variant: markdown_github
@@ -231,6 +231,17 @@ q6 <- (qqPlot(full$mchc)) # Still a little off at the tails, but very livable
 # Categorical predictors
 p <- ggpairs(subset(full, select = c(sex, month, age))) # dpto, provincia, & distrito have too many categories
 print(p)
+
+# Counts for each variable by numeric, not very helpful
+#full %>% count(hb)
+
+## At this point we have the following numbers of observations: 
+# Hb: 1046
+# Hct: 1149
+# TRBC: 809
+# MCV: 790
+# MCH: 980
+# MCHC: 757
 ```
 
 
@@ -240,16 +251,19 @@ I think the best approach is to create separate subsets that remove outliers for
 ```{r, message=FALSE, warning=FALSE}
 # FULL DATASET OUTLIERS 
 # For [Hb]: drop any value <14 or >25
-# DuBay and Witt range from 13.2-21.4 g/dl
+# DuBay and Witt range = 13.2-21.4 g/dl
 # full <- full[-which(full$hb < 14 | full$hb > 25),] # No Hb outliers 
 
 # for Hct: drop any value <35 or >75
 # (we originally had this set to 72 but I bumped it to 75 after examining distribution)
 # DuBay and Witt range from 46.3-58.1 for Hct
 # Campbell and Ellis report "normal" range for birds 35-55
-# <35% suggests anemia; >55% suggests dehyrdation or erythrocytocis (polycythemia; increase in RBCs)
+# <35% suggests anemia; >55% suggests dehydration or erythrocytosis (polycythemia; increase in RBCs)
 # They note that PCV > 70% is usually indicative of chronic pulmonary disease 
 full <- full[-which(full$hct < 35 | full$hct > 75.2),] # 3 observations 
+
+# Calculate percent total dropped:
+round(3/1149*100,2) # 0.26%
 
 # For TRBC: drop any value <2 or >10
 # I read somewhere online that bird 'normal' range is 2.5-4.5, with lower indicating anemia
@@ -258,22 +272,35 @@ full <- full[-which(full$hct < 35 | full$hct > 75.2),] # 3 observations
 # Based on inspection of the distribution, we pick an informed range of 2-10
 full <- full[-which(full$trbc < 1.8 | full$trbc > 10.2),] # -7 observations 
 
+# Calculate percent total dropped:
+round(7/809*100,2) # 0.87%
+
+
 # Note: Campbell and Ellis 2007 say: 
 # "assessment of abnormal values of MCV, MCH, and MCHC has not been properly evaluated in birds"; let distribution guide!
 
 # for MCV: drop any value <50 or >200
 full <- full[-which(full$mcv < 50 | full$mcv > 150),] # 29 observations 
-# Cambpell & Ellis note that 308 MCV is "large" & indicative of younger cells while 128 is smaller, suggests older cells
+# Campbell & Ellis note that 308 MCV is "large" & indicative of younger cells while 128 is smaller, suggests older cells
 # I made upper limit cut-off 150 instead of 200 after looking at distributions again; makes hist and qqPlots look better
+
+# Calculate percent total dropped:
+round(29/790*100,2) # 3.67%
 
 # for MCHC: drop any value <24 or >40
 # Campbell and Ellis values range from 20-38.5 (Table B3); Dubay & Witt values range from 
 # DuBay and Witt range from 26.5-36.9 g/dl
 full <- full[-which(full$mchc < 24 | full$mchc > 40),] # -8 observations 
 
+# Calculate percent total dropped:
+round(8/757*100,2) # 1.06%
+
 # for MCH: drop any value 
 # Elarabany 2018 values for two duck species range from 24.6-31.1 PG; normal range for humans is 32-36 gm/dl 
 full <- full[-which(full$mch < 19 | full$mch > 50),] # 28 observations 
+
+# Calculate percent total dropped:
+round(28/980*100,2) # 2.86%
 
 # Take a look at the unique number of species in the dataset and observations per species:
 sp.count.full <- full %>% group_by(species) %>% summarise(count = length(nk))
@@ -285,14 +312,14 @@ write.csv(sp.count.full, "/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/Comparativ
 # 1,151 total data points for analysis
 ```
 
-Note about outlier removal: Since dropping extreme values can result in more data lost (though I'd argue that 66 total observations isn't much), an alternative approach would be to only eliminate outliers for each response variable data subset, thereby retaining more subset-specific data; i.e. by just dropping MCV outliers in MCV dataset, I'd then keep normal Hb values associated with outlier MCV values)
+Note about outlier removal: Since dropping extreme values can result in more data lost (though I'd argue that 66 total observations isn't much), an alternative approach would be to only eliminate outliers for each response variable data subset, thereby retaining more subset-specific data; i.e., by just dropping MCV outliers in MCV dataset, I'd then keep normal Hb values associated with outlier MCV values); though this is is ultimately a bit more painstaking, makes it difficult to wrangle data downstream, and is unlikely to really get us too much in the end because our sampling is good.
 
 
 # Assess age-based outliers
 Blood data values are anomalous in in nestlings and fledglings and normalize quickly within a few months of fledging. 
-Bursa lasts longer than anomalous juvenile blood characteristics, so presence/absence of bursa isn't 100% correlative with ages that would be important for blood analyses. Jessie, Chris, and Ethan decided that looking at a *combination* of characteristics was the best approach: 
+Bursa lasts longer than anomalous juvenile blood characteristics, so presence/absence of bursa isn't 100% correlative with ages that would be important for blood analyses. SO: looking at a *combination* of characteristics is the best approach: 
 * 1) First, eliminate anomalous blood values (see code chunks above)
-* 2) Then, analyze distribution of blood values. If these look normal and fit in with others, don't remove on the basis of having a bursa. But, if blood values look weird *AND* a bird has a "large" bursa, then remove value. 
+* 2) Then, analyze distribution of blood values. If juvenile values look normal and fit in with others (namely: the adult distribution), don't remove them on the basis of having a bursa. But, if blood values look weird *AND* a bird has a "large" bursa, then remove value. 
 * 3) "Large" bursa is ~2x2 mm or greater for hummingbirds, indicative of a bird recently out of the nest.  
 * 4) This approach allows us to identify and possibly drop any errant values caused by age and retain all values of juveniles that fall within the "normal" adult range. 
 * 5) Also NOTE (though this is only relevant if non-vouchered Chilean Patagona have been included): Any non-vouchered (i.e., tracked) Patagona whose age was scored by plumage shouldn't be eliminated, as juvenile plumage lasts much longer than anomalous juvenile blood values. 
@@ -350,7 +377,7 @@ print(p)
 ```
 
 
-# Wrangle Stotz
+# Wrangle "Stotz" (Parker et al. 1996 data)
 See Ethan Linck's code here for smooth Stotz merging: https://github.com/elinck/andean_range_limits/blob/master/scripts/01_blood_data_exploration.Rmd
 ```{R, message=FALSE, warning=FALSE}
 # Subset Stotz by just variables you want 
@@ -432,10 +459,10 @@ full1[full1$species==missing[11],][, "elev_midpt"] <- 2000 # Sephanoides sephani
 
 
 # Species elevational range adjustments 
-Stotz (Parker et al. 1996) is a good baseline for elevational ranges but is frequently inaccurate, and in some cases, outdated. Adjust species elevational ranges based on Schulenberg et al. 2007 Birds of Peru, museum records from MSB, other field guides (if necessary), and working knowledge. 
+Stotz (Parker et al. 1996) is a good baseline for elevational ranges but is frequently inaccurate, and in some cases, outdated. Adjust species elevational ranges based on Schulenberg et al. 2007 *Birds of Peru*, museum records from MSB, other field guides (if necessary), and working knowledge. 
 ```{r, message=FALSE, warning=FALSE}
-# Note: this process could be simplified with a nice function like the one Ethan wrote for Linck et al. all-species
-# blood comparison. *But* I committed to this clunky, "species-specific-personalized" method, so sticking with it atm.
+# Note: this process could be simplified with a nice function like the one Ethan wrote for Linck et al. 2023 Am Nat blood paper
+# *But* I committed to this clunky, "species-specific-personalized" method, so sticking with it at the mo.
 
 # First, figure out which species MSB collection elevations exceed max and which exceed min
 # Species collection elevs > elev_max 
@@ -705,7 +732,7 @@ sp.count.full1 <- full1 %>% group_by(species) %>% summarise(count = length(nk));
 
 
 # Assign hummingbirds to approprite clades 
-Projecto-Garcia et al. 2013 lists many species and their associated clades. Best phylogeny is McGuire et al. 2014. 
+Chris knows most of these from memory. Otherwise, look up/double check all clades in McGuire et al. 2014 (supplement has full, searchable trees). Some species/clades are listed in Projecto-Garcia et al. 2013.
 For helpful future reference, a list of hummingbirds and their respective clades: https://www.wikiwand.com/en/List_of_hummingbird_species
 ```{r, message=FALSE, warning=FALSE}
 # Note: Colibri thalassinus is now Mexican Violetear; Lesser Violetear should be Colibri cyanotus = rename level of this factor
@@ -833,7 +860,7 @@ elev.range.summary <- full1 %>% group_by(species) %>% summarise(range = mean(ele
 
 # -------
 
-# Commented out becuase we didn't use this for paper! Problematic basic classification for a handful of reasons.
+# Commented out becuase we didn't use this for paper! It's an overly basic (and therefore somewhat problematic) classification for many reasons.
 
 # # Assign Elevational range class ('range_class'): 
 # # Specialist =  elev_range <1500m
@@ -928,7 +955,9 @@ percent.missing <- function(x){sum(is.na(x))/length(x)*100} # Function to calcul
 apply(final, 2, percent.missing)
 # apply(final.sub, 1, percent.missing)
 
-# We have a lot of missing blood data! Percent missing data: 
+# We have a lot of missing blood data...this is because these parameters are hard to calculate!
+# It's also not always possible to collect all blood trait data for each individual. 
+# Percent missing data: 
 # mass = 1.52% (this would be ok for imputation)
 # hb: 13.3% 
 # hct 8.88%
@@ -939,7 +968,7 @@ apply(final, 2, percent.missing)
 # We have too much missing data to be able to impute well/confidently/as recommended. 
 # It's clunkier, but  more reliable to create subsets for each blood parameter model set, then remove NAs from each.
 
-# SECOND BUT: We can 'impute' mass values by substituting means across species and sex
+# SECOND BUT: We *can* 'impute' mass values by substituting means across species and sex
 # Start with a summary of species means for each sex 
 library(dplyr)
 species.mass.summary <- final %>% group_by(species, sex) %>%

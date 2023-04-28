@@ -1,7 +1,7 @@
 ---
 title: "HumBlood_Modeling_SpeciesMeans"
 author: "Jessie Williamson"
-date: "3/29/2021; last revised 1/23/22"
+date: "3/29/2021; last revised 2023-04-20"
 output: html_document
 ---
 
@@ -109,7 +109,7 @@ final.spm <- final # Make the final dataset copy that you'll use to wrangle spec
 
 
 # Split Patagona into two functional groups 
-This is necessary prior to further data wrangling because Patagona North and South are functionally separate species and could be modeled as such in our characterizations of species. Since their elevations and blood values may differ substantially (and thus, these values will affect outliers and distributions of other blood values), handle this now. 
+This is necessary prior to further data wrangling because Patagona North and South are functionally separate species (see Williamson et al., In Prep; Williamson and Witt 2021, ENSM paper, *Ornithology*) and could be modeled as such in our characterizations of species. Since their elevations and blood values may differ substantially (and thus, these values will affect outliers and distributions of other blood values), handle this now. 
 ```{r}
 final.spm$species <- as.character(final.spm$species) # MUST be character for loop to work 
 
@@ -130,6 +130,7 @@ final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.sp
 final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.spm$month == "August"),]
 final.spm <- final.spm[-which(final.spm$species == "Patagona_gigas_N" & final.spm$month == "September"),]
 ```
+
 
 # Set clade levels and assign colors 
 Do this *before* splitting datasets so levels and colors carry through to plots w/ data subsets. 
@@ -215,7 +216,7 @@ str(final.spm.mchc) # looks good, nothing to coerce
 
 # Notes on method/process:
 # We aren't accounting for differences in male and female mean mass #s since that wasn't important in indiv-level models
-# IN DPLYR: MAKE SURE "SUMMARIZE" IS SPELLED WITH THE BRITISH 'SUMMMARISSSSSEE' OR IT WON'T WORK.
+# IN DPLYR: MAKE SURE "SUMMARIZE" IS SPELLED WITH THE BRITISH 'SUMARISSSSSEE' OR IT WON'T WORK.
 
 # SPECIES MEAN DATASETS 
 
@@ -413,7 +414,7 @@ spm.mchc <- spm.mchc[-which(spm.mchc$total_n < 2),] # mchc; 9 species; total n=6
 # NOTE ABOUT OUTLIERS: This is an additional cursory pass for distribution outliers 
 # Phlogophilus_harterti and Heliodoxa_aurescens are MASSIVE precip outliers (appears to be due to a single low elev and 
 # wet locality in Cusco called Cadena) and these single-handedly drive precipitation significance; remove them from all
-# data subsets. Prelim linear models reveal that they're highly influential. 
+# data subsets. Prelim linear models reveal that they're highly influential for model fit. 
 
 # HB
 qqPlot(spm.hb$hb.mean) # Distribution outliers
@@ -705,6 +706,8 @@ cor(spm.for.corr[,c("hb.mean", "hct.mean", "trbc.mean", "mcv.mean", "mch.mean", 
 
 MCV and MCH show a quadratic pattern. The quadratic fits a bit better w/ species mean data, but some patterns appear obscured by individual-level data. To isolate this pattern and rule this out, create one species mean dataset (i.e., 77 rows with one row per species) that I can then use to repeat all models, as I did for wing loading. I will add in two versions of Model 4 (full model plus species random effect): one with 'elev.z' and one with 'I(elev.z^2)' to represent the quadratic relationship.
 
+
+
 ##### HB MODEL SET ######
 
 # HB Models - Set up and run models 
@@ -725,8 +728,8 @@ spm.hb.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.hb.m1, file="spm.hb.m1_Intercept-Only.RData") # save model
-#load("spm.hb.m1_Intercept-Only.Rdata") 
+save(spm.hb.m1, file="Rdata_files/spm.hb.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/spm.hb.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS
@@ -741,8 +744,8 @@ spm.hb.m2 <- brm(formula = bf(hb.mean ~ 1 + elev.z + mass.z + temp.z + precip.z 
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.hb.m2, file="spm.hb.m2_FullModel.RData") # save model
-#load("spm.hb.m2_FullModel.RData") 
+save(spm.hb.m2, file="Rdata_files/spm.hb.m2_FullModel.RData") # save model
+#load("Rdata_files/spm.hb.m2_FullModel.RData") 
 
 })
 ```
@@ -840,8 +843,8 @@ spm.hb.m3 <- brm(formula = bf(hb.mean ~ 1 + elev.z),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.hb.m3, file="spm.hb.m3_ReducedModel.RData") # save model
-#load("spm.hb.m3_ReducedModel.RData") 
+save(spm.hb.m3, file="Rdata_files/spm.hb.m3_ReducedModel.RData") # save model
+#load("Rdata_files/spm.hb.m3_ReducedModel.RData") 
 
 })
 ```
@@ -919,9 +922,9 @@ spm.hb.m3.unstandardized <-
         newdata = spm.hb,
         formula = hb.mean ~ 1 + elev.mean,
         chains = 4, cores = 4)
-save(spm.hb.m3.unstandardized, file="spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(spm.hb.m3.unstandardized, file="Rdata_files/spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-#load("spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData")
+#load("Rdata_files/spm.hb.m3.unstandardized_Predictors_SpeciesRE.RData")
 
 summary(spm.hb.m3.unstandardized)
 # elev.mean = 0.00; precip.mean = .18; what this tells us: 
@@ -933,6 +936,11 @@ summary(spm.hb.m3.unstandardized)
 fixef(spm.hb.m3.unstandardized)[2] # For every 1 m increase in elev, we expect Hb will increase by 0.0002944514
 round(fixef(spm.hb.m3.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, [Hb] will increase by 0.29 g/dl. 
 #fixef(spm.hb.m3.unstandardized)[3] # elev_position
+
+# lower & upper CIs
+print(spm.hb.m3.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(0.0001291538*1000, 2) # lower CI (0.13 g/dl)
+round(0.0004611361*1000, 2) # upper CI (0.46 g/dl)
 ```
 
 SPECIES MEAN Hb, Quick summary of top 3 models in order of ranking: 
@@ -964,8 +972,8 @@ spm.hct.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.hct.m1, file="spm.hct.m1_Intercept-Only.RData")
-# load("spm.hct.m1_Intercept-Only.Rdata") 
+save(spm.hct.m1, file="Rdata_files/spm.hct.m1_Intercept-Only.RData")
+# load("Rdata_files/spm.hct.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS
@@ -982,8 +990,8 @@ spm.hct.m2 <- brm(formula = bf(hct.mean ~ 1 + elev.z + mass.z + temp.z + precip.
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.hct.m2, file="spm.hct.m2_FullModel.RData") 
-#load("spm.hct.m2_FullModel.RData") 
+save(spm.hct.m2, file="Rdata_files/spm.hct.m2_FullModel.RData") 
+#load("Rdata_files/spm.hct.m2_FullModel.RData") 
 })
 ```
 
@@ -1079,8 +1087,8 @@ spm.hct.m3 <- brm(formula = bf(hct.mean ~ 1 + elev.z),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.hct.m3, file="spm.hct.m3_ReducedModel.RData") # save model
-#load("spm.hct.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
+save(spm.hct.m3, file="Rdata_files/spm.hct.m3_ReducedModel.RData") # save model
+#load("Rdata_files/spm.hct.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
 
 ```
 
@@ -1152,9 +1160,9 @@ spm.hct.m2.unstandardized <-
         newdata = spm.hct,
         formula = hct.mean ~ 1 + elev.mean + mass.mean + temp.mean + precip.mean + genotype,
         chains = 4, cores = 4)
-save(spm.hct.m2.unstandardized, file="spm.hct.m2.unstandardized_Predictors.RData") # save model
+save(spm.hct.m2.unstandardized, file="Rdata_files/spm.hct.m2.unstandardized_Predictors.RData") # save model
 })
-#load("spm.hct.m2.unstandardized_Predictors.RData")
+#load("Rdata_files/spm.hct.m2.unstandardized_Predictors.RData")
 
 # Can also just re-run this full model if still getting 'starting values weird' messages: 
 # (changing model family seems to help with this; I think this must be caused by unstandardized values?) 
@@ -1172,8 +1180,7 @@ save(spm.hct.m2.unstandardized, file="spm.hct.m2.unstandardized_Predictors.RData
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors
 # )
-# save(spm.hct.m2.unstandardized, file="spm.hct.m2.unstandardized.RData") 
-
+# save(spm.hct.m2.unstandardized, file="Rdata_files/spm.hct.m2.unstandardized.RData") 
 
 summary(spm.hct.m2.unstandardized)
 # elev.mean = 0.00; precip.mean = .18; what this tells us: 
@@ -1183,7 +1190,12 @@ summary(spm.hct.m2.unstandardized)
 # Look at magnitude of unstandardized coefficients 
 # [1] is intercept, can test by running this;[2] is elevation.mean
 fixef(spm.hct.m2.unstandardized)[2] # For every 1 m increase in elev, we expect Hb will increase by 0.001553298
-round(fixef(spm.hct.m2.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, Hct will increase by 1.55%. 
+round(fixef(spm.hct.m2.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, Hct will increase by 1.55%.
+
+# lower & upper CIs
+print(spm.hct.m2.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(0.0005421697*1000, 2) # lower CI (0.54 percentage points)
+round(0.0025753602*1000, 2) # upper CI (2.58 percentage points)
 ```
 
 
@@ -1216,8 +1228,8 @@ spm.trbc.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.trbc.m1, file="spm.trbc.m1_Intercept-Only.RData") # save model
-# load("spm.trbc.m1_Intercept-Only.Rdata") 
+save(spm.trbc.m1, file="Rdata_files/spm.trbc.m1_Intercept-Only.RData") # save model
+# load("Rdata_files/spm.trbc.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS
@@ -1232,8 +1244,8 @@ spm.trbc.m2 <- brm(formula = bf(trbc.mean ~ 1 + elev.z + mass.z + temp.z + preci
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.trbc.m2, file="spm.trbc.m2_FullModel.RData") # save model
-# load("spm.trbc.m2_FullModel.RData") 
+save(spm.trbc.m2, file="Rdata_files/spm.trbc.m2_FullModel.RData") # save model
+# load("Rdata_files/spm.trbc.m2_FullModel.RData") 
 
 # MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
 # Remember: This is M4 because M3 is reduced M2 and we want consistent numbering between model sets
@@ -1248,8 +1260,8 @@ spm.trbc.m4 <- brm(formula = bf(trbc.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + 
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.trbc.m4, file="spm.trbc.m4_FullModelWithQuadratic.RData") # save model
-#load("spm.trbc.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
+save(spm.trbc.m4, file="Rdata_files/spm.trbc.m4_FullModelWithQuadratic.RData") # save model
+#load("Rdata_files/spm.trbc.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
 
 })
 ```
@@ -1360,8 +1372,8 @@ spm.trbc.m3 <- brm(formula = bf(trbc.mean ~ 1 + elev.z),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.trbc.m3, file="spm.trbc.m3_ReducedModel.RData") # save model
-# load("spm.trbc.m3_ReducedModel.RData") 
+save(spm.trbc.m3, file="Rdata_files/spm.trbc.m3_ReducedModel.RData") # save model
+# load("Rdata_files/spm.trbc.m3_ReducedModel.RData") 
 
 # M4 is the same as M5 would be 
 
@@ -1378,8 +1390,8 @@ save(spm.trbc.m3, file="spm.trbc.m3_ReducedModel.RData") # save model
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(spm.trbc.m5, file="spm.trbc.m5_ReducedModel.RData") # save model
-# #load("spm.trbc.m5_ReducedModel.RData") 
+# save(spm.trbc.m5, file="Rdata_files/spm.trbc.m5_ReducedModel.RData") # save model
+# #load("Rdata_files/spm.trbc.m5_ReducedModel.RData") 
 })
 ```
 
@@ -1497,8 +1509,8 @@ spm.mcv.m1 <- brm(formula = bf(mcv.mean ~ 1),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mcv.m1, file="spm.mcv.m1_Intercept-Only.RData") # save model
-# load("spm.mcv.m1_Intercept-Only.RData") 
+save(spm.mcv.m1, file="Rdata_files/spm.mcv.m1_Intercept-Only.RData") # save model
+# load("Rdata_files/spm.mcv.m1_Intercept-Only.RData") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS, NO QUADRATIC
@@ -1513,8 +1525,8 @@ spm.mcv.m2 <- brm(formula = bf(mcv.mean ~ 1 + elev.z + mass.z + temp.z + precip.
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.mcv.m2, file="spm.mcv.m2_FullWithoutQuadratic.RData") # save model
-# load("spm.mcv.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
+save(spm.mcv.m2, file="Rdata_files/spm.mcv.m2_FullWithoutQuadratic.RData") # save model
+# load("Rdata_files/spm.mcv.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
@@ -1530,8 +1542,8 @@ spm.mcv.m4 <- brm(formula = bf(mcv.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + te
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mcv.m4, file="spm.mcv.m4_FullModelWithQuadratic.RData") # save model
-#load("spm.mcv.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
+save(spm.mcv.m4, file="Rdata_files/spm.mcv.m4_FullModelWithQuadratic.RData") # save model
+#load("Rdata_files/spm.mcv.m4_FullModelWithQuadratic.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -1652,8 +1664,8 @@ job::job({
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(spm.mcv.m5, file="spm.mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
-# #load("spm.mcv.m5_ReducedModel_PredictorsOnly.RData") 
+# save(spm.mcv.m5, file="Rdata_files/spm.mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
+# #load("Rdata_files/spm.mcv.m5_ReducedModel_PredictorsOnly.RData") 
 })
 ```
 
@@ -1754,8 +1766,8 @@ spm.mch.m1 <- brm(formula = bf(mch.mean ~ 1),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mch.m1, file="spm.mch.m1_Intercept-Only.RData") # save model
-# load("spm.mch.m1_Intercept-Only.RData") 
+save(spm.mch.m1, file="Rdata_files/spm.mch.m1_Intercept-Only.RData") # save model
+# load("Rdata_files/spm.mch.m1_Intercept-Only.RData") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS, NO QUADRATIC
@@ -1770,8 +1782,8 @@ spm.mch.m2 <- brm(formula = bf(mch.mean ~ 1 + elev.z + mass.z + temp.z + precip.
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.mch.m2, file="spm.mch.m2_FullWithoutQuadratic.RData") # save model
-# load("spm.mch.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
+save(spm.mch.m2, file="Rdata_files/spm.mch.m2_FullWithoutQuadratic.RData") # save model
+# load("Rdata_files/spm.mch.m2_FullWithoutQuadratic.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
@@ -1787,8 +1799,8 @@ spm.mch.m4 <- brm(formula = bf(mch.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + te
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mch.m4, file="spm.mch.m4_FullModelWithQuadratic.RData") # save model
-#load("spm.mch.m4_FullModelWithQuadratic.RData")
+save(spm.mch.m4, file="Rdata_files/spm.mch.m4_FullModelWithQuadratic.RData") # save model
+#load("Rdata_files/spm.mch.m4_FullModelWithQuadratic.RData")
 })
 ```
 
@@ -1903,8 +1915,8 @@ spm.mch.m5 <- brm(formula = bf(mch.mean ~ 1 + elev.z + I(elev.z^2)),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mch.m5, file="spm.mch.m5_ReducedModel_PredictorsOnly.RData") # save model
-load("spm.mch.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(spm.mch.m5, file="Rdata_files/spm.mch.m5_ReducedModel_PredictorsOnly.RData") # save model
+load("Rdata_files/spm.mch.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 })
 ```
 
@@ -1974,9 +1986,9 @@ spm.mch.m5.unstandardized <-
         newdata = spm.mch,
         formula = mch.mean ~ 1 + elev.mean + I(elev.mean^2),
         chains = 4, cores = 4)
-save(spm.mch.m5.unstandardized, file="spm.mch.m5.unstandardized.RData") # save model
+save(spm.mch.m5.unstandardized, file="Rdata_files/spm.mch.m5.unstandardized.RData") # save model
 })
-#load("spm.mch.m5.unstandardized.RData")
+#load("Rdata_files/spm.mch.m5.unstandardized.RData")
 
 summary(spm.mch.m5.unstandardized)
 # elev.mean = 0.00; precip.mean = .18; what this tells us: 
@@ -2021,8 +2033,8 @@ spm.mchc.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mchc.m1, file="spm.mchc.m1_Intercept-Only.RData") # save model
-# load("spm.mchc.m1_Intercept-Only.Rdata") 
+save(spm.mchc.m1, file="Rdata_files/spm.mchc.m1_Intercept-Only.RData") # save model
+# load("Rdata_files/spm.mchc.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: FULL MODEL WITH ALL PREDICTORS
@@ -2037,8 +2049,8 @@ spm.mchc.m2 <- brm(formula = bf(mchc.mean ~ 1 + elev.z + mass.z + temp.z + preci
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(spm.mchc.m2, file="spm.mchc.m2_FullModel.RData") # save model
-# load("spm.mchc.m2_FullModel.RData") 
+save(spm.mchc.m2, file="Rdata_files/spm.mchc.m2_FullModel.RData") # save model
+# load("Rdata_files/spm.mchc.m2_FullModel.RData") 
 
 # MODEL 4: FULL MODEL WITH ALL PREDICTORS AND QUADRATIC
 # Remember this M4 for consistent notation across model sets (because M3 is reduced M2)
@@ -2053,8 +2065,8 @@ spm.mchc.m4 <- brm(formula = bf(mchc.mean ~ 1 + elev.z + I(elev.z^2) + mass.z + 
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(spm.mchc.m4, file="spm.mchc.m4_FullModelWithQuadratic.RData") # save model
-#load("spm.mchc.m4_FullModelWithQuadratic.RData")
+save(spm.mchc.m4, file="Rdata_files/spm.mchc.m4_FullModelWithQuadratic.RData") # save model
+#load("Rdata_files/spm.mchc.m4_FullModelWithQuadratic.RData")
 })
 ```
 
@@ -2166,8 +2178,8 @@ write.csv(mchc.waics, "mchc_brms_models_waics_SPECIES-MEANS.csv") # totally unin
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(spm.mchc.m3, file="spm.mchc.m3_ReducedModel.RData") # save model
-# #load("spm.mchc.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
+# save(spm.mchc.m3, file="Rdata_files/spm.mchc.m3_ReducedModel.RData") # save model
+# #load("Rdata_files/spm.mchc.m3_ReducedModel.RData") # If loading from pre-saved file and not re-running
 # 
 # 
 # # MODEL 5: REDUCED MODEL
@@ -2183,8 +2195,8 @@ write.csv(mchc.waics, "mchc_brms_models_waics_SPECIES-MEANS.csv") # totally unin
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(spm.mchc.m5, file="spm.mchc.m5_ReducedModel.RData") # save model
-# #load("spm.mchc.m5_ReducedModel.RData") 
+# save(spm.mchc.m5, file="Rdata_files/spm.mchc.m5_ReducedModel.RData") # save model
+# #load("Rdata_files/spm.mchc.m5_ReducedModel.RData") 
 # })
 ```
 
@@ -2271,6 +2283,7 @@ SPECIES MEAN mchc, Quick summary of top 3 models in order of ranking:
 
 
 ### SPECIES MEANS 6-panel blood posterior probability fig 
+(But note that this final version was made in HumBlood_PlotsAndFigs.Rmd)
 
 #Set up some figure aesthetics and load in data: 
 ```{r}
@@ -2279,22 +2292,22 @@ library(patchwork)
 
 # Quick load to be able to make plots for big species mean comparison plot: 
 # For quick pasting for final plot 
-load("spm.hb.m2_FullModel.RData")  # full 
-load("spm.hb.m4_ReducedModel.RData") # top; tied with full model 
+load("Rdata_files/spm.hb.m2_FullModel.RData")  # full 
+load("Rdata_files/spm.hb.m4_ReducedModel.RData") # top; tied with full model 
 
-load("spm.hct.m2_FullModel.RData") # full
-#load("spm.hct.m4_ReducedModel.RData") # top model (elev)
+load("Rdata_files/spm.hct.m2_FullModel.RData") # full
+#load("Rdata_files/spm.hct.m4_ReducedModel.RData") # top model (elev)
 
-load("spm.trbc.m2_FullModel.RData") # full 
+load("Rdata_files/spm.trbc.m2_FullModel.RData") # full 
 # TRBC null is top 
 
-load("spm.mcv.m3_FullModelWithQuadratic.RData") # full w/ quad 
+load("Rdata_files/spm.mcv.m3_FullModelWithQuadratic.RData") # full w/ quad 
 # MCV null is top 
 
-load("spm.mch.m3_FullModelWithQuadratic.RData") # full w/ quadratic 
-load("spm.mch.m5_ReducedModel_PredictorsOnly.RData") # top model 
+load("Rdata_files/spm.mch.m3_FullModelWithQuadratic.RData") # full w/ quadratic 
+load("Rdata_files/spm.mch.m5_ReducedModel_PredictorsOnly.RData") # top model 
 
-load("spm.mchc.m3_FullModelWithQuadratic.RData") # full 
+load("Rdata_files/spm.mchc.m3_FullModelWithQuadratic.RData") # full 
 # top model is null model - "b_Intercept" 
 
 # top panel has no qudratics, bottom will have quadratics

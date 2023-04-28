@@ -1,16 +1,16 @@
 ---
 title: "Comparative Hummingbird Blood: Modeling"
 author: "Jessie Williamson"
-date: "11/09/2020; Last Updated: 1/23/22"
+date: "11/09/2020; Last Updated: 2023-04-20"
 output:
   md_document:
     variant: markdown_github
 
 ---
 
-This script includes: Reading in pre-processed data from "HumBlood_DataWrangling.Rmd", standardizing predictors, making data subsets that match subsetted phylogenies (so there are no NAs in any dataset for modeling), and then running, checking, plotting sets of Bayesian phylogenetic mixed models. 
+This script includes: Reading in pre-processed data from "HumBlood_DataWrangling.Rmd", standardizing predictors, making data subsets that match subsetted phylogenies (so there are no NAs in any dataset for modeling), and then running, checking, plotting sets of Bayesian hierarchical models. 
 
-Note that elements of this script function as a notebook/codebook to document analyses that we didn't end up using in our paper (e.g., all transformation of wing loading data); see model structure and notes for information about what was/wasn't included in final paper analyses. 
+Note that elements of this script function as a notebook/codebook to document analyses that we didn't end up using in our paper (e.g., all transformations of wing loading data); see model structure and notes for information about what was/wasn't included in final paper analyses. 
 
 
 Instructions for installing RStan for brms models: https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
@@ -204,7 +204,7 @@ final$spec.mean.mass <- with(final, sapply(split(mass, species), mean)[species])
 # Since we know that males and females have substantially different body masses *and* blood characteristics are expected
 # to differ by sex, calculate intraspecific variation for females w/ female mean mass, intraspecific variation for 
 # males w/ male mean mass, and we'll use species mean mass for the n=6 unknown sexes. 
-# Nice n clunky n simple way of doing this: split df by sex, calculate mean masses per sex, and rbind back together 
+# I always love clunky n simple ways of doing things: split df by sex, calculate mean masses per sex, and rbind back together 
 species.mass.summary <- final %>% group_by(species, sex) %>% # Summary of species masses by sex 
                               dplyr::summarize(mean_mass = mean(mass, na.rm = TRUE), count =n())
 X <- split(final, final$sex) # split data frame by sex 
@@ -319,7 +319,7 @@ qqPlot(final$mass.log)
 # shapiro.test(full$wl.tuk) # still fails Shapiro-Wilk, but bigger indicator is poor qqPlot fit (tails look terrible)
 
 # Ideally, get individual-level wing loading data and substitute with species means were necessary
-# But since we didn't end up using wing loading data in within and among specides models, this ultimately doesn't matter!
+# But since we didn't end up using wing loading data in within and among species models, this ultimately doesn't matter!
 
 #####
 
@@ -460,9 +460,9 @@ summary(tree.trbc$tip.label %in% final.trbc$species) # yes
 
 
 # Check contMaps for trait and sampling outliers (Mean values from contMaps necessary for phylo tests below)
-Before moving on with pre-modeling verification and modeling itself, work up continuous trait maps for each of the 6 blood parameters to take a look at phylo signal and spread of values. Based on preliminary phylogenetic modeling efforts (not shown here and not included in our paper; see Methods and Supplement), we expect low phylogenetic signal (i.e., similar branch colors) aross the board. But, in a few cases, extreme values may be driven by low sampling (i.e., n=1 or n<3). When we re-ran tests of phylogenetic signal and prelim phylo models, and re-made these contmaps *without* these "sampling outliers" (see code chunk below), results were consistent and the message was the same: no to very low phylogenetic signal in all blood traits. 
+Before moving on with pre-modeling verification and modeling itself, work up continuous trait maps for each of the 6 blood parameters to take a look at phylo signal and spread of values. Based on preliminary phylogenetic modeling efforts (not shown here and not included in our paper; see Methods and Supplement), we expect low phylogenetic signal (i.e., similar branch colors) aross the board. But, in a few cases, extreme values may be driven by low sampling (i.e., n=1 or n<3). When we re-ran tests of phylogenetic signal and prelim phylo models, and re-made these contmaps *without* these "sampling outliers" (see code chunk below), results were consistent and the outcome was the same: No to very low phylogenetic signal in all blood traits. 
 ```{r}
-# NOTE: See Lisa's tutorial on this, called amphibian_PhyloMethods_Mar2020.R" - more helpful than Phytools tutorials! 
+# NOTE: See Lisa's tutorial on this, called "amphibian_PhyloMethods_Mar2020.R" - more helpful than Phytools tutorials! 
 # IMPORTANT: don't forget to attach species names to the trait! 
 # AND, don't do this with rownames(), which changes data format. Do this as Lisa has done w/ 'names()'. 
 # You want the format to read 'Named num'; class = numeric; type = double 
@@ -584,7 +584,8 @@ plot.contMap(mchc.cont.tree, just.mchc, res=200, fsize=0.4, lwd=2, leg.txt="Mean
 dev.off()
 
 # length value in legend = how many millions of years the legend bar represents (or whatever units are on tree edge lengths)
-# Lamely, moosh all these together into an Illustrator figure to make Figure S1
+# Lamely, moosh all these together in Illustrator figure to make Figure S1
+# AKA, open each pdf in Illustrator, remove clipping mask, paste into one artboard, manually add panel headers, write out as Figure S1
 ```
 
 Helpful continuous trait mapping tutorials: 
@@ -643,26 +644,46 @@ phylosig(tree=tree.mchc, x=just.mchc, method="lambda", test=TRUE) # lambda=<0, p
 Info on computing phylogenetic signal w/ Phylosig: http://blog.phytools.org/2011/03/computing-phylogenetic-signal.html
 
 
-# Verify that phylo signal is robust to "sampling outliers"
-How much is phylo signal affected by poorly-sampled species? To get a sense for how these species might affect estimates, let's run samples where we drop any species with n < 3 individuals, remake contmaps, and rerun tests of phylogenetic signal. 
+# Verify that phylo signal and modeling are robust to "sampling outliers"
+How much is phylo signal affected by poorly-sampled species? How much are modeling results affected by poorly-sampled species? (The latter is a topic that came up during Ecology Letters review). To get a sense for how these species might affect estimates, we dropped any species with n < 3 individuals, remade contmaps, and reran tests of phylogenetic signal. 
+
+During review, our editor and a reviewer wondered how species with just a few records might affect model results. To test this, we removed singletons, n=2/species samples, and n=3/species samples, re-ran models, and compared output.
 ```{r}
 # # The suffix ".nso" stands for "no sampling outliers"
+
+# Change this to >3 if testing phylogenetic sample for min of 3 sampled.
+# Change to >2 if dropping singletons
+# Change to >4 if dropping species with 1-3 individuals per species sampled
 # 
-# # Drop all species counts < 3 
-# final.hb.nso <- subset(final.hb, with(final.hb, species %in% names(which(table(species)>=3)))) 
-#     View(final.hb.nso %>% group_by(species) %>% summarise(count = length(nk))) # No species count < 3
-# final.hct.nso <- subset(final.hct, with(final.hct, species %in% names(which(table(species)>=3)))) 
-#     View(final.hct.nso %>% group_by(species) %>% summarise(count = length(nk))) 
-# final.trbc.nso <- subset(final.trbc, with(final.trbc, species %in% names(which(table(species)>=3)))) 
-#     View(final.trbc.nso %>% group_by(species) %>% summarise(count = length(nk))) 
-# final.mcv.nso <- subset(final.mcv, with(final.mcv, species %in% names(which(table(species)>=3)))) 
-#     View(final.mcv.nso %>% group_by(species) %>% summarise(count = length(nk))) 
-# final.mch.nso <- subset(final.mch, with(final.mch, species %in% names(which(table(species)>=3)))) 
-#     View(final.mch.nso %>% group_by(species) %>% summarise(count = length(nk))) 
-# final.mchc.nso <- subset(final.mchc, with(final.mchc, species %in% names(which(table(species)>=3)))) 
-#     View(final.mchc.nso %>% group_by(species) %>% summarise(count = length(nk))) 
-# 
+# Drop poorly sampled species 
+final.hb.nso <- subset(final.hb, with(final.hb, species %in% names(which(table(species)>=4))))
+hb.dropped.species <- subset(final.hb, with(final.hb, species %in% names(-which(table(species)<4)))) # pull those dropped
+   # View(final.hb %>% group_by(species) %>% summarise(count = length(nk))) # 988 obs, 74 species
+    View(final.hb.nso %>% group_by(species) %>% summarise(count = length(nk))) # 978 obs, 64 species
+ 
+final.hct.nso <- subset(final.hct, with(final.hct, species %in% names(which(table(species)>=4))))
+   # View(final.hct %>% group_by(species) %>% summarise(count = length(nk))) # 1086 obs, 76 species  
+  #  View(final.hct.nso %>% group_by(species) %>% summarise(count = length(nk))) # 1078 obs, 68 species
+    
+final.trbc.nso <- subset(final.trbc, with(final.trbc, species %in% names(which(table(species)>=4))))
+   # View(final.trbc %>% group_by(species) %>% summarise(count = length(nk))) # 748 obs, 72 species
+   # View(final.trbc.nso %>% group_by(species) %>% summarise(count = length(nk))) # 736 obs, 60 species
+    
+final.mcv.nso <- subset(final.mcv, with(final.mcv, species %in% names(which(table(species)>=4))))
+   # View(final.mcv %>% group_by(species) %>% summarise(count = length(nk))) # 732 obs, 72 species
+   # View(final.mcv.nso %>% group_by(species) %>% summarise(count = length(nk))) # 719 obs, 59 species
+    
+final.mch.nso <- subset(final.mch, with(final.mch, species %in% names(which(table(species)>=4))))
+   # View(final.mch %>% group_by(species) %>% summarise(count = length(nk))) # 703 obs, 69 species
+   # View(final.mch.nso %>% group_by(species) %>% summarise(count = length(nk))) # 692 obs, 58 species
+    
+final.mchc.nso <- subset(final.mchc, with(final.mchc, species %in% names(which(table(species)>=4))))
+   # View(final.mchc %>% group_by(species) %>% summarise(count = length(nk))) # 924 obs, 73 species
+   # View(final.mchc.nso %>% group_by(species) %>% summarise(count = length(nk))) # 915 obs, 64 species
+
 # # Set up tips to drop and drop tips from each dataset 
+    ## Note that I dropped species with <3 for this phylo signal test but adjusted the treshold to 2 above for modeling 
+    ## This allowed me to be consistent with species mean models (change made 2/19/23)
 # hb.drop <- names(which(table(final.hb$species) < 3)) # Get names of species w/ <3 individuals 
 # tree.hb.nso <- drop.tip(tree.hb, hb.drop) # Drop 
 # hct.drop <- names(which(table(final.hct$species) < 3))  
@@ -788,7 +809,7 @@ How much is phylo signal affected by poorly-sampled species? To get a sense for 
 # phylosig(tree=tree.mchc.nso, x=just.mchc.nso, method="lambda", test=TRUE) # lambda=<0, p=1 
 ```
 
-**Conclusion:** Even after removing sampling outliers (species with <3 individuals sampled), there is no phylogenetic signal in our data. This is confirmed visually w/ contmaps and with estimates of Pagel's lamda and Blomberg's K. 
+**Conclusion:** Even after removing sampling outliers (species with <3 individuals sampled), there is no phylogenetic signal in our data. This is confirmed visually w/ contmaps and with estimates of Pagel's lamda and Blomberg's K. (See more robust response on this topic in our response to reviewers)
 
 
 # Check for correlations among continuous predictors 
@@ -796,10 +817,10 @@ How much is phylo signal affected by poorly-sampled species? To get a sense for 
 # Correlation matrix 
 cor(final[,c("elev.z", "elev.pos.z", "temp.z", "precip.z", "mass.z", "intravar.mass.z", "intravar.temp.z", "intravar.precip.z")])
 
-# elevation and elev_position are highly correlated (0.87)
+# elevation and elev_position are correlated (0.63)
 # However, we justify each as important and indicative of different patterns.   
-# Elevation and tempPC1 are highly correlated (-0.83), but both are biologically important and encompass different things
-# (as described in McNew et al. 2021, PNAS)
+# Elevation and tempPC1 are highly correlated (-0.86), but both are biologically important and encompass different things
+# as described in McNew et al. 2021, PNAS
 # A couple other moderate correlations, but nothing red-flaggy
 
 # As a safeguard backup solution, you can run a model without BioClim for comparison
@@ -830,7 +851,7 @@ theme_set(theme_bw() +
 
 
 # Calculate means, standard deviations, ranges, and coefficients of variation for individual-level data 
-These data are presented in SI Appendix Table S2. 
+These data are presented in SI Appendix Table S5. 
 ```{r}
 # Parameter names 
 col1 <- c("[Hb]", "Hct", "TRBC", "MCV", "MCH", "MCHC")
@@ -895,12 +916,12 @@ col6 <- c(
           round(cv(final.mchc$mchc),2) 
           ); col6
 
-TableS3_IndividualLevelSummaryValues <- cbind(col1, col2, col3, col4, col5, col6); table
-colnames(TableS3_IndividualLevelSummaryValues) <- c("Parameter", "Mean", "Standard Deviation", "Min", "Max", "Coefficient of Variation")
+TableS5_IndividualLevelSummaryValues <- cbind(col1, col2, col3, col4, col5, col6); TableS5_IndividualLevelSummaryValues
+colnames(TableS5_IndividualLevelSummaryValues) <- c("Parameter", "Mean", "Standard Deviation", "Min", "Max", "Coefficient of Variation")
 # some weird character/string formatting going on, but I got the values I want for wrangling into Word format
 
-# write.csv(TableS3_IndividualLevelSummaryValues, "TableS3_Individual-LevelSummaryValues.csv")
-  # This file is called Table S3, but note that it became TAble S2 in paper
+# write.csv(TableS5_IndividualLevelSummaryValues, "TableS5_Individual-LevelSummaryValues.csv")
+  # This file is called Table S3, but note that it became TAble S5 in paper
 ```
 
 
@@ -936,6 +957,8 @@ nlevels(final.mchc$Clade) # Check to make sure levels are correct
 ```
 
 
+
+
 -------
 
 
@@ -961,7 +984,7 @@ This tutorial suggests taking individual-level, repeated measures data and const
 This EXACT topic is addressed in this post: https://discourse.mc-stan.org/t/phylogenetic-model-with-repeated-measurements-without-using-species-mean/4801/4
 
 
-**MORE DETAILED CONCLUSION:** Yes, our model structure is ok, and it is fine to use individual-level data as predictors. See last comment by Jon Nations (aka, might affect those conditional probabilities plots because more error is involved in individual-level measurements). Alternatively, it is also totally fine to break the data into "species mean" and "within species variability" (raw value - mean), as described in the phylo tutorial above, and Paul Buerkener says he did this following the phylogenetic textbook (Garamszagi original tutorial) from which the data originally come. So essentially: Paul modified Garamszagi's tutorial; now everyone uses Paul's tutorial, which is just one approach to a modeling challenge put forward by one person 
+**MORE DETAILED CONCLUSION:** Yes, our model structure is ok, and it is fine to use individual-level data as predictors. See last comment by Jon Nations in the above stan forum post (aka, might affect those conditional probabilities plots because more error is involved in individual-level measurements). Alternatively, it is also totally fine to break the data into "species mean" and "within species variability" (raw value - mean), as described in the Buerkner phylo tutorial above, and Paul Buerkener says he did this following the phylogenetic textbook (Garamszagi original tutorial) from which the data originally come. So essentially: Paul modified Garamszagi's tutorial; now everyone uses Paul's tutorial, which is just one approach to a modeling challenge put forward by one person 
 
 AND, the approach you use may also depend on the questions you're answering; i.e., we're interested in using elev.position, a measure of each individual's elevation relative to its species mean elevation, so "species mean" and "within species variability" variables don't capture what we want with elev.pos. 
 
@@ -1022,8 +1045,8 @@ hb.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m1, file="hb.m1_Intercept-Only.RData") # save model
-#load("hb.m1_Intercept-Only.Rdata") # If loading from pre-saved file and not re-running
+save(hb.m1, file="Rdata_files/hb.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/hb.m1_Intercept-Only.Rdata") # If loading from pre-saved file and not re-running
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECTS)
@@ -1039,8 +1062,8 @@ hb.m2 <- brm(
   iter = 10000, # nora had 20000, EBL used 10000.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(hb.m2, file="hb.m2_RandomEffectsOnly.RData") # save model
-# load("hb.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(hb.m2, file="Rdata_files/hb.m2_RandomEffectsOnly.RData") # save model
+# load("Rdata_files/hb.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH PREDICTORS ONLY
@@ -1058,9 +1081,9 @@ hb.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m3, file="hb.m3_FullModel_PredictorsOnly.RData") # save model
+save(hb.m3, file="Rdata_files/hb.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-# load("hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+load("Rdata_files/hb.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH SPECIES RANDOM EFFECT
@@ -1078,8 +1101,49 @@ hb.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m4, file="hb.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("hb.m4_FullModel_SpeciesREOnly.RData") 
+save(hb.m4, file="Rdata_files/hb.m4_FullModel_SpeciesREOnly.RData") # save model
+load("Rdata_files/hb.m4_FullModel_SpeciesREOnly.RData") 
+
+
+#####
+# Test whether results are sensitive to poorly-sampled species 
+hb.wellsampled <- brm(
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z 
+               + (1|species)),
+  data = final.hb.nso,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hb.wellsampled, file="Rdata_files/hb.wellsampled_Min4Species.RData") # save model
+#load("Rdata_files/hb.wellsampled.RData") 
+
+# Test whether results are sensitive to poorly-sampled species 
+# A test made during review; these results are not included in our paper
+hb.wellsampled.randomslope <- brm(
+  formula = bf(hb ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z 
+               + (1 + elev.z |species)),
+  data = final.hb.nso,
+  family = gaussian(), 
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+)
+save(hb.wellsampled.randomslope, file="Rdata_files/hb.wellsampled.randomslope_SpeciesWithOnlyMoreThanThreeIndivs.RData") # save model
+#load("Rdata_files/hb.wellsampled_SpeciesWithOnlyMoreThanThreeIndivs.RData.RData") 
+
+length(final.hb.nso$species)
 ```
 
 
@@ -1199,6 +1263,38 @@ summary(hb.m4)
 # Summary of reducing models: 
 # m5 (reduced m3) will be: elev.z, mass.z, temp.z, intravar.temp.z
 # m6 (reduced m4) will be: elev.z
+
+
+# Model - well sampled
+#color_scheme_set("red") # nice default
+hb.wellsampled.p1 <- mcmc_plot(hb.wellsampled, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.wellsampled: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+hb.wellsampled.p1
+ggsave(hb.wellsampled.p1, filename = "hb.wellsampled_Min4Individuals.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.wellsampled)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z and mass.z
+
+# Model - well sampled w/ random slope
+#color_scheme_set("red") # nice default
+hb.wellsampled.randomslope.p1 <- mcmc_plot(hb.wellsampled.randomslope, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [Hb]", title = "hb.wellsampled.randomslope: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+hb.wellsampled.randomslope.p1
+ggsave(hb.wellsampled.randomslope.p1, filename = "hb.wellsampled.randomslope.p1_Hb_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hb.wellsampled.randomslope)
+# Predictors whose 95% CIs do NOT overlap zero (what reduced model will be): elev.z and mass.z
+
 ```
 
 
@@ -1218,6 +1314,8 @@ hb.m1.waic <- waic(hb.m1)
 hb.m2.waic <- waic(hb.m2)
 hb.m3.waic <- waic(hb.m3)
 hb.m4.waic <- waic(hb.m4)
+hb.wellsampled.waic <- waic(hb.wellsampled)
+hb.wellsampled.randomslope.waic <- waic(hb.wellsampled.randomslope)
 hb.waics <- cbind(hb.m1.waic, hb.m2.waic, hb.m3.waic, hb.m4.waic); hb.waics
 write.csv(hb.waics, "hb_brms_models_waics.csv") # totally unintelligible cumbersome doc w/ all pointwise comparisons 
 ```
@@ -1242,6 +1340,12 @@ hyp.sp.hb.m4 <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) =
 plot(hyp.sp.hb.m4)
 # 13% variance explained by species 
 
+# m4 species variance 
+hyp.sp.hb.wellsampled <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2) = 0"
+(hyp.sp.hb.wellsampled <- hypothesis(hb.wellsampled, hyp.sp.hb.wellsampled, class = NULL))
+plot(hyp.sp.hb.wellsampled)
+# 12% variance explained by species
+
 performance::variance_decomposition(hb.m4)
 performance::variance_decomposition(hb.m2)
 ```
@@ -1262,8 +1366,8 @@ hb.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m5, file="hb.m5_ReducedModel_PredictorsOnly.RData") # save model
-#load("hb.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(hb.m5, file="Rdata_files/hb.m5_ReducedModel_PredictorsOnly.RData") # save model
+#load("Rdata_files/hb.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 hb.m6 <- brm(
@@ -1279,8 +1383,8 @@ hb.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m6, file="hb.m6_ReducedModel_SpeciesREOnly.RData") # save model
-# load("hb.m6_ReducedModel_SpeciesREOnly.RData") 
+save(hb.m6, file="Rdata_files/hb.m6_ReducedModel_SpeciesREOnly.RData") # save model
+# load("Rdata_files/hb.m6_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -1423,7 +1527,6 @@ library(loo)
 sink("hb_brms_models_all_looic.txt", append=FALSE)
 LOO(hb.m1, hb.m2, hb.m3, hb.m4, hb.m5, hb.m6, reloo=FALSE) 
 sink()
-# According to LOO, model 5 is top model 
 
 # compare models # Just a shorter version of the above text
 # loo_compare(en.loo) # Top ranked model includes no random effects 
@@ -1432,9 +1535,11 @@ sink()
 bayes_R2(hb.m1)
 bayes_R2(hb.m2) # 0.146
 bayes_R2(hb.m3) # 0.130
-bayes_R2(hb.m4) # 0.209
+bayes_R2(hb.m4) # 0.209s
 bayes_R2(hb.m5) # 0.116
 bayes_R2(hb.m6) # 0.192
+
+bayes_R2(hb.wellsampled) # 0.192
 
 # Model comparisons:
 #       elpd_diff se_diff
@@ -1453,9 +1558,9 @@ hb.m4.unstandardized <-
         formula = hb ~ 1 + elev + elev_position + mass.log + tempPC1 + precipPC1 + genotype + # use non .z names!!!!
                intravar.mass + intravar.temp + intravar.precip + (1|species),
         chains = 4, cores = 4)
-save(hb.m4.unstandardized, file="hb.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(hb.m4.unstandardized, file="Rdata_files/hb.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("hb.m4.unstandardized_Predictors_SpeciesRE.RData")
+#load("Rdata_files/hb.m4.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(hb.m4.unstandardized)
@@ -1463,6 +1568,11 @@ fixef(hb.m4.unstandardized)[2] # For every 1 m increase in elev, we expect Hb wi
 round(fixef(hb.m4.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, [Hb] will increase by 0.39 g/dl. 
 fixef(hb.m4.unstandardized)[3] # elev_position
 # Not sure if other variables are worth reporting, as they have really obscure units
+
+# lower & upper CIs
+print(hb.m4.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(0.0001157090*1000, 2) # lower CI (0.12 g/dl)
+round(0.0006654191*1000, 2) # upper CI (0.67 g/dl)
 ```
 
 Quick summary of top 3 models in order of ranking: 
@@ -1474,10 +1584,11 @@ Quick summary of top 3 models in order of ranking:
 
 
 # HB: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not really in the paper but explored here - one supplemental plot on this, Fig. S7
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("hb.m4_FullModel_SpeciesREOnly.RData") 
-load("hb.m1_Intercept-Only.Rdata") 
+load("Rdata_files/hb.m4_FullModel_SpeciesREOnly.RData") 
+load("Rdata_files/hb.m1_Intercept-Only.Rdata") 
 
 # MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
 hb.m4.c <- brm(
@@ -1493,8 +1604,8 @@ hb.m4.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m4.c, file="hb.m4.c_TopModel_CladeREAdded.RData") # save model
-#load("hb.m4.c_TopModel_CladeREAdded.RData") 
+save(hb.m4.c, file="Rdata_files/hb.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/hb.m4.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 hb.m4.ce <- brm(
@@ -1510,8 +1621,8 @@ hb.m4.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.m4.ce, file="hb.m4.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("hb.m4.ce_TopModel_CladeElevInteraction.RData") 
+save(hb.m4.ce, file="Rdata_files/hb.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/hb.m4.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment
@@ -1657,8 +1768,8 @@ Quick summary of top models from Clade analysis:
 
 
 Interpreting interactions: 
-In a simple linear regression with no interactions, each coefficient says how much the average outcome,  
-μ, changes when the predictor changes by one unit. And since all of the parameters have independent influences on the outcome, there’s no trouble in interpreting each parameter separately. Each slope parameter gives us a direct measure of each predictor variable’s influence.Interaction models ruin this paradise. (p. 220)
+In a simple linear regression with no interactions, each coefficient says how much the average outcome, μ, changes when the predictor changes by one unit. And since all of the parameters have independent influences on the outcome, there’s no trouble in interpreting each parameter separately. Each slope parameter gives us a direct measure of each predictor variable’s influence. Interaction models ruin this paradise
+(pg. 220)
 
 
 Out of curiosity, what does elev.z:Clade alone look like? 
@@ -1676,8 +1787,8 @@ hb.elevclade <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.elevclade, file="hb.elevclade_SimpleElevCladeModel.RData") # save model
-#load("hb.elevclade_SimpleElevCladeModel.RData") 
+save(hb.elevclade, file="Rdata_files/hb.elevclade_SimpleElevCladeModel.RData") # save model
+#load("Rdata_files/hb.elevclade_SimpleElevCladeModel.RData") 
 
 #color_scheme_set("red") # nice default
 hb.elevclade.p1 <- mcmc_plot(hb.elevclade, variable=c("b_elev.z", 
@@ -1714,8 +1825,8 @@ hb.clade <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hb.clade, file="hb.clade_SimpleCladeModel.RData") # save model
-#load("hb.clade_SimpleElevCladeModel.RData") 
+save(hb.clade, file="Rdata_files/hb.clade_SimpleCladeModel.RData") # save model
+#load("Rdata_files/hb.clade_SimpleElevCladeModel.RData") 
 
 #color_scheme_set("red") # nice default
 hb.clade.p1 <- mcmc_plot(hb.clade, variable=c("b_elev.z", 
@@ -1736,7 +1847,6 @@ hyp.sp.hb.clade <- "sd_species__Intercept^2 / (sd_species__Intercept^2 + sigma^2
 (hyp.sp.hb.clade <- hypothesis(hb.clade, hyp.sp.hb.clade, class = NULL))
 plot(hyp.sp.hb.clade)
 # 18% variance explained by species
-
 ```
 
 
@@ -1778,8 +1888,8 @@ hct.m1 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(hct.m1, file="hct.m1_Intercept-Only.RData") # save model
-# load("hct.m1_Intercept-Only.Rdata") 
+save(hct.m1, file="Rdata_files/hct.m1_Intercept-Only.RData") # save model
+# load("Rdata_files/hct.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + PHYLO & SPECIES RANDOM EFFECTS)
@@ -1802,8 +1912,8 @@ hct.m2 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(hct.m2, file="hct.m2_RandomEffectsOnly.RData") # save model
-#load("hct.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(hct.m2, file="Rdata_files/hct.m2_RandomEffectsOnly.RData") # save model
+#load("Rdata_files/hct.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -1827,9 +1937,9 @@ hct.m3 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(hct.m3, file="hct.m3_FullModel_PredictorsOnly.RData") # save model
+save(hct.m3, file="Rdata_files/hct.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-# load("hct.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+# load("Rdata_files/hct.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -1854,11 +1964,37 @@ hct.m4 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(hct.m4, file="hct.m4_FullModel_SpeciesREOnly.RData") # save model
-# load("hct.m4_FullModel_SpeciesREOnly.RData") 
+save(hct.m4, file="Rdata_files/hct.m4_FullModel_SpeciesREOnly.RData") # save model
+#load("Rdata_files/hct.m4_FullModel_SpeciesREOnly.RData") 
 
 # I tried running a test version of model 6 without intraspecific variation variables
 # Nothing qualitatively changed, *and*, I don't think that's appropriate because modeling within-sp variation is important
+
+#####
+# MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT ON WELL SAMPLED DATA
+hct.wellsampled <- brm(
+  formula = bf(hct ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + precip.z + genotype +
+               intravar.mass.z + intravar.temp.z + intravar.precip.z 
+               + (1|species)),
+  data = final.hct.nso,
+  family = gaussian(), # estimates of  mean and sd in t dist are robust to outliers relative to normal dist
+ # data2 = list(A = A), # Phylogeny
+  cores = 4,
+  chains = 4,
+  thin = 10,
+  warmup = 5000, #Nora had 10,000; default is iter/2; shouldn't ever be larger than iter
+  iter = 10000, # nora had 20000, EBL used 10000
+  control = list(adapt_delta = 0.99, max_treedepth = 15),
+  sample_prior = TRUE # save priors 
+  # prior = c(
+  #   prior(normal(0, 10), "b"),
+  #   prior(normal(3, 20, 5), "Intercept"),
+  #   prior(student_t(3, 0, 5), "sd"),
+  #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
+  # )
+)
+save(hct.wellsampled, file="Rdata_files/hct.wellsampled_FullModel_SpeciesREOnly.RData") # save model
+# load("Rdata_files/hct.m4_FullModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -1969,6 +2105,23 @@ summary(hct.m4)
 # Summary of reducing models: 
 # m5 (reduced m3) will be: elev.z, elev.pos.z, mass.z, intravar.mass.z, temp.z 
 # m6 (reduced m4) will be: elev.z + elev.pos.z, intravar.mass.z
+
+
+####
+# Model 4
+#color_scheme_set("red") # nice default
+hct.wellsampled.p1 <- mcmc_plot(hct.wellsampled, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+                                    "b_genotypeGlyMSer", "b_genotypeSerMSer",
+                                    "b_intravar.mass.z", "b_intravar.temp.z", "b_intravar.precip.z"),
+                                    prob_outer=0.95, # 95% outer CI 
+                                    prob=0.50, # 50% inner CI 
+                                    point_est="mean") + # mean point est; default is median 
+labs(x="Effect on [hct]", title = "hct.wellsampled: Posterior mean estimates & 95% Credible Intervals") + 
+scale_y_discrete(labels=c("Elevation","Elevation Position", "Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var: Mass", "Intra Var: Temp", "Intra Var: Precip"))   
+hct.wellsampled.p1
+#ggsave(hct.m4.p1, filename = "hct.m4.p1_hct_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+summary(hct.wellsampled)
+# Predictors whose 95% CIs do NOT overlap zero (that will be in reduced model): elev.z + elev.pos.z + intravar.mass.z
 ```
 
 # hct: Collate model summaries and WAIC scores for full models (m1-m6)
@@ -2028,8 +2181,8 @@ hct.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hct.m5, file="hct.m5_ReducedModel_PredictorsOnly.RData") # save model
-# load("hct.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(hct.m5, file="Rdata_files/hct.m5_ReducedModel_PredictorsOnly.RData") # save model
+# load("Rdata_files/hct.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 hct.m6 <- brm(
@@ -2045,8 +2198,8 @@ hct.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hct.m6, file="hct.m6_ReducedModel_SpeciesREOnly.RData") # save model
-# load("hct.m6_ReducedModel_SpeciesREOnly.RData") 
+save(hct.m6, file="Rdata_files/hct.m6_ReducedModel_SpeciesREOnly.RData") # save model
+# load("Rdata_files/hct.m6_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2206,9 +2359,9 @@ hct.m4.unstandardized <-
         formula = hct ~ 1 + elev + elev_position + mass.log + tempPC1 + precipPC1 + genotype + # use non .z names!!!!
                intravar.mass + intravar.temp + intravar.precip + (1|species),
         chains = 4, cores = 4)
-save(hct.m4.unstandardized, file="hct.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(hct.m4.unstandardized, file="Rdata_files/hct.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("hct.m4.unstandardized_Predictors_SpeciesRE.RData")
+#load("Rdata_files/hct.m4.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(hct.m4.unstandardized)
@@ -2216,6 +2369,11 @@ fixef(hct.m4.unstandardized)[2] # For every 1 m increase in elev, we expect Hct 
 round(fixef(hct.m4.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, Hct will increase by 1.42%. 
 fixef(hct.m4.unstandardized)[3] # elev_position
 # Not sure if other variables are worth reporting, as they have really obscure units
+
+# lower & upper CIs
+print(hct.m4.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(0.0005537224*1000, 2) # lower CI (0.55 percentage points)
+round(0.0022943449*1000, 2) # upper CI (2.29 percentage points)
 ```
 
 Quick summary of top 3 models in order of ranking: 
@@ -2227,10 +2385,11 @@ Quick summary of top 3 models in order of ranking:
 
 
 # hct: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not in paper but explored as a supplemental analysis.
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("hct.m4_FullModel_SpeciesREOnly.RData") 
-load("hct.m1_Intercept-Only.Rdata") 
+load("Rdata_files/hct.m4_FullModel_SpeciesREOnly.RData") 
+load("Rdata_files/hct.m1_Intercept-Only.Rdata") 
 
 # MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
 hct.m4.c <- brm(
@@ -2246,8 +2405,8 @@ hct.m4.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hct.m4.c, file="hct.m4.c_TopModel_CladeREAdded.RData") # save model
-#load("hct.m4.c_TopModel_CladeREAdded.RData") 
+save(hct.m4.c, file="Rdata_files/hct.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/hct.m4.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 hct.m4.ce <- brm(
@@ -2263,8 +2422,8 @@ hct.m4.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(hct.m4.ce, file="hct.m4.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("hct.m4.ce_TopModel_CladeElevInteraction.RData") 
+save(hct.m4.ce, file="Rdata_files/hct.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/hct.m4.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment
@@ -2461,8 +2620,8 @@ trbc.m1 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(trbc.m1, file="trbc.m1_Intercept-Only.RData") # save model
-#load("trbc.m1_Intercept-Only.Rdata") 
+save(trbc.m1, file="Rdata_files/trbc.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/trbc.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECTS)
@@ -2485,8 +2644,8 @@ trbc.m2 <- brm(
   #   prior(student_t(3, 0, 5), "sigma") # sigma = standard deviation
   # )
 )
-save(trbc.m2, file="trbc.m2_RandomEffectsOnly.RData") # save model
-#load("trbc.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(trbc.m2, file="Rdata_files/trbc.m2_RandomEffectsOnly.RData") # save model
+#load("Rdata_files/trbc.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -2503,9 +2662,9 @@ trbc.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m3, file="trbc.m3_FullModel_PredictorsOnly.RData") # save model
+save(trbc.m3, file="Rdata_files/trbc.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-load("trbc.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+load("Rdata_files/trbc.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -2523,8 +2682,8 @@ trbc.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m4, file="trbc.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("trbc.m4_FullModel_SpeciesREOnly.RData") 
+save(trbc.m4, file="Rdata_files/trbc.m4_FullModel_SpeciesREOnly.RData") # save model
+#load("Rdata_files/trbc.m4_FullModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2696,8 +2855,8 @@ trbc.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m5, file="trbc.m5_ReducedModel_PredictorsOnly.RData") # save model
-# load("trbc.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(trbc.m5, file="Rdata_files/trbc.m5_ReducedModel_PredictorsOnly.RData") # save model
+# load("Rdata_files/trbc.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 trbc.m6 <- brm(
@@ -2713,8 +2872,8 @@ trbc.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m6, file="trbc.m6_ReducedModel_SpeciesREOnly.RData") # save model
-# load("trbc.m6_ReducedModel_SpeciesREOnly.RData") 
+save(trbc.m6, file="Rdata_files/trbc.m6_ReducedModel_SpeciesREOnly.RData") # save model
+# load("Rdata_files/trbc.m6_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -2872,9 +3031,9 @@ trbc.m4.unstandardized <-
         formula = trbc ~ 1 + elev + elev_position + mass.log + tempPC1 + precipPC1 + genotype + # use non .z names!!!!
                intravar.mass + intravar.temp + intravar.precip + (1|species),
         chains = 4, cores = 4)
-save(trbc.m4.unstandardized, file="trbc.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(trbc.m4.unstandardized, file="Rdata_files/trbc.m4.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-load("trbc.m4.unstandardized_Predictors_SpeciesRE.RData")
+load("Rdata_files/trbc.m4.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(trbc.m4.unstandardized)
@@ -2882,6 +3041,11 @@ fixef(trbc.m4.unstandardized)[2] # For every 1 m increase in elev, we expect TRB
 round(fixef(trbc.m4.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, TRBC will increase by 0.31 units. 
 round(fixef(trbc.m4.unstandardized)[2]*1000, 2)*(10^6) # Convert to raw # cells per microliter (can also *1000000)
 # SO: For every 1,000 m increase in elev, TRBC will increase by 310,000 cells per microliter 
+
+# lower & upper CIs
+print(trbc.m4.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(0.0000604009*1000, 2)*(10^6) # lower CI (60,000 cells per microliter)
+round(0.0005456582*1000, 2)*(10^6) # upper CI (550,000 cells per microliter)
 ```
 
 TRBC, Quick summary of top 3 models in order of ranking: 
@@ -2893,10 +3057,11 @@ TRBC, Quick summary of top 3 models in order of ranking:
 
 
 # TRBC: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not in paper but explored as a supplemental analysis.
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("trbc.m4_FullModel_SpeciesREOnly.RData") 
-load("trbc.m1_Intercept-Only.Rdata") 
+load("Rdata_files/trbc.m4_FullModel_SpeciesREOnly.RData") 
+load("Rdata_files/trbc.m1_Intercept-Only.Rdata") 
 
 # MODEL 4.c: TOP MODEL WITH CLADE RE ADDED 
 trbc.m4.c <- brm(
@@ -2912,8 +3077,8 @@ trbc.m4.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m4.c, file="trbc.m4.c_TopModel_CladeREAdded.RData") # save model
-#load("trbc.m4.c_TopModel_CladeREAdded.RData") 
+save(trbc.m4.c, file="Rdata_files/trbc.m4.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/trbc.m4.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 4.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 trbc.m4.ce <- brm(
@@ -2929,8 +3094,8 @@ trbc.m4.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(trbc.m4.ce, file="trbc.m4.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("trbc.m4.ce_TopModel_CladeElevInteraction.RData") 
+save(trbc.m4.ce, file="Rdata_files/trbc.m4.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/trbc.m4.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment
@@ -3126,8 +3291,8 @@ mcv.m1 <- brm(formula = bf(mcv ~ 1),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m1, file="mcv.m1_Intercept-Only.RData") # save model
-#load("mcv.m1_Intercept-Only.Rdata") 
+save(mcv.m1, file="Rdata_files/Rdata_files/mcv.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/Rdata_files/mcv.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECT)
@@ -3142,8 +3307,8 @@ mcv.m2 <- brm(formula = bf(mcv ~ 1 + (1|species)),
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(mcv.m2, file="mcv.m2_RandomEffectsOnly.RData") # save model
-load("mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(mcv.m2, file="Rdata_files/mcv.m2_RandomEffectsOnly.RData") # save model
+load("Rdata_files/mcv.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -3159,8 +3324,8 @@ mcv.m3 <- brm(formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + pre
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m3, file="mcv.m3_FullModel_PredictorsOnly.RData") # save model
-load("mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(mcv.m3, file="Rdata_files/mcv.m3_FullModel_PredictorsOnly.RData") # save model
+load("Rdata_files/mcv.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -3179,8 +3344,8 @@ mcv.m4 <- brm(formula = bf(mcv ~ 1 + elev.z + elev.pos.z + mass.z + temp.z + pre
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m4, file="mcv.m4_FullModel_SpeciesREOnly.RData") # save model
-load("mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+save(mcv.m4, file="Rdata_files/mcv.m4_FullModel_SpeciesREOnly.RData") # save model
+load("Rdata_files/mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 })
 
 # # m4 WITH QUADRATIC ELEV
@@ -3197,8 +3362,8 @@ load("mcv.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file an
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(mcv.m4.quad, file="mcv.m4.quad_FullModel_SpeciesREOnly.RData") # save model
-# #load("mcv.m4.quad_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+# save(mcv.m4.quad, file="Rdata_files/mcv.m4.quad_FullModel_SpeciesREOnly.RData") # save model
+# #load("Rdata_files/mcv.m4.quad_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 ```
 
 
@@ -3393,8 +3558,8 @@ mcv.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m5, file="mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
-load("mcv.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(mcv.m5, file="Rdata_files/mcv.m5_ReducedModel_PredictorsOnly.RData") # save model
+load("Rdata_files/mcv.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 mcv.m6 <- brm(
@@ -3409,8 +3574,8 @@ mcv.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m6, file="mcv.m6_ReducedModel_SpeciesREOnly.RData") # save model
-load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+save(mcv.m6, file="Rdata_files/mcv.m6_ReducedModel_SpeciesREOnly.RData") # save model
+load("Rdata_files/mcv.m6_ReducedModel_SpeciesREOnly.RData") 
 
 # # MODEL 6.QUAD: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 # We don't want to incorporate quadratic models for individual-level data
@@ -3426,8 +3591,8 @@ load("mcv.m6_ReducedModel_SpeciesREOnly.RData")
 #   control = list(adapt_delta = 0.99, max_treedepth = 15),
 #   sample_prior = TRUE # save priors 
 # )
-# save(mcv.m6.quad, file="mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") # save model
-#load("mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") 
+# save(mcv.m6.quad, file="Rdata_files/mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") # save model
+#load("Rdata_files/mcv.m6.quad_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -3601,9 +3766,9 @@ mcv.m6.unstandardized <-
         newdata = final.trbc,
         formula = trbc ~ 1 + tempPC1 + (1|species), # use non .z names!!!!
         chains = 4, cores = 4)
-save(mcv.m6.unstandardized, file="mcv.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(mcv.m6.unstandardized, file="Rdata_files/mcv.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("mcv.m6.unstandardized_Predictors_SpeciesRE.RData")
+# load("Rdata_files/mcv.m6.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(mcv.m6.unstandardized)
@@ -3624,10 +3789,11 @@ MCV, Quick summary of top 3 models in order of ranking (this does not include qu
 
 
 # MCV: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not in paper but explored as a supplemental analysis.
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("mcv.m6_ReducedModel_SpeciesREOnly.RData") 
-load("mcv.m1_Intercept-Only.Rdata") 
+load("Rdata_files/mcv.m6_ReducedModel_SpeciesREOnly.RData") 
+load("Rdata_files/mcv.m1_Intercept-Only.Rdata") 
 
 # MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
 mcv.m6.c <- brm(
@@ -3642,8 +3808,8 @@ mcv.m6.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m6.c, file="mcv.m6.c_TopModel_CladeREAdded.RData") # save model
-#load("mcv.m6.c_TopModel_CladeREAdded.RData") 
+save(mcv.m6.c, file="Rdata_files/mcv.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/mcv.m6.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 mcv.m6.ce <- brm(
@@ -3658,8 +3824,8 @@ mcv.m6.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mcv.m6.ce, file="mcv.m6.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("mcv.m6.ce_TopModel_CladeElevInteraction.RData") 
+save(mcv.m6.ce, file="Rdata_files/mcv.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/mcv.m6.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment
@@ -3842,8 +4008,8 @@ mch.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m1, file="mch.m1_Intercept-Only.RData") # save model
-#load("mch.m1_Intercept-Only.Rdata") 
+save(mch.m1, file="Rdata_files/mch.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/mch.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + SPECIES RANDOM EFFECTS)
@@ -3859,8 +4025,8 @@ mch.m2 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m2, file="mch.m2_RandomEffectsOnly.RData") # save model
-load("mch.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(mch.m2, file="Rdata_files/mch.m2_RandomEffectsOnly.RData") # save model
+load("Rdata_files/mch.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -3877,9 +4043,9 @@ mch.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m3, file="mch.m3_FullModel_PredictorsOnly.RData") # save model
+save(mch.m3, file="Rdata_files/mch.m3_FullModel_PredictorsOnly.RData") # save model
 # Run time: ~1 minute
-#load("mch.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+#load("Rdata_files/mch.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -3896,9 +4062,9 @@ mch.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m4, file="mch.m4_FullModel_SpeciesREOnly.RData") # save model
+save(mch.m4, file="Rdata_files/mch.m4_FullModel_SpeciesREOnly.RData") # save model
 # ~3 mins
-#load("mch.m4_FullModel_SpeciesREOnly.RData") 
+#load("Rdata_files/mch.m4_FullModel_SpeciesREOnly.RData") 
 
 ```
 
@@ -4069,8 +4235,8 @@ mch.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m5, file="mch.m5_ReducedModel_PredictorsOnly.RData") # save model
-#load("mch.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(mch.m5, file="Rdata_files/mch.m5_ReducedModel_PredictorsOnly.RData") # save model
+#load("Rdata_files/mch.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 mch.m6 <- brm(
@@ -4085,8 +4251,8 @@ mch.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors
 )
-save(mch.m6, file="mch.m6_ReducedModel_PhyloREOnly.RData") # save model
-load("mch.m6_ReducedModel_PhyloREOnly.RData") 
+save(mch.m6, file="Rdata_files/mch.m6_ReducedModel_PhyloREOnly.RData") # save model
+load("Rdata_files/mch.m6_ReducedModel_PhyloREOnly.RData") 
 ```
 
 
@@ -4237,15 +4403,20 @@ mch.m6.unstandardized <-
         newdata = final.mch,
         formula = mch ~ 1 + elev + tempPC1 + (1|species), # use non .z names!!!!
         chains = 4, cores = 4)
-save(mch.m6.unstandardized, file="mch.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(mch.m6.unstandardized, file="Rdata_files/mch.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("mch.m6.unstandardized_Predictors_SpeciesRE.RData")
+#load("Rdata_files/mch.m6.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(mch.m6.unstandardized)
 fixef(mch.m6.unstandardized)[2] # For every 1 m increase in elev, we expect MCH will decrease by -0.0004775075 pg
 round(fixef(mch.m6.unstandardized)[2]*1000, 2) # For every 1000m increase in elev, MCH will decrease by 0.48 pg. 
 # Not sure if other variables are worth reporting, as they have really obscure units
+
+# lower & upper CIs
+print(mch.m6.unstandardized, digits=10) # print model with 10 sig figs to pull full 95% CI estimates (this is lazy way)
+round(-0.0011951528*1000, 2) # lower CI (-1.2 pg)
+round(0.0002678837*1000, 2) # upper CI (550,000 cells per microliter)
 ```
 
 
@@ -4259,10 +4430,11 @@ MCH, Quick summary of top 3 models in order of ranking:
 
 
 # MCH: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not in paper but explored as a supplemental analysis.
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("mch.m6_ReducedModel_SpeciesREOnly.RData") 
-load("mch.m1_Intercept-Only.Rdata") 
+load("Rdata_files/mch.m6_ReducedModel_SpeciesREOnly.RData") 
+load("Rdata_files/mch.m1_Intercept-Only.Rdata") 
 
 # MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
 mch.m6.c <- brm(
@@ -4277,8 +4449,8 @@ mch.m6.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m6.c, file="mch.m6.c_TopModel_CladeREAdded.RData") # save model
-#load("mch.m6.c_TopModel_CladeREAdded.RData") 
+save(mch.m6.c, file="Rdata_files/mch.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/mch.m6.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 mch.m6.ce <- brm(
@@ -4293,8 +4465,8 @@ mch.m6.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mch.m6.ce, file="mch.m6.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("mch.m6.ce_TopModel_CladeElevInteraction.RData") 
+save(mch.m6.ce, file="Rdata_files/mch.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/mch.m6.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment
@@ -4446,11 +4618,6 @@ Quick summary of top models from Clade analysis:
 
 
 
-
-
-
-
-
 ##### MCHC MODEL SET #######
 
 
@@ -4483,8 +4650,8 @@ mchc.m1 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m1, file="mchc.m1_Intercept-Only.RData") # save model
-#load("mchc.m1_Intercept-Only.Rdata") 
+save(mchc.m1, file="Rdata_files/mchc.m1_Intercept-Only.RData") # save model
+#load("Rdata_files/mchc.m1_Intercept-Only.Rdata") 
 
 
 # MODEL 2: RANDOM EFFECTS-ONLY MODEL (INTERCEPT + PHYLO & SPECIES RANDOM EFFECTS)
@@ -4500,8 +4667,8 @@ mchc.m2 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m2, file="mchc.m2_RandomEffectsOnly.RData") # save model
-#load("mchc.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
+save(mchc.m2, file="Rdata_files/mchc.m2_RandomEffectsOnly.RData") # save model
+#load("Rdata_files/mchc.m2_RandomEffectsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 3: FULL MODEL WITH NO RANDOM EFFECTS (JUST PREDICTORS)
@@ -4518,8 +4685,8 @@ mchc.m3 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m3, file="mchc.m3_FullModel_PredictorsOnly.RData") # save model
-#load("mchc.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(mchc.m3, file="Rdata_files/mchc.m3_FullModel_PredictorsOnly.RData") # save model
+#load("Rdata_files/mchc.m3_FullModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 
 # MODEL 4: FULL MODEL WITH ONLY SPECIES RANDOM EFFECT
@@ -4536,8 +4703,8 @@ mchc.m4 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m4, file="mchc.m4_FullModel_SpeciesREOnly.RData") # save model
-#load("mchc.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
+save(mchc.m4, file="Rdata_files/mchc.m4_FullModel_SpeciesREOnly.RData") # save model
+#load("Rdata_files/mchc.m4_FullModel_SpeciesREOnly.RData") # If loading from pre-saved file and not re-running
 ```
 
 
@@ -4707,8 +4874,8 @@ mchc.m5 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m5, file="mchc.m5_ReducedModel_PredictorsOnly.RData") # save model
-#load("mchc.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
+save(mchc.m5, file="Rdata_files/mchc.m5_ReducedModel_PredictorsOnly.RData") # save model
+#load("Rdata_files/mchc.m5_ReducedModel_PredictorsOnly.RData") # If loading from pre-saved file and not re-running
 
 # MODEL 6: REDUCED MODEL WITH ONLY SPECIES RANDOM EFFECT
 mchc.m6 <- brm(
@@ -4723,8 +4890,8 @@ mchc.m6 <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m6, file="mchc.m6_ReducedModel_SpeciesREOnly.RData") # save model
-load("mchc.m6_ReducedModel_SpeciesREOnly.RData") 
+save(mchc.m6, file="Rdata_files/mchc.m6_ReducedModel_SpeciesREOnly.RData") # save model
+load("Rdata_files/mchc.m6_ReducedModel_SpeciesREOnly.RData") 
 ```
 
 
@@ -4877,9 +5044,9 @@ mchc.m6.unstandardized <-
         newdata = final.mchc,
         formula = mchc ~ 1 + intravar.mass + intravar.temp + (1|species), # use non .z names!!!!
         chains = 4, cores = 4)
-save(mchc.m6.unstandardized, file="mchc.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
+save(mchc.m6.unstandardized, file="Rdata_files/mchc.m6.unstandardized_Predictors_SpeciesRE.RData") # save model
 })
-# load("mchc.m6.unstandardized_Predictors_SpeciesRE.RData")
+# load("Rdata_files/mchc.m6.unstandardized_Predictors_SpeciesRE.RData")
 
 # Look at magnitude of unstandardized coefficients 
 summary(mchc.m6.unstandardized)
@@ -4896,11 +5063,13 @@ MCHC, Quick summary of top 3 models in order of ranking:
 All models with species effect ranked much higher than models w/out, suggesting species very important. 
 
 
+
 # MCHC: POST HOC ANALYSIS OF CLADE AND ELEVATION RELATIONSHIPS 
+Not in paper but explored as a supplemental analysis.
 ```{r}
 # Load intercept only and top models (if not already loaded)
-load("mchc.m6_ReducedModel_SpeciesREOnly.RData") 
-load("mchc.m1_Intercept-Only.Rdata") 
+load("Rdata_files/mchc.m6_ReducedModel_SpeciesREOnly.RData") 
+load("Rdata_files/mchc.m1_Intercept-Only.Rdata") 
 
 # MODEL 6.c: TOP MODEL WITH CLADE RE ADDED 
 mchc.m6.c <- brm(
@@ -4915,8 +5084,8 @@ mchc.m6.c <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m6.c, file="mchc.m6.c_TopModel_CladeREAdded.RData") # save model
-#load("mchc.m6.c_TopModel_CladeREAdded.RData") 
+save(mchc.m6.c, file="Rdata_files/mchc.m6.c_TopModel_CladeREAdded.RData") # save model
+#load("Rdata_files/mchc.m6.c_TopModel_CladeREAdded.RData") 
 
 # MODEL 6.ce: TOP MODEL WITH CLADE*ELEV INTERACTION
 mchc.m6.ce <- brm(
@@ -4931,8 +5100,8 @@ mchc.m6.ce <- brm(
   control = list(adapt_delta = 0.99, max_treedepth = 15),
   sample_prior = TRUE # save priors 
 )
-save(mchc.m6.ce, file="mchc.m6.ce_TopModel_CladeElevInteraction.RData") # save model
-#load("mchc.m6.ce_TopModel_CladeElevInteraction.RData") 
+save(mchc.m6.ce, file="Rdata_files/mchc.m6.ce_TopModel_CladeElevInteraction.RData") # save model
+#load("Rdata_files/mchc.m6.ce_TopModel_CladeElevInteraction.RData") 
 
 
 # Fit assessment

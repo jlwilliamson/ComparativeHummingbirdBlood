@@ -1,7 +1,7 @@
 ---
 title: "Comparative Hummingbird Blood - Phylogeny"
 author: "Jessie Williamson"
-date: "7/19/2020; last revised 1/23/22"
+date: "7/19/2020; last revised 2023-04-20"
 output:
   md_document:
     variant: markdown_github
@@ -10,7 +10,7 @@ output:
 
 #### 
 
-Script to process phylogeny for 'Hummingbird blood data from an interspecific comparative standpoint'
+Script to process phylogeny for 'Hummingbird blood traits track oxygen availability across space and time'
 
 ####
 
@@ -115,7 +115,7 @@ setwd("/Users/Jessie/Dropbox (MSBbirds)/Rdirectory/ComparativeHummingbirdBlood")
 final <- read.csv("AllHummingbirdBlood_Wrangled_withBioClim_andPCA_06-14-21.csv", stringsAsFactors = FALSE)
 final <- final[ , !(colnames(final) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
 
-# (These are made in modeling scripts)
+# (These datasets are made in modeling scripts)
 final.hb <- read.csv("HumBlood_final.hb.csv", stringsAsFactors = FALSE)
 final.hb <- final.hb[ , !(colnames(final.hb) %in% c("X"))] # drop weird X column 
 
@@ -152,14 +152,15 @@ tree$tip.label
 mcguire_tip_labels <- tree$tip.label
 mcguire_tip_labels <- as.data.frame(mcguire_tip_labels)
 #write.csv(mcguire_tip_labels, "mcguire_tip_labels.csv")
+
 # In a nutshell: I took my species list, coded those as "keep", then coded all others as "drop"
-# I sorted by "drop" in Excel, contatenated to include parenthesis and proper commas, then pasted values here 
+# I sorted by "drop" in Excel, concatenated to include parenthesis and proper commas, then pasted values here 
 ```
 
 
 # Prune master McGuire tree to desired species subset (77 tips)
 ```{r}
-# So clunky, but manually select all tip labels you want to drop
+# So...this is clunky, but manually select all tip labels you want to drop
 # Variable names make this tricky and hard to automate
 # We'll prune this full McGuire tree to one with only 77 tips for our Hummingbird Blood Comparative models 
 # NOTE: McGuire tree doesn't include Oreotrochilus leucopleurus and Phaethornis stuarti: I deal with that below. 
@@ -1174,11 +1175,11 @@ plotTree(tree.prune3, ftype="i") # stuarti now sister to ruber
 
 Notes on the above code chunk: 
 - *Oreotrochilus* is  good and reflects current taxonomy of Sornoza-Molina et al. 2018, Auk 
-- My way of doing this for *Phaethornis stuarti* is clunky. McGuire doesn't have stuarti, and the only other published Phaethornis phylogeny I could find was from 1997 (looks outdated). BirdTree puts ruber sister to atrimentalis with stuarti on an earlier and longer branch. 
-- Since we don't have any other phylogeny to go on and know that stuarti is in the tiny ruber-atrimentalis hermit clade, I want to use BirdTree's estimated position. But since McGuire's tree is best, I want to use McGuire's rates, when possible. 
-- Phytools wasn't cooperating with me adding P. stuarti to the node or edge before ruber-atrimentalis. Instead, I added stuarti sister to ruber. Then, below, I flip-flop stuarti and atrimentalis names to reflect where BirdTree estimates the order of the three. 
-- THEN, I adjust branch lengths to retain McGuire estimates for the ruber-atrimentalis split and aligning tip labels. 
-- Finally, I eyeball the BirdTree estimate and lengthen the stuarti branch to more closely match the estimated divergence times. This is imperfect, and it requires some finagling of interior branches to align tips. My estimate is NOT spot-on, but it's the best I know how to do given limited information, no genetic distances, and uncertainty about where stuarti falls. 
+- My way of doing this for *Phaethornis stuarti* is clunky. McGuire doesn't have *stuarti*, and the only other published *Phaethornis* phylogeny I could find was from 1997 (and looked outdated). BirdTree puts *ruber* sister to *atrimentalis* with *stuarti* on an earlier and longer branch. 
+- Since we don't have any other phylogeny to go on and know that *stuarti* is in the tiny ruber-atrimentalis hermit clade, I want to use BirdTree's estimated position. But since McGuire's tree is best, I want to use McGuire's rates, when possible. 
+- Phytools wasn't cooperating with me adding *P. stuarti* to the node or edge before ruber-atrimentalis. Instead, I added *stuarti* sister to *ruber*. Then, below, I flip-flop *stuarti* and *atrimentalis* names to reflect where BirdTree estimates the order of the three. 
+- THEN, I adjust branch lengths to retain McGuire estimates for the ruber-atrimentalis split and align tip labels. 
+- Finally, I eyeball the BirdTree estimate and lengthen the *stuarti* branch to more closely match the estimated divergence times. This is imperfect, and it requires some finagling of interior branches to align tips. My estimate is NOT spot-on, but it's the best I know how to do given limited information, no genetic distances, and uncertainty about where *stuarti* falls. 
 
 
 # Adjust branch lengths 
@@ -1217,7 +1218,7 @@ tree.prune3[[2]][8] <- 1.5450608 # P. ruber tip (estimate from McGuire et al. 20
 tree.prune3[[2]][9] <- 1.5450608 # P. atrimentalis  tip (estimate from McGuire et al. 2014)
 tree.prune3[[2]][7] <- 0.987 # Branch leading to P. atrimentalis and P. ruber; originally 1.5450608
 # I subbed this value in from the branch length leading to the two 0.558 rubers from McGuire. 
-# So, this branch length is an est based on similar relationships in this clade presented in McGuire (ruber to ruber)
+# So, this branch length is an estimate based on similar relationships in this clade presented in McGuire (ruber to ruber)
 tree.prune3[[2]][10] <- 2.517591 # P. stuarti tip (Lengthened to more closely match BirdTree) 
 tree.prune3[[2]][6] <- 4.9906429 # Base branch leading to this P. clade (Shortened to make tips flush) 
 tree.prune3[[2]] # Check all branch lengths 
@@ -1292,6 +1293,7 @@ tree.mchc$tip.label # 73 tips
 
 # MAKE A SPECIES MEAN TREE WITH PGIGN AND PGIGS (*Patagona gigas* north and *Patagona gigas* south)
 Because we'll analyze Patagona_gigas_S and Patagona_gigas_N as functionally different lineages, add in Patagona_gigas_S to final pruned tree and adjust branch lengths to reflect known percent divergence based on our preliminary ND2 data. 
+(This is used for CeNS analysis)
 ```{r}
 tree.final <- read.tree("McGuirePruned_AllHummingbirdComparativeTree_FINAL.tre") # a list 
 is.rooted(tree.final) # verify that tree is rooted; TRUE = tree is rooted (we want this)
@@ -1304,7 +1306,7 @@ spm.tree1$edge.length
 
 # Get divergence estimates for PgigasN and PgigasS
 pgig.div <- round(0.07399794/(2*0.029), 6); pgig.div 
-# This is ~7.3% divergence; ~72/973 bp of ND2 (based in Williamson et al, In Prep)
+# This is ~7.3% divergence; ~72/973 bp of ND2 (based in Williamson et al., In Prep)
 
 # Add tip for Patagona_gigas_S sister to Patagona_gigas_N
 # With divergence time of 1.275827 Ma and duration (edge length) of 1.275827

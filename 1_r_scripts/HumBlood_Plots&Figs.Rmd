@@ -1,7 +1,7 @@
 ---
 title: "Plots and Figures for Comparative Hummingbird Blood paper"
 author: "Jessie Williamson"
-date: "7/21/2020; last revised 01/23/22"
+date: "7/21/2020; last revised 2023-04-20"
 output:
   md_document:
     variant: markdown_github
@@ -13,7 +13,9 @@ PLOTS & FIGS SCRIPT
 
 ####
 
-This script contains plots and figures for Williamson et al., Comparative Hummingbird Blood. These are separated into a standalone script to not bog down main scripts because some multi-panel figs are beefy. 
+This script contains plots and figures for Williamson et al. 2023, Hummingbird blood traits track oxygen availability across space and time, *Ecology Letters*. These are separated into a standalone script to not bog down main scripts because some multi-panel figs are beefy. 
+
+4/20/23 note: While going through this script and proofreading, I realized that some figure numbers never got updated to correspond with the final Ecology Letters supplement order. SO: In this script they're ordered correctly, but keep in mind that the number prefixes listed in pdf output files here probably don't always correspond to the pdf files on your hard drive; just keyword search other parts of the fig title and you'll find the files.  
 
 
 # Load packages
@@ -252,6 +254,8 @@ hum_colors <- c( "#04A5A5", # Turquoise (Coquette)
 ```
 
 
+# FIGURE 1: Was made by producing raw maps and species elev ranges in HumBlood_PhyloElevRangeMapFig.Rmd; then by exporting raw graphics to Illustrator to make the final figure. 
+
 
 # FIGURE 2: COMBINED INDIVIDUAL-LEVEL AND SPECIES MEAN DATA IN ONE MASTER PLOT 
 Figure 2, a 6-panel fig w/ relationship between predictors and elevation. Linear models fit to main plots (break point analysis is in the supplement)
@@ -317,7 +321,7 @@ spec_mean_colors <- c( "#04A5A5", # Turquoise (Coquette)
   geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0, data=above4ksub) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x=" ", # Removed "Elevation (m)" because we don't want Panel A to have label
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="[Hb] (g/dl)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") + 
@@ -329,7 +333,7 @@ spec_mean_colors <- c( "#04A5A5", # Turquoise (Coquette)
   theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb_2021-11-29.pdf", height=7, width=9, units="in")
+ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb_2023-02-27.pdf", height=7, width=9, units="in")
 # The 166 rows of missing values come from many NA Hb values; don't worry about these 
 
 # Get R^2 for Panel A; R^2 reported from Bayesian model
@@ -348,7 +352,7 @@ ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb_2021-11-29.pdf", height=7, w
 #  geom_jitter(width=1.5, height=1.5, alpha=0.8, size=1.8) + # jitter to fill plot space 
   geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0) + # line used to be dark turquoise 
   theme_classic() + 
-  labs(x="", # Removed "Elevation (m)" because we don't want Panel A to have label
+  labs(x="Elevation (m)", # Removed "Elevation (m)" because we don't want Panel A to have label
        y="Hct (%)") +
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
@@ -360,7 +364,7 @@ ggsave(p1, filename="p1_ScatterplotBasic_Elev_by_Hb_2021-11-29.pdf", height=7, w
   theme(plot.margin = unit(c(0.2,0.2,0.0,0.1), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct_2021-11-29.pdf", height=7, width=9, units="in")
+ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct_2023-02-27.pdf", height=7, width=9, units="in")
 
 # # Get R^2 for Panel B; R^2 reported from Bayesian model
 # fig2.panelB.r2 <- glm(hct ~ elev, data=final, family=gaussian())
@@ -380,7 +384,7 @@ ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct_2021-11-29.pdf", height=7, 
   #geom_smooth(method = "lm", formula = y ~ x, colour="black", size=1.0, data=above4ksub) + # line used to be dark turquoise
   theme_classic() + 
    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-     x="") + # Removed "Elevation (m)" because we don't want Panel A to have label
+     x="Elevation (m)") + # Removed "Elevation (m)" because we don't want Panel A to have label
     # in expression world, ~ is space and mathematical symbols like parenthesis need to be set of w/ " " 
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "none") +
@@ -392,7 +396,7 @@ ggsave(p2, filename="p3_ScatterplotBasic_Elev_by_Hct_2021-11-29.pdf", height=7, 
   theme(plot.margin = unit(c(0.0,right=5,0.0,0.2), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
  )
-ggsave(p3, filename="p3_ScatterplotBasic_Elev_by_TRBC_2021-11-29.pdf", height=7, width=9, units="in")
+ggsave(p3, filename="p3_ScatterplotBasic_Elev_by_TRBC_2023-02-27.pdf", height=7, width=9, units="in")
 
 # Get R^2 for Panel C; R^2 reported from Bayesian model
 # fig2.panelC.r2 <- glm(trbc ~ elev, data=final, family=gaussian())
@@ -686,7 +690,7 @@ Fig2_v2_all_data <- (
                           top = 2.38) 
           )  
 print(Fig2_v2_all_data)
-ggsave(Fig2_v2_all_data, filename = "Fig2_v2_all_data_Dashed-and-Solid_2022-01-18.pdf", bg="transparent", height=6.7, width=11, units="in")
+ggsave(Fig2_v2_all_data, filename = "Fig2_v2_all_data_Dashed-and-Solid_2023-02-27.pdf", bg="transparent", height=6.7, width=11, units="in")
 # A little janky, but I set up the species mean panel as an inset in order to get the formatting to work
 # SYNTAX VERY TRICKY! 
 # Only big problem with this is that I can't figure out how to get guides="collect" to put common A-F legend on RIGHT
@@ -720,21 +724,21 @@ library(tidyverse)
 library(patchwork)
 
 # Load in individual-level models for plots 
-load("hb.m4_FullModel_SpeciesREOnly.RData")
-load("hct.m4_FullModel_SpeciesREOnly.RData")
-load("trbc.m4_FullModel_SpeciesREOnly.RData") 
-load("mcv.m4_FullModel_SpeciesREOnly.RData")
-load("mch.m4_FullModel_SpeciesREOnly.RData")
-load("mchc.m4_FullModel_SpeciesREOnly.RData") 
+load("Rdata_files/hb.m4_FullModel_SpeciesREOnly.RData")
+load("Rdata_files/hct.m4_FullModel_SpeciesREOnly.RData")
+load("Rdata_files/trbc.m4_FullModel_SpeciesREOnly.RData") 
+load("Rdata_files/mcv.m4_FullModel_SpeciesREOnly.RData")
+load("Rdata_files/mch.m4_FullModel_SpeciesREOnly.RData")
+load("Rdata_files/mchc.m4_FullModel_SpeciesREOnly.RData") 
 
 # Quick load to be able to make plots for big species mean comparison plot: 
 # For quick pasting for final plot 
-load("spm.hb.m2_FullModel.RData") 
-load("spm.hct.m2_FullModel.RData") 
-load("spm.trbc.m4_FullModelWithQuadratic.RData")
-load("spm.mcv.m4_FullModelWithQuadratic.RData") 
-load("spm.mch.m4_FullModelWithQuadratic.RData")  
-load("spm.mchc.m4_FullModelWithQuadratic.RData")
+load("Rdata_files/spm.hb.m2_FullModel.RData") 
+load("Rdata_files/spm.hct.m2_FullModel.RData") 
+load("Rdata_files/spm.trbc.m4_FullModelWithQuadratic.RData")
+load("Rdata_files/spm.mcv.m4_FullModelWithQuadratic.RData") 
+load("Rdata_files/spm.mch.m4_FullModelWithQuadratic.RData")  
+load("Rdata_files/spm.mchc.m4_FullModelWithQuadratic.RData")
 
 # Set color scheme 
 color_scheme_set("viridisD")
@@ -1189,8 +1193,8 @@ CeNS results.
 cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-14-21.csv")
 
 # Load in data required to create plot 
-load("cens.m3_CeNS.RData") # top model  
-load("cens.m5_CeNS_ReducedModel.RData") # essentially tied w/ top model
+load("Rdata_files/cens.m3_CeNS.RData") # top model  
+load("Rdata_files/cens.m5_CeNS_ReducedModel.RData") # essentially tied w/ top model
 
 # No need to load cens.ss.mean if it's already loaded
 ```
@@ -1276,6 +1280,8 @@ ggsave(Fig4_PanelA, filename="Fig4_PanelA_BananaHeatGradient_2022-01-24.pdf", he
 # PANELS B AND C
 # See Hawkey et al. 1991 for inspiration.
 
+
+#THIS ONE
 # Panel B: RBC and MCV - redo of plot in Wintrobe 1933 and Hawkey et al. 1991
 (Fig4_PanelB <- ggplot(final.hmt, aes(x=mcv, y=trbc, colour=hb)) +
       scale_colour_viridis(option="rocket", discrete=FALSE, name="Measured\n[Hb]\n(g/dl)") +
@@ -1284,8 +1290,8 @@ ggsave(Fig4_PanelA, filename="Fig4_PanelA_BananaHeatGradient_2022-01-24.pdf", he
     # scale_color_manual(values=hum_colors) +
     # stat_smooth(data=final, aes(y=trbc), size=1.2, method="lm") +
     #geom_jitter(width=0.8, height=0.8, alpha=0.8, size=2) + # jitter size should match geom_point size or it looks weird
-    labs(y=expression(TRBC~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
-     x="") + # Removed x-axis label because we don't want Panel A to have label
+    labs(y=expression(Total~Red~Blood~Cell~Count~"("~RBC~x~10^{6}~"/"~mm^{3}~")"), # horrible expression language for getting formatted y axis 
+     x="Mean Cell Volume (fl)") + # Removed x-axis label because we don't want Panel A to have label
     #scale_color_manual(values=c(neither="black", generalist="burlywood2", specialist="#853FCD")) + #336B87
     #scale_color_manual(values=c(neither="#8C847B", generalist="#1CD2D8", specialist="#6E1EDC")) + #336B87
     theme_classic() +
@@ -1298,10 +1304,12 @@ ggsave(Fig4_PanelA, filename="Fig4_PanelA_BananaHeatGradient_2022-01-24.pdf", he
     theme(plot.margin = unit(c(0.2,0.2,0.0,0.2), "cm")) +  # top, right, bottom, left
     theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
 )
-ggsave(Fig4_PanelB, filename="Fig4_PanelB_RBC_vs_MCV_Scatterplot_ColoredByElev_2021-11-19.pdf", height=7, width=9, units="in") 
+ggsave(Fig4_PanelB, filename="Fig4_PanelB_TRBC_vs_MCV_Scatterplot_ColoredByElev_2022-11-23_4x5.pdf", height=4, width=5, units="in") 
 # Wow, this is amazing. See Hawkey et al. 1991 for some dynamite interpretation
 # Essentially this means: species have either evolved many small erythrocytes or few large erythrocytes 
 # Seems to be a sweet spot of a moderate number of a moderate sized erythrocyte
+
+
 
 # Panel C: MCH and MCV - redo of plot in Hawksey et al. 1991
 (Fig4_PanelC <- ggplot(final.hmt, aes(x=mcv, y=mch, colour=trbc)) +
@@ -1330,7 +1338,9 @@ ggsave(Fig4_PanelC, filename="Fig4_PanelC_RBC_vs_MCH_Scatterplot_ColoredByElev_2
 ####
 
 # REDUCED CeNS model 
-# Main: Best full CeNS model (M3) 
+# Main: Best full CeNS model (M3)
+library(bayesplot)
+library(brms)
 color_scheme_set("viridisC") # Used viridisD for other posterior prob plots (figure 4)
 fig4d_reduced <- mcmc_plot(cens.m5, variable=c("b_mass.z", "b_elev.z", "b_Ielev.zE2"),
               prob_outer=0.95, # 95% outer CI
@@ -1373,19 +1383,19 @@ round((1 - (fig4.panelE.r2$deviance/fig4.panelE.r2$null.deviance)),2) # R^2 = 0.
   # geom_smooth(method = "lm", size = 1,colour="darkturquoise", size=1.0) + # linear 
   theme_classic() + 
   labs(x="Elevation (m)", 
-      # y="Cell Number-Size Index (0-1)") + 
+       #y="Cell Number-Size Index (0-1)") + 
        y=expression(italic(CeNS))) + # CeNS = (TRBC/MCV+TRBC)
        # theme(axis.text.x = element_text(hjust = 1)) +
   theme(legend.position = "right") + 
   annotate("text", x=4000, y=0.72, size=3.2, label = "italic(R) ^ 2 == 0.13", parse = TRUE) + # Add R^2 value
-  ggtitle("") + # Assign panel number/header; this will be (a) because first in series of 3
+  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
   theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
          plot.title = element_text(face="bold")) + # This makes panel header bold 
        # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
   theme(plot.margin = unit(c(0.0,0.0,0.0,0.0), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
  )
-ggsave(fig4e, filename="fig4e_CeNSindex_by_MeanElev_2022-01-22.pdf", height=7, width=7, units="in")
+ggsave(fig4e, filename="fig4e_CeNSindex_by_MeanElev_2023-04-19_4x5.pdf", height=4, width=5, units="in")
 
 
 ##### 
@@ -1436,7 +1446,7 @@ Figure4_TradeoffAndCeNS_Results <- (
                                 # widths = says make col 1 have 2x the width of column 2
                                 # heights = controlling size in cm, order: 1st row, 2nd row, 3rd row
 plot(Figure4_TradeoffAndCeNS_Results)
-ggsave(Figure4_TradeoffAndCeNS_Results, filename = "Figure4_TradeoffAndCeNSResults_2022-01-22.pdf", bg="transparent", height=7.4, width=7.6, units="in")
+ggsave(Figure4_TradeoffAndCeNS_Results, filename = "Figure4_TradeoffAndCeNSResults_2023-04-19.pdf", bg="transparent", height=7.4, width=7.6, units="in")
 
 # Another way to format layout (though doesn't allow for adjustment of panels E and F separately, as I wanted): 
 # Figure4_TradeoffAndCeNS_Results <- (
@@ -1456,16 +1466,19 @@ ggsave(Figure4_TradeoffAndCeNS_Results, filename = "Figure4_TradeoffAndCeNSResul
 
 ######## SUPPLEMENTAL FIGS ######## 
 
-# FIGURE S1: In `HumBlood_CeNS.Rmd` script. Sigle-species posterior probability plots. 
+
+# FIGURE S1: In `HumBlood_Modeling.Rmd` script. Contmaps for each blood trait. Produced in the script, hand-combined in Illustrator. 
 
 
-# FIGURE S2: supplementary CeNS results. 
+# FIGURE S2: In `HumBlood_CeNS.Rmd` script. Single-species posterior probability plots.
+
+
+# FIGURE S3: Supplementary CeNS results. 
 ```{r}
-
 # PANEL A: Full model results
 # Main: Best full CeNS model (M3) 
 color_scheme_set("viridisC") # Used viridisD for other posterior prob plots (figure 4)
-FigS2_A <- mcmc_plot(cens.m3, variable=c("b_wl.z", "b_mass.z", "b_elev.z", "b_Ielev.zE2"),
+FigS3_A <- mcmc_plot(cens.m3, variable=c("b_wl.z", "b_mass.z", "b_elev.z", "b_Ielev.zE2"),
               prob_outer=0.95, # 95% outer CI
               prob=0.89, # 50% inner CI
               point_est="mean", # mean point est; default is median
@@ -1484,13 +1497,13 @@ FigS2_A <- mcmc_plot(cens.m3, variable=c("b_wl.z", "b_mass.z", "b_elev.z", "b_Ie
              plot.title = element_text(face="bold"))  # This makes panel header bold 
              # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
              #theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-FigS2_A
-ggsave(FigS2_A, filename = "FigS2A_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
+FigS3_A
+ggsave(FigS3_A, filename = "FigS2A_CensIndex_PosteriorEstimates&CredibleIntervals.pdf", bg="transparent", height=7, width=9, units="in")
 
 
 # PANEL B - CENS V. WING LOADING SCATTERPLOT
 #cens.ss.mean$wl.rounded <- round(cens.ss.mean$wl, 2)
-(FigS2_B <- ggplot(cens.ss.mean, aes(x=round(wl,2), y=cens.index)) + # Add shape=Clade here to get shapes to work 
+(FigS3_B <- ggplot(cens.ss.mean, aes(x=round(wl,2), y=cens.index)) + # Add shape=Clade here to get shapes to work 
   geom_point(size=1.8, alpha=0.8) +
  # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
  # scale_colour_viridis(discrete=F) + 
@@ -1510,7 +1523,7 @@ ggsave(FigS2_A, filename = "FigS2A_CensIndex_PosteriorEstimates&CredibleInterval
   theme(plot.margin = unit(c(0.0,0.0,0.0,0.0), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
  )
-ggsave(FigS2_B, filename="FigS2_B_CeNSindex_by_WingLoading_2022-01-22.pdf", height=7, width=9, units="in")
+ggsave(FigS3_B, filename="FigS2_B_CeNSindex_by_WingLoading_2022-01-22.pdf", height=7, width=9, units="in")
 
 
 # PANEL C: Scatterplot of CeNS index v. MCV  
@@ -1522,7 +1535,7 @@ cens.mcv.link.model <- glm(cens.index ~ mcv, data=cens.ss.mean, family=gaussian(
 (1 - (cens.mcv.link.model$deviance/cens.mcv.link.model$null.deviance)) # R^2 = 0.26
 
 # plot
-(FigS2_C <- ggplot(cens.ss.mean, aes(x=mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+(FigS3_C <- ggplot(cens.ss.mean, aes(x=mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
   geom_point(size=1.8, alpha=0.8) +
  # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
   scale_colour_viridis(option="rocket", discrete=FALSE, name="TRBC") + 
@@ -1545,7 +1558,7 @@ cens.mcv.link.model <- glm(cens.index ~ mcv, data=cens.ss.mean, family=gaussian(
   theme(plot.margin = unit(c(0.0,0.0,0.0,0.0), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
  )
-ggsave(FigS2_C, filename="FigS2_C _CeNSindex_by_MCV_2022-01-22.pdf", height=7, width=9, units="in")
+ggsave(FigS3_C, filename="FigS2_C _CeNSindex_by_MCV_2022-01-22.pdf", height=7, width=9, units="in")
 
 
 # PANEL D: Scatterplot: CeNS index v. TRBC  
@@ -1557,7 +1570,7 @@ cens.trbc.link.model <- glm(cens.index ~ trbc, data=cens.ss.mean, family=gaussia
 (1 - (cens.trbc.link.model$deviance/cens.trbc.link.model$null.deviance)) # R^2 = 0.19
 
 # PLot
-(FigS2_D <- ggplot(cens.ss.mean, aes(x=trbc, y=cens.index)) + # Had previously colored by MCV
+(FigS3_D <- ggplot(cens.ss.mean, aes(x=trbc, y=cens.index)) + # Had previously colored by MCV
   geom_point(size=1.8, alpha=0.8) +
  # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
  scale_colour_viridis(option="rocket", discrete=FALSE, name="MCV (fl)") +  
@@ -1580,7 +1593,7 @@ cens.trbc.link.model <- glm(cens.index ~ trbc, data=cens.ss.mean, family=gaussia
   theme(plot.margin = unit(c(0.0,0.0,0.0,0.0), "cm")) +  # top, right, bottom, left
   theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=10))
  )
-ggsave(FigS2_D, filename="FigS2_D_CeNSindex_by_TRBC_2022-01-22.pdf", height=7, width=9, units="in")
+ggsave(FigS3_D, filename="FigS2_D_CeNSindex_by_TRBC_2022-01-22.pdf", height=7, width=9, units="in")
 
 
 #### FINAL PLOT #####
@@ -1588,251 +1601,17 @@ ggsave(FigS2_D, filename="FigS2_D_CeNSindex_by_TRBC_2022-01-22.pdf", height=7, w
 library(patchwork)
 # Alternative layout option = BETTER, USE THIS ONE:
 # Alternative layout option = BETTER, USE THIS ONE:
-FigureS6_CensSupp <- ((FigS2_A + FigS2_B) / (FigS2_C + FigS2_D) ) #+
+FigureS3_CensSupp <- ((FigS3_A + FigS3_B) / (FigS3_C + FigS3_D) ) #+
                                   #  plot_layout(widths=c(1,1), heights = unit(c(3,3), c('cm', 'cm', 'cm'))) 
                                 # widths = says make col 1 have 2x the width of column 2
                                 # heights = controlling size in cm, order: 1st row, 2nd row, 3rd row
-plot(FigureS6_CensSupp)
-ggsave(FigureS6_CensSupp, filename = "FigureS6_CensSupp_2022-01-22.pdf", bg="transparent", height=6.8, width=7.4, units="in")
-```
-
-
-# FIGURE S3: Boxplot of Hb genotype and CeNS index
-Figure S3 in paper. The version of this plot in the HumBlood_CeNS script is for diagnostics. 
-```{r}
-# HB GENOTYPE DOES NOT AFFECT CENS INDEX
-(FigureS3 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
-       # facet_wrap(~sex, nrow=2) + 
-        geom_boxplot(aes(fill = factor(genotype)), outlier.size=2.0, alpha=0.7) +
-        #geom_signif(comparisons = list(c("Gly-Gly", "Gly-Ser", "Ser-Ser")), map_signif_level=TRUE) + # Note sig diffs    
-        geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
-        stat_summary(fun=mean, colour="firebrick1", geom="point", shape=18, size=6) + # Red diamonds at mean 
-        theme_classic() +   # theme_classic() removes all gridlines; theme_bw() retains subtle nice gridlines           
-        theme(panel.grid.minor = element_blank()) +
-        #scale_fill_brewer(palette="RdYlGn") + 
-         scale_fill_viridis(option="viridis", discrete=TRUE) + # for Viridis palettes
-        labs(y="CeNS Index", # Hella confusing formatting for x and y axis labels 
-             x="Hb Genotype") +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-        theme(legend.position = "none") +
-        theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
-)
-ggsave(FigureS3, filename="CensIndex_vs_Genotype_2022_01-22.pdf", height=5, width=7, units="in")
-```
-
-
-# FIGURE S4: in `HumBlood_CeNS.Rmd` script, contmap showing CeNS across the phylogeny
-
-
-# FIGURE S5: CENS DIAGNOSTIC PLOT - correlations between R^2, TRBC estimates, and MCV estimates
-Read in data if necessary: 
-```{r}
-cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-14-21.csv", stringsAsFactors = FALSE)
-cens.ss.mean <- cens.ss.mean[ , !(colnames(cens.ss.mean) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
-cens.unst.trbc <- read.csv("cens.unst.trbc_Values_06-14-21.csv")
-cens.unst.mcv <- read.csv("cens.unst.mcv_Values_06-14-21.csv")
-```
-
-```{r}
-# Firstly, Let's assess possible correlation between the CeNS index and better fitting models - do better or worse fitting # models consistently have certain CeNS values? 
-
-# Scatterplot: CeNS Index v. R^2 
-(s5.1 <- ggplot(cens.ss.mean, aes(x=cens.R2, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x=expression(CeNS~Model~italic(R)^{2}), y="CeNS Index (0-1)") + # CeNS index = (TRBC/MCV+TRBC)
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=0.8, y=0.70, label = "italic(R) ^ 2 == 0.06", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=0.8, y=0.68, label = "italic(r) == -0.23", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s5.1, filename="CensIndex_Versus_R^2.pdf", height=7, width=9, units="in")
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.R2")])
-# No correlation between R^2 values and the CeNS index: value = -0.23
-
-# Quick linear model 
-cens.R2.index.model <- glm(cens.index ~ cens.R2, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.R2.index.model)
-Anova(cens.R2.index.model, type=3)
-lm_diag_plots(cens.R2.index.model)
-(1 - (cens.R2.index.model$deviance/cens.R2.index.model$null.deviance)) # R^2 = 0.06
-
-# Answer: No! Cens index is *not* correlated with R^2 values from models. This is good, suggests there isn't an 
-# artifactual pattern of better or worse fitting models producing similar CeNS values. 
-
-
-####
-
-# Is cens.index correlated with STANDARDIZED TRBC estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
-(s5.2 <- ggplot(cens.ss.mean, aes(x=cens.trbc, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS TRBC Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.27", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s5.2, filename="CeNSIndex_Versus_StandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
-# Coeligena coeligena is the super weird outlier point 
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.trbc")])
-# No correlation between R^2 values and the CeNS index: value = -0.27
-
-# Quick linear model 
-cens.index.sttrbc.model <- glm(cens.index ~ cens.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.sttrbc.model)
-Anova(cens.index.sttrbc.model, type=3)
-lm_diag_plots(cens.index.sttrbc.model)
-(1 - (cens.index.sttrbc.model$deviance/cens.index.sttrbc.model$null.deviance)) # R^2 = 0.07
-
-
-# Is cens.index correlated with UNSTNDARDIZED TRBC estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
-(s5.3 <- ggplot(cens.ss.mean, aes(x=trbc.unst, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
- # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS TRBC Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.26", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s5.3, filename="CeNSIndex_Versus_UnstandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
-# Coeligena coeligena is the super weird outlier point 
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.unst.trbc")])
-# No correlation between R^2 values and the CeNS index: value = -0.26
-
-# Quick linear model 
-cens.index.unsttrbc.model <- glm(cens.index ~ cens.unst.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.unsttrbc.model)
-Anova(cens.index.unsttrbc.model, type=3)
-lm_diag_plots(cens.index.unsttrbc.model)
-(1 - (cens.index.unsttrbc.model$deviance/cens.index.unsttrbc.model$null.deviance)) # R^2 = 0.07
-
-# Answer: No! Cens index is *not* correlated with unstandardized TRBC values from models. 
-
-
-##### 
-
-# Is cens.index correlated with STANDARDIZED MCV estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
-(s5.4 <- ggplot(cens.ss.mean, aes(x=cens.mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
-  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS MCV Model Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.51", parse = TRUE) + # Add R^2 value from lmer model
-  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.71", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s5.4, filename="CeNSIndex_Versus_MCVEstimateStandardized.pdf", height=7, width=9, units="in")
-
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.mcv")])
-# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.7
-
-# Quick linear model 
-cens.index.stmcv.model <- glm(cens.index ~ cens.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.stmcv.model)
-Anova(cens.index.stmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
-lm_diag_plots(cens.index.stmcv.model)
-(1 - (cens.index.stmcv.model$deviance/cens.index.stmcv.model$null.deviance)) # R^2 = 0.51
-
-
-# Is cens.index correlated with UNSTANDARDIZED MCV estimates? 
-
-# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
-(s5.5 <- ggplot(cens.ss.mean, aes(x=mcv.unst, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
-  geom_point(size=2.4, alpha=1.0) +
- # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
-  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
-  theme_classic() + 
-  labs(x="CeNS MCV Model Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
-       # theme(axis.text.x = element_text(hjust = 1)) +
-  theme(legend.position = "right") + 
-  annotate("text", x=0.25, y=0.70, label = "italic(R) ^ 2 == 0.45", parse = TRUE) + # Add R^2 value from lmer model
-    annotate("text", x=0.25, y=0.66, label = "italic(r) == -0.67", parse = TRUE) + # Add r correlation coefficient
-  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
-  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
-         plot.title = element_text(face="bold")) + # This makes panel header bold 
-       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
-  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
-  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
- )
-ggsave(s5.5, filename="CeNSIndex_Versus_MCVEstimateUnstandardized.pdf", height=7, width=9, units="in")
-
-
-# Correlation matrix 
-cor(cens.ss.mean[,c("cens.index", "cens.unst.mcv")])
-# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.67
-
-# Quick linear model 
-cens.index.unstmcv.model <- glm(cens.index ~ cens.unst.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
-summary(cens.index.unstmcv.model)
-Anova(cens.index.unstmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
-lm_diag_plots(cens.index.unstmcv.model)
-(1 - (cens.index.unstmcv.model$deviance/cens.index.unstmcv.model$null.deviance)) # R^2 = 0.45
-
-# Answer: Yes, cens.index is strongly negatively correlated with unstandardized MCV estimates 
-# The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
-
-
-#### FINAL PLOT #####
-
-library(patchwork)
-# Alternative layout option = BETTER, USE THIS ONE:
-FigureS5_5panel_CeNSDiagnostics <- (s5.1 | s5.2 + s5.3 + s5.4 + s5.5 +
-                                    plot_layout(guides = "collect"))
-plot(FigureS5_5panel_CeNSDiagnostics)
-ggsave(FigureS5_5panel_CeNSDiagnostics, filename = "FigureS5_5panel_CeNSDiagnostics_2022-01-22.pdf", bg="transparent", height=6.8, width=12, units="in")
+plot(FigureS3_CensSupp)
+ggsave(FigureS3_CensSupp, filename = "FigureS3_CensSupp_2022-01-22.pdf", bg="transparent", height=6.8, width=7.4, units="in")
 ```
 
 
 
-# FIGURE S6: SPECIES BEHAVE DIFFERENTLY AT EXTREME ELEVS
+# FIGURE S4: SPECIES BEHAVE DIFFERENTLY AT EXTREME ELEVS
 Looking at Figure 2, there's a noticeable difference in TRBC, MCV, and MCH for hummingbird sampled below 4,200 m, and those sampled above 4,200 m. Namely: We see a marked increase in TRBC, and marked decreases in MCV and MCH. We wanted to explore this - Do we find significant differences in cell size, cell volume, and MCH between species sampled <4,200 m and >4,200 m? 
 
 **Note, to create this figure, you must run all code for Figure 3 first (variables and settings are applied there that must be in effect in order to make this. )
@@ -1922,11 +1701,11 @@ round(above4k.mch$coefficients[2]*100, 2)
 ```
 
 
-FIGURE S6 PLOTS. 
+FIGURE S4 PLOTS. 
 ```{r}
 # PLOTS
 # FIGURE S6, PANEL A  
-(FigureS6_PanelA <- final.hmt %>% 
+(FigureS4_PanelA <- final.hmt %>% 
     ggplot(aes(x=mcv, y=trbc)) +
     geom_raster(data=df, aes(x, y, fill=zColor))+ # can add alpha to make this lighter, but doesn't shade well
     scale_fill_viridis(option="rocket", discrete=FALSE, direction=1, name="Predicted\n[Hb]\n(g/dl)")+ 
@@ -1948,10 +1727,10 @@ FIGURE S6 PLOTS.
     theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm")) +  # top, right, bottom, left
     theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
 )
-ggsave(FigureS6_PanelA, filename="FigureS6_PanelA_BananaHeatGradient_ExtremeValues_2022-01-11.pdf", height=5, width=6, units="in")
+ggsave(FigureS4_PanelA, filename="FigureS4_PanelA_BananaHeatGradient_ExtremeValues_2022-01-11.pdf", height=5, width=6, units="in")
 
 # Box plot: Elev cat vs. TRBC 
-(FigureS6_PanelB <- ggplot(final.abovebelow.trbc, aes(x=elev_cat, y=trbc)) +
+(FigureS4_PanelB <- ggplot(final.abovebelow.trbc, aes(x=elev_cat, y=trbc)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(elev_cat)), outlier.size=0.8, alpha=0.7) +
         #geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
@@ -1974,10 +1753,10 @@ ggsave(FigureS6_PanelA, filename="FigureS6_PanelA_BananaHeatGradient_ExtremeValu
         theme(legend.position = "none") +
         theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=8), axis.title=element_text(size=12))
 )
-ggsave(FigureS6_PanelB, filename="AboveBelow_Boxplot_ElevCat-vs-TRBC_2022_01-22.pdf", height=7, width=9, units="in")
+ggsave(FigureS4_PanelB, filename="AboveBelow_Boxplot_ElevCat-vs-TRBC_2022_01-22.pdf", height=7, width=9, units="in")
 
 # Box plot: Elev cat vs. MCV
-(FigureS6_PanelC <- ggplot(final.abovebelow.mcv, aes(x=elev_cat, y=mcv)) +
+(FigureS4_PanelC <- ggplot(final.abovebelow.mcv, aes(x=elev_cat, y=mcv)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(elev_cat)), outlier.size=0.8, alpha=0.7) +
         #geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
@@ -2000,10 +1779,10 @@ ggsave(FigureS6_PanelB, filename="AboveBelow_Boxplot_ElevCat-vs-TRBC_2022_01-22.
         theme(legend.position = "none") +
         theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=8), axis.title=element_text(size=12))
 )
-ggsave(FigureS6_PanelC, filename="AboveBelow_Boxplot_ElevCat-vs-MCV_2022_01-22.pdf", height=7, width=9, units="in")
+ggsave(FigureS4_PanelC, filename="AboveBelow_Boxplot_ElevCat-vs-MCV_2022_01-22.pdf", height=7, width=9, units="in")
 
 # Box plot: Elev cat vs. MCH
-(FigureS6_PanelD <- ggplot(final.abovebelow.mch, aes(x=elev_cat, y=mch)) +
+(FigureS4_PanelD <- ggplot(final.abovebelow.mch, aes(x=elev_cat, y=mch)) +
        # facet_wrap(~sex, nrow=2) + 
         geom_boxplot(aes(fill = factor(elev_cat)), outlier.size=0.8, alpha=0.7) +
        # geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
@@ -2026,17 +1805,17 @@ ggsave(FigureS6_PanelC, filename="AboveBelow_Boxplot_ElevCat-vs-MCV_2022_01-22.p
         theme(legend.position = "none") +
         theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=8), axis.title=element_text(size=12))
 )
-ggsave(FigureS6_PanelD, filename="AboveBelow_Boxplot_ElevCat-vs-MCH_2022_01-22.pdf", height=7, width=9, units="in")
+ggsave(FigureS4_PanelD, filename="AboveBelow_Boxplot_ElevCat-vs-MCH_2022_01-22.pdf", height=7, width=9, units="in")
 
 
 #### FINAL PLOT #####
 
 library(patchwork)
 # Alternative layout option = BETTER, USE THIS ONE:
-FigureS6_4panel_ExtremeSpecies <- (FigureS6_PanelA / (FigureS6_PanelB + FigureS6_PanelC + FigureS6_PanelD) 
+FigureS4_4panel_ExtremeSpecies <- (FigureS4_PanelA / (FigureS4_PanelB + FigureS4_PanelC + FigureS4_PanelD) 
                                     )
-plot(FigureS6_4panel_ExtremeSpecies)
-ggsave(FigureS6_4panel_ExtremeSpecies, filename = "FigureS6_4panel_ExtremeSpecies_2022-01_22.pdf", bg="transparent", height=8.0, width=5.8, units="in")
+plot(FigureS4_4panel_ExtremeSpecies)
+ggsave(FigureS4_4panel_ExtremeSpecies, filename = "FigureS4_4panel_ExtremeSpecies_2022-01_22.pdf", bg="transparent", height=8.0, width=5.8, units="in")
 # I used 8 height and 5 width for Figure 3 blood banana plots 
 
 # You know, on second thought, I hate the way the bottom panel on this figure is squished - plots are long and skinny 
@@ -2044,12 +1823,12 @@ ggsave(FigureS6_4panel_ExtremeSpecies, filename = "FigureS6_4panel_ExtremeSpecie
 # to the dimensions we want in Illustrator: 
 
 # Remake Figure6_PanelA to dimensions we want:
-ggsave(FigureS6_PanelA, filename="FigS6_PanelA_BananaHeatGradient_ExtremeValues_ForFig6Merge_2022-01-22.pdf", height=4, width=6, units="in")
+ggsave(FigureS4_PanelA, filename="FigS4_PanelA_BananaHeatGradient_ExtremeValues_ForFig6Merge_2022-01-22.pdf", height=4, width=6, units="in")
 
 # Join with: 
-FigureS6_BottomPanel <- (FigureS6_PanelB + FigureS6_PanelC + FigureS6_PanelD)
-plot(FigureS6_BottomPanel)
-ggsave(FigureS6_BottomPanel, filename = "FigureS6_BottomPanel_2022-01_22.pdf", bg="transparent", height=4.4, width=6, units="in")
+FigureS4_BottomPanel <- (FigureS4_PanelB + FigureS4_PanelC + FigureS4_PanelD)
+plot(FigureS4_BottomPanel)
+ggsave(FigureS4_BottomPanel, filename = "FigureS4_BottomPanel_2022-01_22.pdf", bg="transparent", height=4.4, width=6, units="in")
 
 # Remember that I manually adjusted width of top and bottom panels in Illustrator to prevent bottom from looking stretchy
 ```
@@ -2058,7 +1837,8 @@ Good post on adding significance bars to plots: https://stackoverflow.com/questi
 
 
 
-# FIGURE S7: BREAK POINT ANALYSIS and mondo figure 
+
+# FIGURE S5: BREAK POINT ANALYSIS and mondo figure 
 Our data show evidence of structure and clear patterns (i.e., slope appears to change in all plots >4,200 m, and there are no points in the bottom right-hand quadrant, for example). These observations made us wonder: Do we see evidence of a break point "threshold" in the data? And, does fitting a segmented or piecewise regression model improve model fits? 
 
 # Break point analysis - load in the data 
@@ -2080,7 +1860,7 @@ final.mchc <- read.csv("HumBlood_final.mchc.csv", stringsAsFactors = TRUE)
 
 
 # Estimation of break points and analysis of data above and below estimated thresholds 
-Based on extensive prelminary analysis (see CUT script), auto-estimating break points in the 'segmented' package doesn't work well for our data because, depending on the dataset, is not typically one glaringly obvious breakpoint. We're taking an informed manual approach described in Crawley 2007 (R book) to iteratively search for a best/best  breakpoint(s) given our data; we'll evaluate their fit with MSE, AIC comparison, and other model diagnostics.
+Based on extensive prelminary analysis (see CUT script), auto-estimating break points in the 'segmented' package doesn't work well for our data because, depending on the dataset, is not typically one glaringly obvious breakpoint. We're taking an informed manual approach described in Crawley 2007 (R book) to iteratively search for a best breakpoint(s) given our data; we'll evaluate their fit with MSE, AIC comparison, and other model diagnostics.
 
 Piecewise regression tutorial RBloggers post (consistent w/ guidance from Crawley 2007 R book): https://www.r-bloggers.com/2012/08/r-for-ecologists-putting-together-a-piecewise-regression/
 
@@ -2790,8 +2570,8 @@ round(mchc.above.raw$coefficients[2]*100, 2) # For every 100-m increase > 3,936 
 ```
 
 
-# FIGURE S7: COMBINED INDIVIDUAL-LEVEL AND SPECIES MEAN DATA IN ONE MASTER PLOT 
-Figure S7 - 6-panel fig w/ relationship between predictors and elevation 
+# FIGURE S5: COMBINED INDIVIDUAL-LEVEL AND SPECIES MEAN DATA IN ONE MASTER PLOT 
+Figure S5 - A 6-panel fig w/ relationship between predictors and elevation 
 ```{r}
 # IMPORTANT! Read in 'final' dataset, set levels and colors for hum_colors above
 
@@ -2843,7 +2623,7 @@ final.mchc.sub <- na.omit(final.mchc.sub)
 ```
 
 
-# Plot master Figure S7
+# Plot master Figure S5
 ```{r}
 # Scatterplots of each of the 6 blood characteristics with elevation, colored by clade
 # Code to set shapes by clade, but this was totally overwhelming
@@ -3202,13 +2982,14 @@ ggsave(box.mchc, filename="AboveBelow_Boxplot_ElevCat-vs-mchc_2021_11-24.pdf", h
 
 
 # WITH BOX PLOTS
-FigS7_BreaksnBox <- (
+FigS5_BreaksnBox <- (
           (p1 + p2 + p3 + p4 + p5 + p6) /
           (box.hb + box.hct + box.trbc + box.mcv + box.mch + box.mchc) 
           + plot_layout(guides = "collect")
           )  
-print(FigS7_BreaksnBox)
-ggsave(FigS7_BreaksnBox, filename = "FigS7_BreaksnBox_BreakpointPlotsAndBoxPlots_2022-01-22.pdf", bg="transparent", height=9, width=9, units="in")
+print(FigS5_BreaksnBox)
+ggsave(FigS5_BreaksnBox, filename = "FigS5_BreaksnBox_BreakpointPlotsAndBoxPlots_2022-01-22.pdf", bg="transparent", height=9, width=9, units="in")
+# Note that this file used to be FigS6, so it's saved under this name on hard drive
 
 # plot layout guides collect was being super janky, so I'm writing this out with a lot of white space on the side and 
 # will manually add legend in Word or Illustrator. 
@@ -3217,13 +2998,14 @@ ggsave(FigS7_BreaksnBox, filename = "FigS7_BreaksnBox_BreakpointPlotsAndBoxPlots
 ```
 
 
-# FIGURE S8: 6-panel figure showing low phylogenetic signal for all mean blood trait values. See Illustrator file where I combined outputs. 
+
+# FIGURE S6: in `HumBlood_CeNS.Rmd` script, contmap showing CeNS across the phylogeny
 
 
-# FIGURE S9: "SIGNIFICANT" CLADE*ELEV INTERACTION FOR [HB]
+# FIGURE S7: "SIGNIFICANT" CLADE*ELEV INTERACTION FOR [HB]
 ```{R}
 # Load in individual-level models for plots 
-load("hb.m4.ce_TopModel_CladeElevInteraction.RData") 
+load("Rdata_files/hb.m4.ce_TopModel_CladeElevInteraction.RData") 
 
 # Note: if you use font_family "Arial" ggsave will have trouble writing this to a pdf because it makes the plot w/ Arial 
 # Narrow and pdf is slightly different; either use family "Helvetica" (or any other), or follow instructions here: 
@@ -3231,7 +3013,7 @@ load("hb.m4.ce_TopModel_CladeElevInteraction.RData")
 
 # Hemoglobin model posterior probability plot 
 color_scheme_set("viridisD")
-FigureS9 <- mcmc_plot(hb.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
+FigureS7 <- mcmc_plot(hb.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z","b_temp.z","b_precip.z",
                         "b_genotypeGlyMSer", "b_genotypeSerMSer", "b_intravar.mass.z", "b_intravar.temp.z", 
                         "b_intravar.precip.z", "b_elev.z:CladeBrilliant", "b_elev.z:CladeCoquette", 
                         "b_elev.z:CladeEmerald", "b_elev.z:CladeHermit", "b_elev.z:CladeMango", "b_elev.z:CladePatagona", 
@@ -3241,10 +3023,244 @@ FigureS9 <- mcmc_plot(hb.m4.ce, variable=c("b_elev.z", "b_elev.pos.z","b_mass.z"
                          point_est="mean") + # mean point est; default is median 
 labs(x="Effect on [Hb]", title = "") + 
 scale_y_discrete(labels=c("Elevation","Elevation Position","Mass", "Temp", "Precip", "Genotype (Gly-Ser)", "Genotype (Ser-Ser)", "Intra Var - Mass", "Intra Var - Temp", "Intra Var - Precip", "Elev*Brilliant", "Elev*Coquette", "Elev*Emerald", "Elev*Hermit", "Elev*Mango", "Elev*Patagona", "Elev*Topaz"))   
-FigureS9
-ggsave(FigureS9, filename = "FigureS9_HbModel_CladeVElevInteraction_PosteriorProbs_2022-01-22.pdf", bg="transparent", height=7, width=9, units="in")
+FigureS7
+ggsave(FigureS7, filename = "FigureS7_HbModel_CladeVElevInteraction_PosteriorProbs_2022-01-22.pdf", bg="transparent", height=7, width=9, units="in")
 summary(hb.m4.ce)
 ```
+
+
+
+# FIGURE S8: CENS DIAGNOSTIC PLOT - correlations between R^2, TRBC estimates, and MCV estimates
+Read in data if necessary: 
+```{r}
+cens.ss.mean <- read.csv("cens.ss.mean_ForCeNSmodeling_06-14-21.csv", stringsAsFactors = FALSE)
+cens.ss.mean <- cens.ss.mean[ , !(colnames(cens.ss.mean) %in% c("X"))] # drop weird X column 1 if reading in from read.csv
+cens.unst.trbc <- read.csv("cens.unst.trbc_Values_06-14-21.csv")
+cens.unst.mcv <- read.csv("cens.unst.mcv_Values_06-14-21.csv")
+```
+
+```{r}
+# Firstly, Let's assess possible correlation between the CeNS index and better fitting models - do better or worse fitting # models consistently have certain CeNS values? 
+
+# Scatterplot: CeNS Index v. R^2 
+(s8.1 <- ggplot(cens.ss.mean, aes(x=cens.R2, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x=expression(CeNS~Model~italic(R)^{2}), y="CeNS Index (0-1)") + # CeNS index = (TRBC/MCV+TRBC)
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=0.8, y=0.70, label = "italic(R) ^ 2 == 0.06", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=0.8, y=0.68, label = "italic(r) == -0.23", parse = TRUE) + # Add r correlation coefficient
+  ggtitle("A") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(s8.1, filename="CensIndex_Versus_R^2.pdf", height=7, width=9, units="in")
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "cens.R2")])
+# No correlation between R^2 values and the CeNS index: value = -0.23
+
+# Quick linear model 
+cens.R2.index.model <- glm(cens.index ~ cens.R2, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.R2.index.model)
+Anova(cens.R2.index.model, type=3)
+lm_diag_plots(cens.R2.index.model)
+(1 - (cens.R2.index.model$deviance/cens.R2.index.model$null.deviance)) # R^2 = 0.06
+
+# Answer: No! Cens index is *not* correlated with R^2 values from models. This is good, suggests there isn't an 
+# artifactual pattern of better or worse fitting models producing similar CeNS values. 
+
+
+####
+
+# Is cens.index correlated with STANDARDIZED TRBC estimates? 
+
+# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
+(s8.2 <- ggplot(cens.ss.mean, aes(x=cens.trbc, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="CeNS TRBC Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.27", parse = TRUE) + # Add r correlation coefficient
+  ggtitle("B") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(s8.2, filename="CeNSIndex_Versus_StandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
+# Coeligena coeligena is the super weird outlier point 
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "cens.trbc")])
+# No correlation between R^2 values and the CeNS index: value = -0.27
+
+# Quick linear model 
+cens.index.sttrbc.model <- glm(cens.index ~ cens.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.index.sttrbc.model)
+Anova(cens.index.sttrbc.model, type=3)
+lm_diag_plots(cens.index.sttrbc.model)
+(1 - (cens.index.sttrbc.model$deviance/cens.index.sttrbc.model$null.deviance)) # R^2 = 0.07
+
+
+# Is cens.index correlated with UNSTNDARDIZED TRBC estimates? 
+
+# Scatterplot: CeNS Index v. unstandardized cens trbc estimate   
+(s8.3 <- ggplot(cens.ss.mean, aes(x=trbc.unst, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+ # geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="CeNS TRBC Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.07", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.26", parse = TRUE) + # Add r correlation coefficient
+  ggtitle("C") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(s8.3, filename="CeNSIndex_Versus_UnstandardizedTRBCEstimate.pdf", height=7, width=9, units="in")
+# Coeligena coeligena is the super weird outlier point 
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "cens.unst.trbc")])
+# No correlation between R^2 values and the CeNS index: value = -0.26
+
+# Quick linear model 
+cens.index.unsttrbc.model <- glm(cens.index ~ cens.unst.trbc, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.index.unsttrbc.model)
+Anova(cens.index.unsttrbc.model, type=3)
+lm_diag_plots(cens.index.unsttrbc.model)
+(1 - (cens.index.unsttrbc.model$deviance/cens.index.unsttrbc.model$null.deviance)) # R^2 = 0.07
+
+# Answer: No! Cens index is *not* correlated with unstandardized TRBC values from models. 
+
+
+##### 
+
+# Is cens.index correlated with STANDARDIZED MCV estimates? 
+
+# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
+(s8.4 <- ggplot(cens.ss.mean, aes(x=cens.mcv, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="CeNS MCV Model Estimate\n(Standardized)", y="") + # Remove CeNS index y-axis label for shared plot
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=3.2, y=0.70, label = "italic(R) ^ 2 == 0.51", parse = TRUE) + # Add R^2 value from lmer model
+  annotate("text", x=3.2, y=0.66, label = "italic(r) == -0.71", parse = TRUE) + # Add r correlation coefficient
+  ggtitle("D") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(s8.4, filename="CeNSIndex_Versus_MCVEstimateStandardized.pdf", height=7, width=9, units="in")
+
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "cens.mcv")])
+# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.7
+
+# Quick linear model 
+cens.index.stmcv.model <- glm(cens.index ~ cens.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.index.stmcv.model)
+Anova(cens.index.stmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
+lm_diag_plots(cens.index.stmcv.model)
+(1 - (cens.index.stmcv.model$deviance/cens.index.stmcv.model$null.deviance)) # R^2 = 0.51
+
+
+# Is cens.index correlated with UNSTANDARDIZED MCV estimates? 
+
+# Scatterplot: CeNS Index v. unstandardized cens MCV estimate   
+(s8.5 <- ggplot(cens.ss.mean, aes(x=mcv.unst, y=cens.index)) + # Add shape=Clade here to get shapes to work properly
+  geom_point(size=2.4, alpha=1.0) +
+ # geom_text(aes(label=species),hjust=0, vjust=0) + # UNCOMMENT TO ADD SPECIES LABELS TO POINTS
+  geom_smooth(method = "lm", colour="black", size=1.0) + # linear 
+  theme_classic() + 
+  labs(x="CeNS MCV Model Estimate\n(Unstandardized)", y="") + # Remove CeNS index y-axis label for shared plot
+       # theme(axis.text.x = element_text(hjust = 1)) +
+  theme(legend.position = "right") + 
+  annotate("text", x=0.25, y=0.70, label = "italic(R) ^ 2 == 0.45", parse = TRUE) + # Add R^2 value from lmer model
+    annotate("text", x=0.25, y=0.66, label = "italic(r) == -0.67", parse = TRUE) + # Add r correlation coefficient
+  ggtitle("E") + # Assign panel number/header; this will be (a) because first in series of 3
+  theme(plot.title.position = "plot", # parameter "plot" specifies that you want "title" flush with y-axis
+         plot.title = element_text(face="bold")) + # This makes panel header bold 
+       # This is good for labeling figure panels! Avoids having to manually toy w/ hjust and vjust
+  theme(plot.margin = unit(c(0.2,0.1,0.0,0.2), "cm")) +  # top, right, bottom, left
+  theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=10), axis.title=element_text(size=12))
+ )
+ggsave(s8.5, filename="CeNSIndex_Versus_MCVEstimateUnstandardized.pdf", height=7, width=9, units="in")
+
+
+# Correlation matrix 
+cor(cens.ss.mean[,c("cens.index", "cens.unst.mcv")])
+# Fairly strong negative correlation between CeNS index and unstandardized MCV values: value = -0.67
+
+# Quick linear model 
+cens.index.unstmcv.model <- glm(cens.index ~ cens.unst.mcv, data=cens.ss.mean, family=gaussian(), na.action=na.fail)
+summary(cens.index.unstmcv.model)
+Anova(cens.index.unstmcv.model, type=3) # yes, unstandardized MCV is a significant predictor of CeNS index
+lm_diag_plots(cens.index.unstmcv.model)
+(1 - (cens.index.unstmcv.model$deviance/cens.index.unstmcv.model$null.deviance)) # R^2 = 0.45
+
+# Answer: Yes, cens.index is strongly negatively correlated with unstandardized MCV estimates 
+# The higher the unstandardized MCV coefficient, the lower the CeNS index (aka, greater contribution of)
+
+
+#### FINAL PLOT #####
+
+library(patchwork)
+# Alternative layout option = BETTER, USE THIS ONE:
+FigureS8_5panel_CeNSDiagnostics <- (s8.1 | s8.2 + s8.3 + s8.4 + s8.5 +
+                                    plot_layout(guides = "collect"))
+plot(FigureS8_5panel_CeNSDiagnostics)
+ggsave(FigureS8_5panel_CeNSDiagnostics, filename = "FigureS8_5panel_CeNSDiagnostics_2022-01-22.pdf", bg="transparent", height=6.8, width=12, units="in")
+```
+
+
+
+# FIGURE S9: Boxplot of Hb genotype and CeNS index
+Figure S9 in paper. The version of this plot in the HumBlood_CeNS script is for diagnostics. 
+```{r}
+# HB GENOTYPE DOES NOT AFFECT CENS INDEX
+(FigureS9 <- ggplot(cens.ss.mean, aes(x=genotype, y=cens.index)) +
+       # facet_wrap(~sex, nrow=2) + 
+        geom_boxplot(aes(fill = factor(genotype)), outlier.size=2.0, alpha=0.7) +
+        #geom_signif(comparisons = list(c("Gly-Gly", "Gly-Ser", "Ser-Ser")), map_signif_level=TRUE) + # Note sig diffs    
+        geom_jitter(position = position_jitter(width = 0.01), alpha = 0.5, size = 2.0) +
+        stat_summary(fun=mean, colour="firebrick1", geom="point", shape=18, size=6) + # Red diamonds at mean 
+        theme_classic() +   # theme_classic() removes all gridlines; theme_bw() retains subtle nice gridlines           
+        theme(panel.grid.minor = element_blank()) +
+        #scale_fill_brewer(palette="RdYlGn") + 
+         scale_fill_viridis(option="viridis", discrete=TRUE) + # for Viridis palettes
+        labs(y="CeNS Index", # Hella confusing formatting for x and y axis labels 
+             x="Hb Genotype") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        theme(legend.position = "none") +
+        theme(axis.text.y=element_text(size=10), axis.text.x=element_text(size=12), axis.title=element_text(size=14))
+)
+ggsave(FigureS9, filename="FigureS9_CensIndex_vs_Genotype_2022_01-22.pdf", height=5, width=7, units="in")
+```
+
 
 
 # end of paper plots
@@ -3254,7 +3270,7 @@ summary(hb.m4.ce)
 
 
 # Plot for Chris Brown Bag: 
-Not in paper! 
+Not in paper! This was for a spring 2021 (I think) UNM Bio Brown Bag talk.
 If you want to plot this, read in final.hct from modeling file
 ```{r}
 # Scatterplot: Hct v. elev
